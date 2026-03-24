@@ -3,15 +3,17 @@ import { BpmControl } from './BpmControl'
 import { TransportViz } from './TransportViz'
 import { SampleLoadingIndicator } from './SampleLoadingIndicator'
 import { useSessionStore } from '../../store/session-store'
+import { useUIStore } from '../../store/ui-store'
 
 interface TransportBarProps {
   onToggleDocs?: () => void
   onToggleCheatsheet?: () => void
   onTogglePiano?: () => void
   onToggleRecorder?: () => void
+  isMobile?: boolean
 }
 
-export function TransportBar({ onToggleDocs, onToggleCheatsheet, onTogglePiano, onToggleRecorder }: TransportBarProps) {
+export function TransportBar({ onToggleDocs, onToggleCheatsheet, onTogglePiano, onToggleRecorder, isMobile }: TransportBarProps) {
   const tracks = useSessionStore((s) => s.tracks)
   const anyLocked = tracks.some((t) => t.locked)
   const anyMuted = tracks.some((t) => t.muted)
@@ -28,7 +30,9 @@ export function TransportBar({ onToggleDocs, onToggleCheatsheet, onTogglePiano, 
   }
 
   return (
-    <div className="flex items-center gap-4 px-4 h-14 bg-bg-surface border-t border-border">
+    <div className={`flex items-center gap-3 px-3 bg-bg-surface border-t border-border ${
+      isMobile ? 'flex-wrap py-2 gap-2' : 'h-14 gap-4 px-4'
+    }`}>
       {/* Play / Stop */}
       <PlayButton />
 
@@ -99,6 +103,18 @@ export function TransportBar({ onToggleDocs, onToggleCheatsheet, onTogglePiano, 
         title="Cheatsheet (Cmd+/)"
       >
         ?
+      </button>
+
+      {/* Separator */}
+      <div className="w-px h-6 bg-border" />
+
+      {/* Learn mode switch */}
+      <button
+        onClick={() => useUIStore.getState().setAppMode('learn')}
+        className="px-3 py-1 text-[10px] font-medium text-text-muted hover:text-accent bg-bg-elevated hover:bg-accent/10 rounded transition-colors"
+        title="Switch to Learn Mode"
+      >
+        Learn
       </button>
     </div>
   )

@@ -72,7 +72,6 @@ export const useSessionStore = create<SessionState>((set) => ({
       bpm: template.bpm,
       activeTrackId: tracks[0]?.id ?? null,
       templateId: template.id,
-      isPlaying: false,
     })
   },
 

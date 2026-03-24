@@ -13,10 +13,10 @@ interface SampleLoadingState {
 
 interface UIState {
   showTemplateModal: boolean
-  mode: 'beginner' | 'producer'
+  appMode: 'studio' | 'learn'
   sampleLoading: SampleLoadingState
   setShowTemplateModal: (show: boolean) => void
-  setMode: (mode: 'beginner' | 'producer') => void
+  setAppMode: (mode: 'studio' | 'learn') => void
   setSampleLoadingTotal: (total: number) => void
   onBankLoaded: (success: boolean) => void
   setSampleLoadingDone: () => void
@@ -24,10 +24,10 @@ interface UIState {
 
 export const useUIStore = create<UIState>((set) => ({
   showTemplateModal: true,
-  mode: 'beginner',
+  appMode: 'studio',
   sampleLoading: { totalBanks: 0, loadedBanks: 0, failedBanks: 0, done: false },
   setShowTemplateModal: (showTemplateModal) => set({ showTemplateModal }),
-  setMode: (mode) => set({ mode }),
+  setAppMode: (appMode) => set({ appMode }),
   setSampleLoadingTotal: (total) =>
     set((s) => ({ sampleLoading: { ...s.sampleLoading, totalBanks: total } })),
   onBankLoaded: (success) =>

@@ -273,7 +273,7 @@ export async function stop(): Promise<void> {
   if (engine.evaluateFn) {
     try {
       await engine.evaluateFn('hush()')
-    } catch { /* silent */ }
+    } catch (e) { console.warn('[Strudel Studio] hush() failed:', e) }
   }
 }
 
@@ -286,7 +286,7 @@ export async function setBpm(bpm: number): Promise<void> {
   if (engine.evaluateFn) {
     try {
       await engine.evaluateFn(`setcps(${cps})`)
-    } catch { /* silent */ }
+    } catch (e) { console.warn('[Strudel Studio] setcps() failed:', e) }
   }
 }
 

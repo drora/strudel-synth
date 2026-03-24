@@ -19,15 +19,35 @@ export function TemplatePickerModal() {
       setShowModal(false)
 
       // Auto-play for the 5-second rule
+      // Build track objects from template directly (avoid stale store race condition)
       try {
         await resumeAudioContext()
         await initEngine()
         const state = useSessionStore.getState()
         const code = composeTracks(state.tracks, state.bpm)
-        await evaluateCode(code)
+        if (!code || code.includes('silence')) {
+          // Fallback: compose directly from template data
+          const fallbackTracks = template.tracks.map((t) => ({
+            ...t,
+            id: 'tmp',
+            muted: false,
+            soloed: false,
+            locked: false,
+            volume: 1,
+            error: null,
+          }))
+          const fallbackCode = composeTracks(fallbackTracks, template.bpm)
+          await evaluateCode(fallbackCode)
+        } else {
+          await evaluateCode(code)
+        }
         useSessionStore.getState().setPlaying(true)
       } catch (err) {
         console.error('Auto-play failed:', err)
+        useSessionStore.getState().setError(
+          useSessionStore.getState().tracks[0]?.id ?? '',
+          String(err)
+        )
       }
     },
     [loadTemplate, setShowModal]
@@ -59,7 +79,7 @@ export function TemplatePickerModal() {
         <h1 className="text-2xl font-semibold text-text mb-2">Strudel Studio</h1>
         <p className="text-text-muted mb-6">Pick a template to start making music instantly.</p>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6 max-h-[60vh] overflow-y-auto">
           {templates.map((t) => (
             <button
               key={t.id}

@@ -95,3 +95,22 @@ input[type="number"]::-webkit-inner-spin-button {
 button, input {
   transition: color 0.15s, background-color 0.15s, border-color 0.15s;
 }
+
+/* ── Mobile touch optimizations ── */
+button, input, [role="button"], canvas {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Larger touch targets on coarse pointers (mobile/tablet) */
+@media (pointer: coarse) {
+  input[type="range"]::-webkit-slider-thumb {
+    width: 28px;
+    height: 28px;
+    margin-top: -12.5px;
+  }
+
+  input[type="range"]::-webkit-slider-track {
+    height: 6px;
+  }
+}

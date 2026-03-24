@@ -6,9 +6,10 @@ import { ROLE_PRESETS } from '../../engine/presets'
 interface TrackItemProps {
   track: Track
   index: number
+  onSelect?: () => void
 }
 
-export function TrackItem({ track }: TrackItemProps) {
+export function TrackItem({ track, onSelect }: TrackItemProps) {
   const activeTrackId = useSessionStore((s) => s.activeTrackId)
   const setActiveTrack = useSessionStore((s) => s.setActiveTrack)
   const toggleMute = useSessionStore((s) => s.toggleMute)
@@ -32,7 +33,7 @@ export function TrackItem({ track }: TrackItemProps) {
         border-b border-border cursor-pointer transition-colors
         ${isActive ? 'bg-bg-elevated' : 'hover:bg-bg-elevated/50'}
       `}
-      onClick={() => setActiveTrack(track.id)}
+      onClick={() => { setActiveTrack(track.id); onSelect?.() }}
     >
       {/* Track header with M/S always visible */}
       <div className="flex items-center gap-1.5 px-3 py-1.5">
