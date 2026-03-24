@@ -242,6 +242,19 @@ export async function initEngine(): Promise<void> {
     return
   }
 
+  // Polyfill speechSynthesis.getVoices() for environments where
+  // SpeechSynthesis is unavailable (mobile Safari, restricted contexts).
+  // Strudel's initStrudel() internally calls getVoices() and crashes
+  // with "Object.getPrototypeOf(voice)" when voices are undefined.
+  if (typeof globalThis.speechSynthesis === 'undefined') {
+    (globalThis as any).speechSynthesis = { getVoices: () => [], speak: () => {}, cancel: () => {} }
+  } else if (typeof globalThis.speechSynthesis.getVoices === 'function') {
+    const origGetVoices = globalThis.speechSynthesis.getVoices.bind(globalThis.speechSynthesis)
+    globalThis.speechSynthesis.getVoices = () => {
+      try { return origGetVoices() || [] } catch { return [] }
+    }
+  }
+
   const { initStrudel } = await import('@strudel/web')
   const res = await initStrudel({
     prebake: async () => {
