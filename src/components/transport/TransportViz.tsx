@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useSessionStore } from '../../store/session-store'
+import { liveUpdateEngine } from '../../engine/live-update'
 
 type VizMode = 'spectrum' | 'levels'
 
@@ -38,8 +39,7 @@ export function TransportViz() {
       return
     }
 
-    const cps = bpm / 60 / 4
-    // Simulated "frequency" data driven by beat timing
+    // cycle from liveUpdateEngine (same clock as updater)
     const barCount = 24
     const barValues = new Float32Array(barCount)
     const barTargets = new Float32Array(barCount)
@@ -47,8 +47,8 @@ export function TransportViz() {
     const draw = () => {
       ctx.clearRect(0, 0, w, h)
 
-      const now = performance.now() / 1000
-      const cycle = (now * cps) % 1
+      const cycleAbs = liveUpdateEngine.getCurrentCycle()
+      const cycle = ((cycleAbs % 1) + 1) % 1
       const beat = (cycle * 4) % 1
       const pulseIntensity = Math.max(0, 1 - beat * 4)
 

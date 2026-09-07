@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { useSessionStore } from '../../store/session-store'
 import { EffectKnob } from './EffectKnob'
+import { liveUpdateEngine } from '../../engine/live-update'
 
 interface EffectParam {
   name: string
@@ -108,6 +109,10 @@ export function EffectsPanel() {
       if (!activeTrack) return
       const newCode = setEffectInCode(activeTrack.code, key, value)
       setCode(activeTrack.id, newCode)
+      liveUpdateEngine.markDirty()
+      if (useSessionStore.getState().isPlaying) {
+        liveUpdateEngine.queueUpdate("1", "effects")
+      }
     },
     [activeTrack, setCode]
   )
