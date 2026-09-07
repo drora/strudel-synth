@@ -7,6 +7,10 @@ export function getAudioContext(): AudioContext {
   return audioCtx
 }
 
+export function getAudioContextState(): AudioContextState | 'missing' {
+  return audioCtx?.state ?? 'missing'
+}
+
 export async function resumeAudioContext(): Promise<void> {
   const ctx = getAudioContext()
   if (ctx.state === 'suspended') {
