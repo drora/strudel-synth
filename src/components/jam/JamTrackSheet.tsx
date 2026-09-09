@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useSessionStore } from '../../store/session-store'
-import { useUIStore } from '../../store/ui-store'
 import { useJamStore } from '../../store/jam-store'
 import {
   SOUND_CHOICES,
@@ -10,10 +9,12 @@ import {
 import {
   parseEffectValue,
   setEffectInCode,
+  removeEffectFromCode,
   isPatternedEffect,
 } from '../../engine/code-effects'
 import { liveUpdateEngine } from '../../engine/live-update'
 import type { Track } from '../../engine/types'
+import { queueJam } from './jam-shell-utils'
 
 /** Lean Jam FX — stepped chips; mirrors EffectsPanel keys via code-effects. */
 const JAM_FX_CONTROLS: Array<{
@@ -31,14 +32,6 @@ const JAM_FX_CONTROLS: Array<{
 
 const VOL_STEPS = [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5]
 
-function queueJam(reason: 'kit' | 'jam' | 'reshuffle' | 'mute-solo' = 'jam') {
-  if (!useSessionStore.getState().isPlaying) return
-  const q = useUIStore.getState().getEffectiveQuantization(
-    useSessionStore.getState().activeTrackId,
-  )
-  liveUpdateEngine.queueUpdate(q, reason)
-}
-
 interface JamTrackSheetProps {
   track: Track
 }
@@ -48,6 +41,8 @@ type SheetTab = 'sound' | 'fx' | 'mix'
 export function JamTrackSheet({ track }: JamTrackSheetProps) {
   const [sheetTab, setSheetTab] = useState<SheetTab>('sound')
   const live = useSessionStore((s) => s.tracks.find((t) => t.id === track.id)) ?? track
+
+  const close = () => useJamStore.getState().setSoundTrackId(null)
 
   const applySound = (choice: SoundChoice) => {
     const jam = useJamStore.getState()
@@ -59,7 +54,7 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
     const next = applySoundChoiceToCode(live.code, choice)
     useSessionStore.getState().setCode(live.id, next)
     jam.setLastPeek(`Sound · ${choice.label}`)
-    jam.setSoundTrackId(null)
+    // Keep sheet open so user can keep browsing sounds / FX / Mix.
     queueJam('kit')
   }
 
@@ -69,14 +64,23 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
       return
     }
     const jam = useJamStore.getState()
+    const current = parseEffectValue(live.code, key)
+    // Second click on the active chip removes the effect; otherwise apply/replace.
+    const removing = current !== null && current === value
     jam.pushUndo({
       trackId: live.id,
       code: live.code,
-      label: `FX · ${key}(${value})`,
+      label: removing ? `FX · clear ${key}` : `FX · ${key}(${value})`,
     })
-    const next = setEffectInCode(live.code, key, value)
+    const next = removing
+      ? removeEffectFromCode(live.code, key)
+      : setEffectInCode(live.code, key, value)
     useSessionStore.getState().setCode(live.id, next)
-    jam.setLastPeek(`FX · ${live.name} · ${key} ${value}`)
+    jam.setLastPeek(
+      removing
+        ? `FX · ${live.name} · ${key} off`
+        : `FX · ${live.name} · ${key} ${value}`,
+    )
     liveUpdateEngine.markDirty()
     queueJam('jam')
   }
@@ -110,8 +114,17 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
   ]
 
   return (
-    <div className="fixed inset-0 z-40 bg-black/70 flex items-end sm:items-center justify-center p-3">
-      <div className="w-full max-w-md rounded-2xl bg-bg-elevated border border-border p-4 space-y-3 max-h-[85vh] overflow-y-auto">
+    <div
+      className="fixed inset-0 z-40 bg-black/70 flex items-end sm:items-center justify-center p-3"
+      onClick={close}
+      role="presentation"
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-bg-elevated border border-border p-4 space-y-3 max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label={`${live.name} sound FX mix`}
+      >
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <div className="text-sm font-semibold truncate" style={{ color: live.color }}>
@@ -119,19 +132,29 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
               {live.muted ? ' · M' : ''}
             </div>
           </div>
-          <div className="flex rounded-lg border border-border overflow-hidden text-[11px] shrink-0">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setSheetTab(tab.id)}
-                className={`min-h-9 px-3 capitalize ${
-                  sheetTab === tab.id ? 'bg-accent text-bg' : 'text-text-muted'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex rounded-lg border border-border overflow-hidden text-[11px]">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setSheetTab(tab.id)}
+                  className={`min-h-9 px-3 capitalize ${
+                    sheetTab === tab.id ? 'bg-accent text-bg' : 'text-text-muted'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={close}
+              className="min-h-9 min-w-9 rounded-lg text-xs text-text-muted border border-border hover:text-text"
+              aria-label="Close"
+            >
+              ✕
+            </button>
           </div>
         </div>
 
@@ -175,6 +198,11 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
                             ? 'border-accent bg-accent/20 text-accent'
                             : 'border-border text-text-muted'
                         } disabled:opacity-40`}
+                        title={
+                          !patterned && current === v
+                            ? `Remove ${fx.label}`
+                            : `Set ${fx.label} ${v}`
+                        }
                       >
                         {v}
                       </button>
@@ -252,7 +280,7 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
           <button
             type="button"
             className="flex-1 min-h-11 text-xs text-text-muted border border-border rounded-xl"
-            onClick={() => useJamStore.getState().setSoundTrackId(null)}
+            onClick={close}
           >
             Done
           </button>
