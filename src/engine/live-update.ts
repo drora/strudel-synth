@@ -11,6 +11,9 @@ export type QueueReason =
   | 'mute-solo'
   | 'reshuffle'
   | 'hotkey'
+  | 'kit'
+  | 'jam'
+  | 'section'
 
 interface PendingUpdate {
   quantization: Quantization

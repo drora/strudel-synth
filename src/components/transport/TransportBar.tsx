@@ -6,9 +6,8 @@ import { SampleLoadingIndicator } from './SampleLoadingIndicator'
 import { useSessionStore } from '../../store/session-store'
 import { useUIStore, QUANT_OPTIONS } from '../../store/ui-store'
 import type { Quantization } from '../../engine/live-update'
-import { liveUpdateEngine } from '../../engine/live-update'
-import { composeTracks, initEngine, evaluateCode, maybeLoadCommunityBanks } from '../../engine/strudel'
-import { ensureAudioUnlocked, getAudioContextState } from '../../engine/audio-context'
+import { getAudioContextState } from '../../engine/audio-context'
+import { startOrQueueUpdate } from '../../engine/playback'
 import { ArrangementLite, SessionControls, useSessionManager } from '../session/SessionManager'
 
 interface TransportBarProps {
@@ -18,30 +17,6 @@ interface TransportBarProps {
   onToggleRecorder?: () => void
   isMobile?: boolean
 }
-
-async function startOrQueueUpdate(quant: Quantization) {
-  const state = useSessionStore.getState()
-  if (state.isPlaying) {
-    liveUpdateEngine.queueUpdate(quant, 'manual')
-    return
-  }
-  const unlock = await ensureAudioUnlocked()
-  if (!unlock.ok) {
-    useUIStore.getState().setAudioError('Tap Play again — iOS blocked audio')
-    return
-  }
-  useUIStore.getState().setAudioError(null)
-  await initEngine()
-  await ensureAudioUnlocked()
-  state.setPlaying(true)
-  liveUpdateEngine.markPlayStarted()
-  const code = composeTracks(state.tracks, state.bpm)
-  await evaluateCode(code)
-  liveUpdateEngine.markPlayStarted()
-  maybeLoadCommunityBanks()
-}
-
-
 
 function AudioBadge() {
   const [state, setState] = useState(() => getAudioContextState())
@@ -179,6 +154,13 @@ export function TransportBar({
         title="Cheatsheet (Cmd+/)"
       >
         ?
+      </button>
+      <button
+        onClick={() => useUIStore.getState().setAppMode('jam')}
+        className={`${hitSm} font-medium text-accent bg-accent/10 hover:bg-accent/20 rounded transition-colors`}
+        title="Switch to Jam Mode"
+      >
+        Jam
       </button>
       <button
         onClick={() => useUIStore.getState().setAppMode('learn')}

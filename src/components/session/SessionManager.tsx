@@ -199,7 +199,7 @@ export function ArrangementLite({ compact = false }: { compact?: boolean }) {
       const q = useUIStore.getState().getEffectiveQuantization(
         useSessionStore.getState().activeTrackId,
       )
-      liveUpdateEngine.queueUpdate(q, 'manual')
+      liveUpdateEngine.queueUpdate(q, 'section')
     }
     flashMsg(which === 'a' ? 'Recall A' : 'Recall B')
   }

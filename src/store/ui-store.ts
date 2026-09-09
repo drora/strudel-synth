@@ -15,7 +15,7 @@ interface SampleLoadingState {
 
 interface UIState {
   showTemplateModal: boolean
-  appMode: 'studio' | 'learn'
+  appMode: 'studio' | 'learn' | 'jam'
   sampleLoading: SampleLoadingState
   /** Transient banner for iOS audio unlock failures (not persisted). */
   audioError: string | null
@@ -34,7 +34,7 @@ interface UIState {
   pinEffects: boolean
 
   setShowTemplateModal: (show: boolean) => void
-  setAppMode: (mode: 'studio' | 'learn') => void
+  setAppMode: (mode: 'studio' | 'learn' | 'jam') => void
   setSampleLoadingTotal: (total: number) => void
   onBankLoaded: (success: boolean) => void
   setSampleLoadingDone: () => void

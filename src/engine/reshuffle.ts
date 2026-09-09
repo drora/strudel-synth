@@ -1,4 +1,5 @@
 import type { TrackRole } from './types'
+import { splitEffectSuffix, getBankFromCode, setBankInCode } from './code-effects'
 
 const DRUM_PATTERNS = [
   's("bd sd [~ bd] sd")',
@@ -33,48 +34,19 @@ const EFFECTS_SNIPPETS = [
   '.shape(0.3)', '', '',
 ]
 
-/** Effect / sound-chain methods safe to pin across reshuffles. */
-const PINNABLE_EFFECTS = new Set([
-  'lpf', 'hpf', 'lpq', 'hpq', 'bpf', 'bandpass', 'vowel',
-  'room', 'size', 'delay', 'delaytime', 'delayfeedback',
-  'gain', 'shape', 'distort', 'crush', 'coarse',
-  'phaser', 'tremolo', 'pan',
-  'attack', 'decay', 'sustain', 'release',
-  'lpenv', 'lpa', 'lpd', 'lps', 'lpr',
-  'hpenv', 'hpa', 'hpd', 'hps', 'hpr',
-  'fm', 'fmh', 'fmenv', 'fmdecay', 'fmattack', 'fmrelease', 'fmsustain',
-  'speed', 'begin', 'end', 'orbit', 'duck', 'duckattack', 'duckorbit',
-  'sound', 'bank', // keep sound/bank when pinning "effects" broadly
-])
-
-/**
- * Split trailing `.method(...)` calls that look like effects / sound.
- * Nested parens inside args are not supported (good enough for studio code).
- */
-export function splitEffectSuffix(code: string): { head: string; fx: string } {
-  let rest = code.trimEnd()
-  const parts: string[] = []
-  // Match .name( args ) at end — args without nested ()
-  const re = /(\.[a-zA-Z_]\w*\([^()]*\))$/
-  while (true) {
-    const m = rest.match(re)
-    if (!m) break
-    const call = m[1]!
-    const name = call.slice(1, call.indexOf('('))
-    if (!PINNABLE_EFFECTS.has(name)) break
-    parts.unshift(call)
-    rest = rest.slice(0, -call.length).trimEnd()
-  }
-  return { head: rest, fx: parts.join('') }
-}
+const DRUM_ROLES: TrackRole[] = ['drums', 'hihats', 'fx']
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
 function pickN<T>(arr: T[], n: number): T[] {
-  const shuffled = [...arr].sort(() => Math.random() - 0.5)
-  return shuffled.slice(0, n)
+  const copy = [...arr]
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
+  }
+  return copy.slice(0, n)
 }
 
 function generateBassLine(): string {
@@ -103,12 +75,15 @@ function generateArp(): string {
   return `note("<${notes}>*${pick([4, 8])}").sound("${pick(SYNTHS)}").delay(0.5).delaytime(0.125)`
 }
 
-function generateRaw(role: TrackRole, currentCode: string): string {
+function generateRaw(role: TrackRole, currentCode: string, bank?: string | null): string {
+  let next: string
   switch (role) {
     case 'drums':
-      return pick(DRUM_PATTERNS)
+      next = pick(DRUM_PATTERNS)
+      break
     case 'hihats':
-      return pick(HIHAT_PATTERNS)
+      next = pick(HIHAT_PATTERNS)
+      break
     case 'bass':
       return generateBassLine()
     case 'lead':
@@ -118,24 +93,32 @@ function generateRaw(role: TrackRole, currentCode: string): string {
     case 'arp':
       return generateArp()
     case 'fx':
-      return `s("${pick(['cp', 'rim', 'cb', 'perc'])} ${pick(['~', 'rim', 'cp'])}").room(${(0.3 + Math.random() * 0.4).toFixed(1)})`
+      next = `s("${pick(['cp', 'rim', 'cb', 'perc'])} ${pick(['~', 'rim', 'cp'])}").room(${(0.3 + Math.random() * 0.4).toFixed(1)})`
+      break
     default:
       return currentCode
   }
+  const b = bank || getBankFromCode(currentCode) || 'RolandTR909'
+  if (DRUM_ROLES.includes(role)) next = setBankInCode(next, b)
+  return next
 }
 
 export function reshuffleTrack(
   role: TrackRole,
   currentCode: string,
-  opts?: { pinEffects?: boolean },
+  opts?: { pinEffects?: boolean; lockKit?: boolean; bank?: string | null },
 ): string {
-  const next = generateRaw(role, currentCode)
-  if (!opts?.pinEffects) return next
-
-  const { fx } = splitEffectSuffix(currentCode)
-  if (!fx) return next
-
-  // Drop generated trailing effects / sound, then re-append pinned chain
-  const { head } = splitEffectSuffix(next)
-  return head + fx
+  const bank = opts?.bank ?? (opts?.lockKit ? getBankFromCode(currentCode) : getBankFromCode(currentCode))
+  let next = generateRaw(role, currentCode, opts?.lockKit || opts?.bank ? bank : getBankFromCode(currentCode) ?? 'RolandTR909')
+  if (opts?.pinEffects) {
+    const { fx } = splitEffectSuffix(currentCode)
+    if (fx) {
+      const { head } = splitEffectSuffix(next)
+      next = head + fx
+    }
+  } else if (opts?.lockKit && DRUM_ROLES.includes(role)) {
+    const prevBank = getBankFromCode(currentCode)
+    if (prevBank) next = setBankInCode(next, prevBank)
+  }
+  return next
 }

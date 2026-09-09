@@ -3,6 +3,11 @@ import { useSessionStore } from '../../store/session-store'
 import { useUIStore } from '../../store/ui-store'
 import { EffectKnob } from './EffectKnob'
 import { liveUpdateEngine } from '../../engine/live-update'
+import {
+  parseEffectValue,
+  isPatternedEffect,
+  setEffectInCode,
+} from '../../engine/code-effects'
 
 interface EffectParam {
   name: string
@@ -72,37 +77,6 @@ const EFFECT_SECTIONS: EffectSection[] = [
     ],
   },
 ]
-
-/** Scalar number only — returns null for patterned / expression args. */
-function parseEffectValue(code: string, key: string): number | null {
-  const regex = new RegExp(`\\.${key}\\((\\d+\\.?\\d*)\\)`)
-  const match = code.match(regex)
-  return match ? parseFloat(match[1]) : null
-}
-
-/**
- * True when `.key(...)` exists but the argument is not a plain scalar number
- * (mini-notation, sine, expressions, etc.).
- */
-function isPatternedEffect(code: string, key: string): boolean {
-  const call = new RegExp(`\\.${key}\\(([^)]*)\\)`)
-  const m = code.match(call)
-  if (!m) return false
-  const inner = m[1].trim()
-  if (inner.length === 0) return false
-  if (/^\d+\.?\d*$/.test(inner)) return false
-  return true
-}
-
-function setEffectInCode(code: string, key: string, value: number): string {
-  const regex = new RegExp(`\\.${key}\\([^)]*\\)`)
-  const replacement = `.${key}(${value})`
-  if (regex.test(code)) {
-    return code.replace(regex, replacement)
-  }
-  // Append effect at end of code (before any trailing whitespace)
-  return code.trimEnd() + replacement
-}
 
 export function EffectsPanel() {
   const activeTrackId = useSessionStore((s) => s.activeTrackId)
