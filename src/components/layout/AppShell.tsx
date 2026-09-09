@@ -89,7 +89,7 @@ function StudioShell() {
         .join('|')
 
       if (fingerprint !== prevFingerprint && prevFingerprint !== '') {
-        liveUpdateEngine.queueUpdate('immediate')
+        liveUpdateEngine.queueUpdate('immediate', 'mute-solo')
       }
       prevFingerprint = fingerprint
     })
@@ -111,11 +111,17 @@ function StudioShell() {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Enter') {
         e.preventDefault()
         try {
-          await resumeAudioContext()
-          await initEngine()
-          const code = composeTracks(state.tracks, state.bpm)
-          await evaluateCode(code)
-          state.setPlaying(true)
+          if (state.isPlaying) {
+            liveUpdateEngine.queueUpdate('1', 'hotkey')
+          } else {
+            await resumeAudioContext()
+            await initEngine()
+            state.setPlaying(true)
+            liveUpdateEngine.markPlayStarted()
+            const code = composeTracks(state.tracks, state.bpm)
+            await evaluateCode(code)
+            liveUpdateEngine.markPlayStarted()
+          }
         } catch (err) {
           console.error('Eval all error:', err)
         }
@@ -124,6 +130,7 @@ function StudioShell() {
 
       if ((e.ctrlKey || e.metaKey) && e.key === '.') {
         e.preventDefault()
+        liveUpdateEngine.markPlayStopped()
         await stop()
         state.setPlaying(false)
         return
@@ -159,7 +166,7 @@ function StudioShell() {
         if (activeTrack) {
           const newCode = reshuffleTrack(activeTrack.role, activeTrack.code)
           state.setCode(activeTrack.id, newCode)
-          if (state.isPlaying) liveUpdateEngine.queueUpdate('1')
+          if (state.isPlaying) liveUpdateEngine.queueUpdate('1', 'reshuffle')
         }
         return
       }
