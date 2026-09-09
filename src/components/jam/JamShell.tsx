@@ -131,11 +131,16 @@ export function JamShell() {
                       e.preventDefault()
                       openCodeForTrack(t.id)
                     }}
-                    className="min-h-10 px-2.5 py-1 rounded-lg text-[10px] border bg-bg-elevated text-left leading-tight"
+                    className={`min-h-10 px-2.5 py-1 rounded-lg text-[10px] border bg-bg-elevated text-left leading-tight ${
+                      t.muted ? 'opacity-50' : ''
+                    }`}
                     style={{ borderColor: t.color + '88', color: t.color }}
                     title="Sound / FX — right-click for Code"
                   >
-                    <div className="font-medium">{t.name}</div>
+                    <div className="font-medium">
+                      {t.name}
+                      {t.muted ? ' · M' : ''}
+                    </div>
                     {hint && (
                       <div className="opacity-70 truncate max-w-[7rem]">{hint}</div>
                     )}
@@ -182,7 +187,7 @@ export function JamShell() {
           <button
             type="button"
             onClick={j.onNewKit}
-            className="min-h-11 px-3 rounded-xl text-xs font-medium bg-accent/20 text-accent border border-accent/30"
+            className="min-h-11 px-3 rounded-xl text-xs font-medium bg-bg-elevated border border-border"
           >
             New kit
           </button>
