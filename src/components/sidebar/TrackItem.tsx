@@ -38,13 +38,15 @@ export function TrackItem({ track, onSelect }: TrackItemProps) {
       onClick={() => { setActiveTrack(track.id); onSelect?.() }}
     >
       {/* Track header with M/S always visible */}
-      <div className={`flex items-center gap-1.5 px-3 ${isMobile ? 'py-2 min-h-11' : 'py-1.5'}`}>
+      <div className={`flex items-center gap-2 px-3 ${isMobile ? 'py-2.5 min-h-12' : 'py-1.5'}`}>
         <div
-          className="w-2 h-2 rounded-full shrink-0"
+          className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-black/20"
           style={{ backgroundColor: track.color }}
         />
-        <span className="text-xs shrink-0">{preset.icon}</span>
-        <span className="text-xs text-text truncate flex-1">{track.name}</span>
+        <span className={`${isMobile ? 'text-sm' : 'text-xs'} shrink-0`}>{preset.icon}</span>
+        <span className={`${isMobile ? 'text-sm font-medium' : 'text-xs'} text-text truncate flex-1`}>
+          {track.name}
+        </span>
 
         {/* Mute / Solo — always visible */}
         <button
