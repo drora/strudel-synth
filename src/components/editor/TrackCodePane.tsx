@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { EditorView } from '@codemirror/view'
-import { EditorState } from '@codemirror/state'
+import { EditorSelection, EditorState } from '@codemirror/state'
 import { createExtensions } from './extensions'
 import { useSessionStore } from '../../store/session-store'
 import { useUIStore, QUANT_OPTIONS } from '../../store/ui-store'
@@ -111,17 +111,25 @@ export function TrackCodePane({ track, isActive, focusMode = false }: TrackCodeP
 
   const showEditor = !focusMode || isActive
 
+  // Keep CM callbacks stable across re-renders so we never remount the editor.
+  const handleEvaluateRef = useRef(handleEvaluate)
+  const handleStopRef = useRef(handleStop)
+  const handleChangeRef = useRef(handleChange)
+  handleEvaluateRef.current = handleEvaluate
+  handleStopRef.current = handleStop
+  handleChangeRef.current = handleChange
+
   useEffect(() => {
     if (!showEditor || !editorRef.current) return
 
     const extensions = createExtensions({
-      onEvaluate: () => handleEvaluate(),
-      onStop: handleStop,
-      onChange: handleChange,
+      onEvaluate: () => handleEvaluateRef.current(),
+      onStop: () => handleStopRef.current(),
+      onChange: (code) => handleChangeRef.current(code),
     })
 
     const state = EditorState.create({
-      doc: track.code,
+      doc: codeRef.current,
       extensions,
     })
 
@@ -139,16 +147,29 @@ export function TrackCodePane({ track, isActive, focusMode = false }: TrackCodeP
     }
   }, [track.id, showEditor])
 
+  // External store → editor only when docs differ. Never replace on our own keystrokes
+  // (view may be ahead until React commits). Preserve selection so caret does not jump to EOL.
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
-    if (codeRef.current === track.code) return
+    const current = view.state.doc.toString()
+    if (current === track.code) {
+      codeRef.current = track.code
+      return
+    }
 
+    const main = view.state.selection.main
+    const len = track.code.length
     codeRef.current = track.code
     view.dispatch({
       changes: { from: 0, to: view.state.doc.length, insert: track.code },
+      selection: EditorSelection.range(
+        Math.min(main.anchor, len),
+        Math.min(main.head, len),
+      ),
     })
   }, [track.code])
+
 
   const updateBtnClass =
     updateStatus === 'queued'

@@ -7,9 +7,9 @@
 ## Use it
 
 1. **Jam** — pick a vibe/kit, hit Play, Shuffle / Spice / deal cards.
-2. **Tap a track** — Sound|FX sheet (chips write real Strudel code). **+ Track** adds a role with preset code without switching kits.
+2. **Tap a track** — Sound|FX sheet (chips write real Strudel code; sheet stays open while browsing). **M** on the chip mutes. **+ Track** adds a role with preset code without switching kits.
 3. **Edit in Code** / header **`</> Code`** — CodeMirror sheet for that track (Update / Lock / quantize). Stays in Jam; no mode bounce.
-4. **Liveloop** — BPM ring shows cycle phase while playing; **Rec** records mic → sample → selected (or new) track; **A/B** near Kit stashes and punches arrangement variants.
+4. **Liveloop** — BPM ring + per-track phase ticks while playing; **Rec** (red) records mic → sample → track; Stop is neutral (not Rec-red); **A/B** near Kit stashes and punches arrangement variants.
 5. **Learn** — challenges with Check / hints; **Apply to Jam** adds a track and opens its Code sheet.
 
 Mobile: Jam is the default landing; touch targets and sheets are thumb-friendly. Desktop uses the same Jam shell.
@@ -35,7 +35,7 @@ See **[AGENTS.md](./AGENTS.md)** for architecture map, ship rules, and don’ts 
 
 ```
 src/
-  components/jam/       JamShell, JamCodeSheet, JamTrackSheet, kit/deal UI,
+  components/jam/       JamShell, JamTrackChip, JamCodeSheet, JamTrackSheet, kit/deal UI,
                         JamPhaseRing, JamMicRec, JamABToggle
   components/editor/    TrackCodePane + CodeMirror guts
   components/learning/  LearnShell + challenges

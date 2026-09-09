@@ -12,8 +12,9 @@ import { JamAddTrack } from './JamAddTrack'
 import { JamPhaseRing } from './JamPhaseRing'
 import { JamMicRec } from './JamMicRec'
 import { JamABToggle } from './JamABToggle'
-import { trackSoundHint } from './jam-shell-utils'
 import { useJamShell } from './useJamShell'
+import { JamTrackChip } from './JamTrackChip'
+import { usePlayingLoopPhase } from '../../hooks/useLoopPhase'
 
 function openCodeForTrack(trackId: string | null | undefined) {
   if (!trackId) return
@@ -23,6 +24,7 @@ function openCodeForTrack(trackId: string | null | undefined) {
 
 export function JamShell() {
   const j = useJamShell()
+  const { phase } = usePlayingLoopPhase()
   const codeTrackId = useJamStore((s) => s.codeTrackId)
   const codeTrack = j.tracks.find((t) => t.id === codeTrackId)
 
@@ -113,36 +115,17 @@ export function JamShell() {
           )}
           <div className="mt-3 w-full max-w-sm">
             <div className="text-[10px] uppercase tracking-wider text-text-muted text-center mb-1.5">
-              Sounds / FX · tap a track · long-press Code
+              Sounds / FX · tap · M mute · long-press Code
             </div>
             <div className="flex flex-wrap justify-center gap-1.5">
-              {j.tracks.map((t) => {
-                const hint = trackSoundHint(t.code)
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => useJamStore.getState().setSoundTrackId(t.id)}
-                    onContextMenu={(e) => {
-                      e.preventDefault()
-                      openCodeForTrack(t.id)
-                    }}
-                    className={`min-h-10 px-2.5 py-1 rounded-lg text-[10px] border bg-bg-elevated text-left leading-tight ${
-                      t.muted ? 'opacity-50' : ''
-                    }`}
-                    style={{ borderColor: t.color + '88', color: t.color }}
-                    title="Sound / FX — right-click for Code"
-                  >
-                    <div className="font-medium">
-                      {t.name}
-                      {t.muted ? ' · M' : ''}
-                    </div>
-                    {hint && (
-                      <div className="opacity-70 truncate max-w-[7rem]">{hint}</div>
-                    )}
-                  </button>
-                )
-              })}
+              {j.tracks.map((t) => (
+                <JamTrackChip
+                  key={t.id}
+                  track={t}
+                  phase={phase}
+                  isPlaying={j.isPlaying}
+                />
+              ))}
               <JamAddTrack />
             </div>
           </div>
