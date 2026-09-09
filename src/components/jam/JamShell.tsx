@@ -8,6 +8,7 @@ import { JamTrackSheet } from './JamTrackSheet'
 import { JamCodeSheet } from './JamCodeSheet'
 import { JamDealStrip } from './JamDealStrip'
 import { JamKitPicker } from './JamKitPicker'
+import { JamAddTrack } from './JamAddTrack'
 import { trackSoundHint } from './jam-shell-utils'
 import { useJamShell } from './useJamShell'
 
@@ -141,6 +142,7 @@ export function JamShell() {
                   </button>
                 )
               })}
+              <JamAddTrack />
             </div>
           </div>
         </div>
@@ -180,7 +182,7 @@ export function JamShell() {
           <button
             type="button"
             onClick={j.onNewKit}
-            className="min-h-11 px-3 rounded-xl text-xs font-medium bg-bg-elevated border border-border"
+            className="min-h-11 px-3 rounded-xl text-xs font-medium bg-accent/20 text-accent border border-accent/30"
           >
             New kit
           </button>
