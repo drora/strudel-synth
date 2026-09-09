@@ -9,6 +9,9 @@ import { JamCodeSheet } from './JamCodeSheet'
 import { JamDealStrip } from './JamDealStrip'
 import { JamKitPicker } from './JamKitPicker'
 import { JamAddTrack } from './JamAddTrack'
+import { JamPhaseRing } from './JamPhaseRing'
+import { JamMicRec } from './JamMicRec'
+import { JamABToggle } from './JamABToggle'
 import { trackSoundHint } from './jam-shell-utils'
 import { useJamShell } from './useJamShell'
 
@@ -85,31 +88,24 @@ export function JamShell() {
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={() => useJamStore.getState().setShowKitPicker(true)}
-          className="w-full min-h-12 px-4 rounded-xl border border-accent/40 bg-accent/10 text-left flex items-center justify-between gap-2 hover:border-accent transition-colors"
-        >
-          <span className="text-sm font-medium text-accent truncate">
-            Kit · {j.activeKit?.name ?? 'Pick one'}
-          </span>
-          <span className="text-accent shrink-0" aria-hidden>
-            ▾
-          </span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => useJamStore.getState().setShowKitPicker(true)}
+            className="flex-1 min-h-12 px-4 rounded-xl border border-accent/40 bg-accent/10 text-left flex items-center justify-between gap-2 hover:border-accent transition-colors"
+          >
+            <span className="text-sm font-medium text-accent truncate">
+              Kit · {j.activeKit?.name ?? 'Pick one'}
+            </span>
+            <span className="text-accent shrink-0" aria-hidden>
+              ▾
+            </span>
+          </button>
+          <JamABToggle />
+        </div>
 
         <div className="flex flex-col items-center py-2">
-          <div
-            className="relative w-28 h-28 rounded-full border-2 border-accent/40 flex flex-col items-center justify-center"
-            style={{
-              boxShadow: j.isPlaying
-                ? `0 0 ${12 + (j.cyclePulse % 8)}px rgba(167,139,250,0.35)`
-                : undefined,
-            }}
-          >
-            <span className="text-[10px] text-text-muted uppercase">BPM</span>
-            <span className="text-2xl font-semibold tabular-nums">{j.bpm}</span>
-          </div>
+          <JamPhaseRing bpm={j.bpm} isPlaying={j.isPlaying} />
           {j.showKitLoadingBanner && (
             <div className="mt-2 text-[11px] text-accent animate-pulse font-medium">
               Loading kit samples…
@@ -177,6 +173,7 @@ export function JamShell() {
         )}
         <div className="flex items-center gap-2">
           <PlayButton large={!!j.isMobile} />
+          <JamMicRec large={!!j.isMobile} />
           <button
             type="button"
             onClick={j.onShuffle}
