@@ -44,9 +44,18 @@ export const strudelDarkTheme = EditorView.theme(
       color: '#e0e0e8',
     },
     '.cm-tooltip-autocomplete': {
+      '& > ul': {
+        maxHeight: '40vh',
+      },
       '& > ul > li[aria-selected]': {
         backgroundColor: '#a78bfa30',
       },
+    },
+    '.cm-completionDetail': {
+      marginLeft: '0.5em',
+      fontStyle: 'normal',
+      opacity: '0.55',
+      fontSize: '0.85em',
     },
     // Phase 1 + 3 — 16px editor font on touch; slightly roomier line height for thumbs.
     '@media (pointer: coarse)': {
@@ -59,6 +68,23 @@ export const strudelDarkTheme = EditorView.theme(
       },
       '.cm-gutters': {
         minWidth: '2.5rem',
+      },
+      // Info side-panel covers the completion list on phones — hide it.
+      '.cm-completionInfo, .cm-tooltip.cm-completionInfo': {
+        display: 'none !important',
+      },
+      '.cm-tooltip-autocomplete > ul': {
+        maxHeight: '35vh',
+        maxWidth: 'min(92vw, 22rem)',
+      },
+    },
+    '@media (max-width: 640px)': {
+      '.cm-completionInfo, .cm-tooltip.cm-completionInfo': {
+        display: 'none !important',
+      },
+      '.cm-tooltip-autocomplete > ul': {
+        maxHeight: '35vh',
+        maxWidth: 'min(92vw, 22rem)',
       },
     },
   },

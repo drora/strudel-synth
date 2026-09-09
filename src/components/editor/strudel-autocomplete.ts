@@ -15,16 +15,23 @@ import {
 } from './autocomplete-data'
 import type { CursorDocsKind } from './cursor-docs'
 
-/** Ensure every completion exposes a string `info` for the CM info panel. */
+/**
+ * Keep useful docs `info` when present, but never invent a duplicate panel
+ * from the label alone — on mobile the CM info overlay covers the list.
+ */
 function withInfo(options: readonly Completion[]): Completion[] {
   return options.map((opt) => {
-    if (typeof opt.info === 'string' && opt.info.length > 0) return opt
     if (typeof opt.info === 'function') return opt
-    const detail = opt.detail ? ` ${opt.detail}` : ''
-    return {
-      ...opt,
-      info: opt.info ?? `${opt.label}${detail}`,
+    if (typeof opt.info === 'string' && opt.info.length > 0) {
+      // Drop redundant info that only restates the label (e.g. banks).
+      const normalized = opt.info.replace(/^Bank:\s*/i, '').trim()
+      if (normalized === opt.label || opt.info === opt.label) {
+        const { info: _drop, ...rest } = opt
+        return rest
+      }
+      return opt
     }
+    return opt
   })
 }
 
@@ -185,7 +192,7 @@ export const strudelAutocomplete = autocompletion({
   override: [strudelCompletion],
   activateOnTyping: true,
   maxRenderedOptions: 25,
-  // Show the `info` panel beside the selected option (signatures live in autocomplete-data).
+  // Docs `info` panel is useful on desktop; CSS hides it on narrow/coarse viewports.
   defaultKeymap: true,
   icons: true,
   closeOnBlur: true,

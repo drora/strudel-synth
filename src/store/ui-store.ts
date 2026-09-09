@@ -2,15 +2,19 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Quantization } from '../engine/live-update'
 
+export type SampleLoadingPhase = 'idle' | 'prebake' | 'community'
+
 interface SampleLoadingState {
-  /** Total number of community sample banks */
+  /** Total packs/banks in the current loading phase */
   totalBanks: number
-  /** Number of banks loaded so far */
+  /** Number of packs/banks loaded so far */
   loadedBanks: number
-  /** Number of banks that failed */
+  /** Number of packs/banks that failed */
   failedBanks: number
-  /** Whether loading is complete */
+  /** Whether the current phase (or full load) is complete */
   done: boolean
+  /** idle → prebake (CDN packs) → community (deferred GitHub banks) */
+  phase: SampleLoadingPhase
 }
 
 interface UIState {
@@ -36,6 +40,8 @@ interface UIState {
   setShowTemplateModal: (show: boolean) => void
   setAppMode: (mode: 'studio' | 'learn' | 'jam') => void
   setSampleLoadingTotal: (total: number) => void
+  /** Reset counters and start a loading phase (prebake or community). */
+  beginSampleLoading: (total: number, phase: SampleLoadingPhase) => void
   onBankLoaded: (success: boolean) => void
   setSampleLoadingDone: () => void
   setAudioError: (msg: string | null) => void
@@ -59,7 +65,7 @@ export const useUIStore = create<UIState>()(
     (set, get) => ({
       showTemplateModal: true,
       appMode: 'studio',
-      sampleLoading: { totalBanks: 0, loadedBanks: 0, failedBanks: 0, done: false },
+      sampleLoading: { totalBanks: 0, loadedBanks: 0, failedBanks: 0, done: false, phase: 'idle' },
       audioError: null,
 
       defaultQuantization: '1',
@@ -71,6 +77,16 @@ export const useUIStore = create<UIState>()(
       setAppMode: (appMode) => set({ appMode }),
       setSampleLoadingTotal: (total) =>
         set((s) => ({ sampleLoading: { ...s.sampleLoading, totalBanks: total } })),
+      beginSampleLoading: (total, phase) =>
+        set({
+          sampleLoading: {
+            totalBanks: total,
+            loadedBanks: 0,
+            failedBanks: 0,
+            done: false,
+            phase,
+          },
+        }),
       onBankLoaded: (success) =>
         set((s) => ({
           sampleLoading: {
@@ -80,7 +96,13 @@ export const useUIStore = create<UIState>()(
           },
         })),
       setSampleLoadingDone: () =>
-        set((s) => ({ sampleLoading: { ...s.sampleLoading, done: true } })),
+        set((s) => ({
+          sampleLoading: {
+            ...s.sampleLoading,
+            done: true,
+            phase: s.sampleLoading.phase === 'idle' ? 'idle' : s.sampleLoading.phase,
+          },
+        })),
       setAudioError: (audioError) => set({ audioError }),
 
       setDefaultQuantization: (defaultQuantization) => set({ defaultQuantization }),

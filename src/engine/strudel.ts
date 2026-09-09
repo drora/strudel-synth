@@ -66,7 +66,7 @@ async function loadCommunityBanks(): Promise<void> {
   if (engine.communityBanksLoaded || sessionStorage.getItem(SESSION_KEY)) {
     engine.communityBanksLoaded = true
     const ui = useUIStore.getState()
-    ui.setSampleLoadingTotal(COMMUNITY_SAMPLE_BANKS.length)
+    ui.beginSampleLoading(COMMUNITY_SAMPLE_BANKS.length, 'community')
     for (let i = 0; i < COMMUNITY_SAMPLE_BANKS.length; i++) ui.onBankLoaded(true)
     ui.setSampleLoadingDone()
     registerLoadedSamples()
@@ -76,7 +76,7 @@ async function loadCommunityBanks(): Promise<void> {
 
   const BATCH_SIZE = 5
   const BATCH_DELAY = 1500
-  useUIStore.getState().setSampleLoadingTotal(COMMUNITY_SAMPLE_BANKS.length)
+  useUIStore.getState().beginSampleLoading(COMMUNITY_SAMPLE_BANKS.length, 'community')
 
   for (let i = 0; i < COMMUNITY_SAMPLE_BANKS.length; i += BATCH_SIZE) {
     const batch = COMMUNITY_SAMPLE_BANKS.slice(i, i + BATCH_SIZE)
@@ -168,14 +168,41 @@ export async function initEngine(): Promise<void> {
   const { initStrudel } = await import('@strudel/web')
   const res = await initStrudel({
     prebake: async () => {
-      await samples('github:tidalcycles/dirt-samples')
-      // Official Strudel drum-machine banks (RolandTR909 etc.) — required for kit .bank()
+      const ui = useUIStore.getState()
       const DRUM_CDN = 'https://strudel.b-cdn.net'
-      await samples(
-        `${DRUM_CDN}/tidal-drum-machines.json`,
-        `${DRUM_CDN}/tidal-drum-machines/machines/`,
-        { prebake: true, tag: 'drum-machines' },
-      )
+      // dirt + tidal-drum-machines + piano + VCSL + mridangam + uzu-drumkit + uzu-wavetables
+      const PREBAKE_TOTAL = 7
+      ui.beginSampleLoading(PREBAKE_TOTAL, 'prebake')
+
+      const track = async (fn: () => unknown) => {
+        try {
+          await Promise.resolve(fn())
+          ui.onBankLoaded(true)
+        } catch {
+          ui.onBankLoaded(false)
+        }
+      }
+
+      await track(() => samples('github:tidalcycles/dirt-samples'))
+      // Official Strudel CDN packs — drum machines + piano/VCSL/mridangam/uzu
+      await Promise.all([
+        track(() =>
+          samples(
+            `${DRUM_CDN}/tidal-drum-machines.json`,
+            `${DRUM_CDN}/tidal-drum-machines/machines/`,
+            { prebake: true, tag: 'drum-machines' },
+          ),
+        ),
+        track(() => samples(`${DRUM_CDN}/piano.json`, `${DRUM_CDN}/piano/`, { prebake: true })),
+        track(() => samples(`${DRUM_CDN}/vcsl.json`, `${DRUM_CDN}/VCSL/`, { prebake: true })),
+        track(() =>
+          samples(`${DRUM_CDN}/mridangam.json`, `${DRUM_CDN}/mrid/`, { prebake: true, tag: 'drum-machines' }),
+        ),
+        track(() =>
+          samples(`${DRUM_CDN}/uzu-drumkit.json`, `${DRUM_CDN}/uzu-drumkit/`, { prebake: true, tag: 'drum-machines' }),
+        ),
+        track(() => samples(`${DRUM_CDN}/uzu-wavetables.json`, `${DRUM_CDN}/uzu-wavetables/`, { prebake: true })),
+      ])
       try {
         const alias = (globalThis as any).aliasBank
         if (typeof alias === 'function') {
@@ -184,6 +211,12 @@ export async function initEngine(): Promise<void> {
           for (const [k, v] of Object.entries(json)) alias(k, v)
         }
       } catch { /* optional */ }
+
+      // On mobile, community banks are deferred — mark prebake done so Jam/Studio show ready.
+      // On desktop, loadCommunityBanks() will beginSampleLoading('community') next.
+      if (isMobileLike()) {
+        ui.setSampleLoadingDone()
+      }
     },
   })
   engine.evaluateFn = res.evaluate

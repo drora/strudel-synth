@@ -104,8 +104,8 @@ export const STRUDEL_REFERENCE = `
 - Kits: house, techno, jazz, hardcore, gabba, jungle, rave
 - Melodic: pluck, arpy, jvbass, juno, sax, gtr, sitar, pad
 - FX: perc, tabla, metal, mouth, click, noise, space, wind, wobble, hoover, stab
-- NOTE: "piano" and "guitar" are NOT valid sample names. Use gtr for guitar, pluck for plucked sounds, or use note("c3").sound("sine") for pitched synths
-- Banks: RolandTR808, RolandTR909, RolandCompurhythm78
+- NOTE: After piano prebake, \`.sound("piano")\` works for pitched keys. Guitar still uses gtr / pluck.
+- Banks (featured): RolandTR808, RolandTR909, RolandTR707, RolandTR606, RolandTR505, LinnDrum, LinnLM1, AkaiMPC60, EmuSP12, BossDR110, OberheimDMX, RolandCompurhythm78
 - Synth oscillators (use with sound()): sawtooth, square, triangle, sine
 
 ## FM Synthesis

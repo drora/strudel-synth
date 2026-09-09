@@ -16,6 +16,7 @@ import { suggestMutations, applyMutationToTracks, type MutationCard } from '../.
 import { reshuffleTrack } from '../../engine/reshuffle'
 import { liveUpdateEngine } from '../../engine/live-update'
 import { PlayButton } from '../transport/PlayButton'
+import { SampleLoadingIndicator } from '../transport/SampleLoadingIndicator'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useVisualViewportHeight } from '../../hooks/useVisualViewport'
 
@@ -33,6 +34,8 @@ export function JamShell() {
   const tracks = useSessionStore((s) => s.tracks)
   const bpm = useSessionStore((s) => s.bpm)
   const isPlaying = useSessionStore((s) => s.isPlaying)
+  const sampleLoading = useUIStore((s) => s.sampleLoading)
+  const kitSamplesLoading = sampleLoading.phase === 'prebake' && !sampleLoading.done
 
   const vibe = useJamStore((s) => s.vibe)
   const kitId = useJamStore((s) => s.kitId)
@@ -219,7 +222,7 @@ export function JamShell() {
         <button
           type="button"
           onClick={() => useJamStore.getState().setShowKitPicker(true)}
-          className="w-full min-h-12 px-4 rounded-xl border border-accent/40 bg-accent/10 text-left flex items-center justify-between gap-2 hover:border-accent transition-colors"
+          className="w-full max-w-md rounded-xl border border-accent/40 bg-accent/10 text-left flex items-center justify-between gap-2 hover:border-accent transition-colors min-h-12 px-4"
         >
           <span className="text-sm font-medium text-accent truncate">
             Kit · {activeKit?.name ?? 'Pick one'}
@@ -242,6 +245,11 @@ export function JamShell() {
             <span className="text-[10px] text-text-muted uppercase">BPM</span>
             <span className="text-2xl font-semibold tabular-nums">{bpm}</span>
           </div>
+          {kitSamplesLoading && (
+            <div className="mt-2 text-[11px] text-accent animate-pulse">
+              Loading kit samples…
+            </div>
+          )}
           {/* Track sound slots */}
           <div className="flex flex-wrap justify-center gap-1.5 mt-3 max-w-sm">
             {tracks.map((t) => (
@@ -299,7 +307,16 @@ export function JamShell() {
       </div>
 
       {/* Transport */}
-      <div className="shrink-0 border-t border-border px-3 py-2 flex items-center gap-2 safe-pb">
+      <div className="shrink-0 border-t border-border px-3 py-2 flex flex-col gap-1.5 safe-pb">
+        {(kitSamplesLoading || (sampleLoading.totalBanks > 0 && !sampleLoading.done)) && (
+          <div className="flex items-center justify-between gap-2 px-1">
+            <SampleLoadingIndicator compact />
+            {kitSamplesLoading && (
+              <span className="text-[10px] text-accent whitespace-nowrap">Loading kit samples…</span>
+            )}
+          </div>
+        )}
+        <div className="flex items-center gap-2">
         <PlayButton large={!!isMobile} />
         <button
           type="button"
@@ -330,6 +347,7 @@ export function JamShell() {
         >
           {lockKit ? '🔒' : '🔓'}
         </button>
+      </div>
       </div>
 
       {/* Kit picker sheet */}
