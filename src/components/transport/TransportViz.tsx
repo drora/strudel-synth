@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useSessionStore } from '../../store/session-store'
-import { liveUpdateEngine } from '../../engine/live-update'
+import { liveUpdateEngine, type UpdateStatus } from '../../engine/live-update'
 
 type VizMode = 'spectrum' | 'levels'
 
@@ -10,6 +10,7 @@ type VizMode = 'spectrum' | 'levels'
  * - levels: per-track volume level bars
  * Click to toggle between modes.
  * Track dots are always centered above the visualization.
+ * When an update is queued, draws a thin "next boundary" marker aligned to quant.
  */
 export function TransportViz() {
   const isPlaying = useSessionStore((s) => s.isPlaying)
@@ -18,6 +19,9 @@ export function TransportViz() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animRef = useRef<number>(0)
   const [mode, setMode] = useState<VizMode>('spectrum')
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>(() => liveUpdateEngine.getStatus())
+
+  useEffect(() => liveUpdateEngine.subscribe((s) => setUpdateStatus(s)), [])
 
   const toggleMode = useCallback(() => {
     setMode((m) => (m === 'spectrum' ? 'levels' : 'spectrum'))
@@ -51,6 +55,9 @@ export function TransportViz() {
       const cycle = ((cycleAbs % 1) + 1) % 1
       const beat = (cycle * 4) % 1
       const pulseIntensity = Math.max(0, 1 - beat * 4)
+      const status = liveUpdateEngine.getStatus()
+      const boundary = liveUpdateEngine.getBoundaryInfo()
+      const queued = status === 'queued'
 
       // Draw track dots (top row, centered)
       drawTrackDots(ctx, tracks, w, pulseIntensity)
@@ -61,17 +68,57 @@ export function TransportViz() {
         drawLevels(ctx, w, h, tracks, pulseIntensity)
       }
 
-      // Beat position line
+      // Beat / playhead line ("the one" position within the cycle)
       const lineX = cycle * w
-      ctx.fillStyle = 'rgba(167, 139, 250, 0.6)'
+      ctx.fillStyle = queued ? 'rgba(251, 146, 60, 0.85)' : 'rgba(167, 139, 250, 0.6)'
       ctx.fillRect(lineX, 12, 1, h - 12)
+
+      // Thin next-boundary indicator when an update is queued
+      if (queued && boundary.quantInt != null) {
+        const quant = boundary.quantInt
+        // Position of next aligned boundary within the visible 1-cycle strip:
+        // for quant=1 it's at x=0 (or w) — the one; for 2/4 show relative frac of remaining.
+        const nextFrac = ((boundary.nextBoundary % 1) + 1) % 1
+        // When nextBoundary is an integer, marker sits at the left edge (the one).
+        const markerX = nextFrac < 1e-6 ? 0 : nextFrac * w
+
+        ctx.strokeStyle = 'rgba(251, 146, 60, 0.9)'
+        ctx.lineWidth = 1
+        ctx.setLineDash([2, 2])
+        ctx.beginPath()
+        ctx.moveTo(markerX + 0.5, 12)
+        ctx.lineTo(markerX + 0.5, h)
+        ctx.stroke()
+        ctx.setLineDash([])
+
+        // Progress tick along the top of the viz toward the boundary
+        const progW = Math.max(1, boundary.progress * w)
+        ctx.fillStyle = 'rgba(251, 146, 60, 0.35)'
+        ctx.fillRect(0, 12, progW, 2)
+
+        // Tiny label for quant window
+        ctx.fillStyle = 'rgba(251, 146, 60, 0.95)'
+        ctx.font = '8px ui-monospace, monospace'
+        ctx.fillText(`→${quant}`, Math.min(w - 14, Math.max(2, markerX + 3)), 10)
+      } else if (status === 'applied') {
+        // Brief green flash bar
+        ctx.fillStyle = 'rgba(34, 197, 94, 0.35)'
+        ctx.fillRect(0, 12, w, 2)
+      }
 
       animRef.current = requestAnimationFrame(draw)
     }
 
     draw()
     return () => cancelAnimationFrame(animRef.current)
-  }, [isPlaying, bpm, tracks, mode])
+  }, [isPlaying, bpm, tracks, mode, updateStatus])
+
+  const titleExtra =
+    updateStatus === 'queued'
+      ? ' · Update queued — orange dashed line = next boundary'
+      : updateStatus === 'dirty'
+        ? ' · Dirty (not queued)'
+        : ''
 
   return (
     <canvas
@@ -80,7 +127,7 @@ export function TransportViz() {
       height={36}
       className="rounded cursor-pointer"
       onClick={toggleMode}
-      title={`Click to switch to ${mode === 'spectrum' ? 'level meters' : 'spectrum'}`}
+      title={`Click to switch to ${mode === 'spectrum' ? 'level meters' : 'spectrum'}${titleExtra}`}
     />
   )
 }
