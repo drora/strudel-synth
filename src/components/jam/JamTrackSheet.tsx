@@ -80,8 +80,9 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
 
   const editSoundInCode = () => {
     useSessionStore.getState().setActiveTrack(live.id)
-    useJamStore.getState().setSoundTrackId(null)
-    useUIStore.getState().setAppMode('studio')
+    const jam = useJamStore.getState()
+    jam.setSoundTrackId(null)
+    jam.setCodeTrackId(live.id)
   }
 
   return (
