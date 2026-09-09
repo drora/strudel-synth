@@ -3,7 +3,7 @@
 @theme {
   --color-bg: #0a0a0f;
   --color-bg-surface: #12121a;
-  --color-bg-elevated: #1a1a25;
+  --color-bg-elevated: #1c1c28;
   --color-border: #2a2a3a;
   --color-text: #e0e0e8;
   --color-text-muted: #888899;
@@ -29,10 +29,8 @@
 /*
   Soft-keyboard friendly root (Phase 3):
   - Prefer dvh for mobile browser chrome / keyboard.
-  - Do NOT put overflow:hidden on html/body on coarse pointers — that fights
-    visualViewport resize when the software keyboard opens.
-  - #root still clips to the shell; Studio/Learn use useVisualViewportHeight
-    for the actual visible height on mobile.
+  - Safe-area insets for notched iPhones.
+  - Do NOT put overflow:hidden on html/body on coarse pointers.
 */
 html, body {
   height: 100%;
@@ -42,6 +40,9 @@ html, body {
   background-color: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
+  /* iOS notch / home indicator */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 @media (pointer: fine) {
@@ -56,6 +57,7 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding-top: env(safe-area-inset-top);
 }
 
 /* Scrollbar styling */
@@ -113,9 +115,23 @@ input[type="number"]::-webkit-inner-spin-button {
   margin: 0;
 }
 
-/* Smooth transitions */
+/* Smooth transitions + press feedback */
 button, input {
-  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Elevated cards — slightly richer than flat panels */
+.elevated-card {
+  background: var(--color-bg-elevated);
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  border-radius: 0.75rem;
+  box-shadow:
+    0 1px 0 color-mix(in srgb, #fff 4%, transparent),
+    0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 /* ── Mobile touch optimizations ── */
@@ -136,7 +152,6 @@ button, input, [role="button"], canvas {
     height: 6px;
   }
 
-  /* Cheap ~44px bump for small chrome controls that still use tiny padding */
   .touch-target {
     min-width: 44px;
     min-height: 44px;

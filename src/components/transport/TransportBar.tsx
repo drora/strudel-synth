@@ -7,8 +7,8 @@ import { useSessionStore } from '../../store/session-store'
 import { useUIStore, QUANT_OPTIONS } from '../../store/ui-store'
 import type { Quantization } from '../../engine/live-update'
 import { liveUpdateEngine } from '../../engine/live-update'
-import { composeTracks, initEngine, evaluateCode } from '../../engine/strudel'
-import { resumeAudioContext } from '../../engine/audio-context'
+import { composeTracks, initEngine, evaluateCode, maybeLoadCommunityBanks } from '../../engine/strudel'
+import { ensureAudioUnlocked, getAudioContextState } from '../../engine/audio-context'
 import { ArrangementLite, SessionControls, useSessionManager } from '../session/SessionManager'
 
 interface TransportBarProps {
@@ -25,15 +25,47 @@ async function startOrQueueUpdate(quant: Quantization) {
     liveUpdateEngine.queueUpdate(quant, 'manual')
     return
   }
-  await resumeAudioContext()
+  const unlock = await ensureAudioUnlocked()
+  if (!unlock.ok) {
+    useUIStore.getState().setAudioError('Tap Play again — iOS blocked audio')
+    return
+  }
+  useUIStore.getState().setAudioError(null)
   await initEngine()
+  await ensureAudioUnlocked()
   state.setPlaying(true)
   liveUpdateEngine.markPlayStarted()
   const code = composeTracks(state.tracks, state.bpm)
   await evaluateCode(code)
   liveUpdateEngine.markPlayStarted()
+  maybeLoadCommunityBanks()
 }
 
+
+
+function AudioBadge() {
+  const [state, setState] = useState(() => getAudioContextState())
+  const audioError = useUIStore((s) => s.audioError)
+  useEffect(() => {
+    const id = window.setInterval(() => setState(getAudioContextState()), 800)
+    return () => window.clearInterval(id)
+  }, [])
+  const running = state === 'running'
+  const label = audioError ? 'blocked' : state === 'missing' ? 'audio' : state
+  return (
+    <button
+      type="button"
+      title={audioError ?? `AudioContext: ${state}`}
+      onClick={() => { if (audioError) useUIStore.getState().setAudioError(null) }}
+      className={`hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] uppercase tracking-wider font-medium border ${
+        audioError ? 'border-error/40 text-error bg-error/10' : running ? 'border-success/30 text-success/80 bg-success/10' : 'border-border text-text-muted bg-bg-elevated'
+      }`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${audioError ? 'bg-error' : running ? 'bg-success animate-pulse' : 'bg-text-muted'}`} />
+      {label}
+    </button>
+  )
+}
 
 function ShareLinkButton({ className }: { className?: string }) {
   const { copyShareLink } = useSessionManager()
@@ -69,6 +101,7 @@ export function TransportBar({
   const defaultQuantization = useUIStore((s) => s.defaultQuantization)
   const crossfadeSwaps = useUIStore((s) => s.crossfadeSwaps)
   const effectiveQuant = useUIStore((s) => s.getEffectiveQuantization(activeTrackId))
+  const audioError = useUIStore((s) => s.audioError)
   const quantShort =
     QUANT_OPTIONS.find((o) => o.value === effectiveQuant)?.short ?? effectiveQuant
 
@@ -158,13 +191,21 @@ export function TransportBar({
   )
 
   return (
+    <div className="shrink-0 flex flex-col">
+      {audioError && (
+        <div role="status" className="px-3 py-2 text-xs text-error bg-error/10 border-t border-error/30 flex items-center justify-between gap-2">
+          <span>{audioError}</span>
+          <button type="button" className="text-error/80 hover:text-error underline shrink-0" onClick={() => useUIStore.getState().setAudioError(null)}>Dismiss</button>
+        </div>
+      )}
     <div
-      className={`flex items-center bg-bg-surface border-t border-border shrink-0 ${
-        isMobile ? 'flex-wrap gap-2 px-2 py-2' : 'h-14 gap-4 px-4'
+      className={`flex items-center bg-bg-surface/95 backdrop-blur-md border-t border-border shrink-0 ${
+        isMobile ? 'flex-wrap gap-2 px-3 py-2.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]' : 'h-14 gap-4 px-4'
       }`}
     >
       {/* Play / Stop — primary thumb target */}
       <PlayButton large={!!isMobile} />
+      <AudioBadge />
 
       {/* BPM */}
       <BpmControl compact={!!isMobile} />
@@ -406,6 +447,7 @@ export function TransportBar({
           {secondaryToggles}
         </>
       )}
+    </div>
     </div>
   )
 }

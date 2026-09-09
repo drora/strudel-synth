@@ -4,8 +4,8 @@ import { EditorState } from '@codemirror/state'
 import { createExtensions } from './extensions'
 import { useSessionStore } from '../../store/session-store'
 import { useUIStore, QUANT_OPTIONS } from '../../store/ui-store'
-import { stop, composeTracks, initEngine, evaluateCode } from '../../engine/strudel'
-import { resumeAudioContext } from '../../engine/audio-context'
+import { stop, composeTracks, initEngine, evaluateCode, maybeLoadCommunityBanks } from '../../engine/strudel'
+import { ensureAudioUnlocked } from '../../engine/audio-context'
 import { liveUpdateEngine, type UpdateStatus, type Quantization } from '../../engine/live-update'
 import { reshuffleTrack } from '../../engine/reshuffle'
 import { ROLE_PRESETS } from '../../engine/presets'
@@ -24,13 +24,20 @@ async function startOrQueueUpdate(quant: Quantization) {
     liveUpdateEngine.queueUpdate(quant, 'manual')
     return
   }
-  await resumeAudioContext()
+  const unlock = await ensureAudioUnlocked()
+  if (!unlock.ok) {
+    useUIStore.getState().setAudioError('Tap Play again — iOS blocked audio')
+    return
+  }
+  useUIStore.getState().setAudioError(null)
   await initEngine()
+  await ensureAudioUnlocked()
   state.setPlaying(true)
   liveUpdateEngine.markPlayStarted()
   const code = composeTracks(state.tracks, state.bpm)
   await evaluateCode(code)
   liveUpdateEngine.markPlayStarted()
+  maybeLoadCommunityBanks()
 }
 
 export function TrackCodePane({ track, isActive, focusMode = false }: TrackCodePaneProps) {
@@ -203,7 +210,7 @@ export function TrackCodePane({ track, isActive, focusMode = false }: TrackCodeP
         style={{ borderLeftWidth: track.locked ? 0 : 3, borderLeftColor: track.color }}
       >
         <span className="text-xs">{preset.icon}</span>
-        <span className="text-xs font-medium text-text">{track.name}</span>
+        <span className={`${focusMode ? 'text-sm font-semibold tracking-tight' : 'text-xs font-medium'} text-text`}>{track.name}</span>
         <span className="text-[10px] text-text-muted">{preset.label}</span>
         {track.muted && <span className="text-[10px] text-error font-medium">M</span>}
         {track.soloed && <span className="text-[10px] text-accent font-medium">S</span>}

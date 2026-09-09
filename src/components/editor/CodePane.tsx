@@ -3,6 +3,7 @@ import { EditorView } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { createExtensions } from './extensions'
 import { useSessionStore } from '../../store/session-store'
+import { useUIStore } from '../../store/ui-store'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { TrackCodePane } from './TrackCodePane'
 
@@ -82,8 +83,21 @@ function StudioCodePane() {
 
   if (tracks.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-text-muted">
-        Pick a template or add a track to get started
+      <div className="flex flex-col items-center justify-center h-full gap-4 px-6 text-center">
+        <div className="text-4xl opacity-80" aria-hidden>▶</div>
+        <div>
+          <p className="text-text font-medium text-base mb-1">Ready to make music?</p>
+          <p className="text-text-muted text-sm max-w-xs mx-auto">
+            Load a template, then tap Play in the transport bar.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => useUIStore.getState().setShowTemplateModal(true)}
+          className="mt-1 px-6 py-3 rounded-xl bg-accent text-bg font-semibold text-sm shadow-[0_0_20px_rgba(167,139,250,0.35)] hover:bg-accent/90 active:scale-95 transition-all"
+        >
+          Play with a template
+        </button>
       </div>
     )
   }

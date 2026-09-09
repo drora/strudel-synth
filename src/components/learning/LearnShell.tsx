@@ -2,8 +2,8 @@ import { useState, useCallback, useEffect } from 'react'
 import { CodePane } from '../editor/CodePane'
 import { LEVELS, XP_MAX } from './challenge-data'
 import type { Challenge, Level } from './challenge-data'
-import { evaluateCode, initEngine, stop } from '../../engine/strudel'
-import { resumeAudioContext } from '../../engine/audio-context'
+import { evaluateCode, initEngine, stop, maybeLoadCommunityBanks } from '../../engine/strudel'
+import { ensureAudioUnlocked } from '../../engine/audio-context'
 import { useUIStore } from '../../store/ui-store'
 import { useSessionStore } from '../../store/session-store'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -59,10 +59,17 @@ export function LearnShell() {
 
   const handlePlay = useCallback(async () => {
     try {
-      await resumeAudioContext()
+      const unlock = await ensureAudioUnlocked()
+      if (!unlock.ok) {
+        useUIStore.getState().setAudioError('Tap Play again — iOS blocked audio')
+        return
+      }
+      useUIStore.getState().setAudioError(null)
       await initEngine()
+      await ensureAudioUnlocked()
       await evaluateCode(code)
       setIsPlaying(true)
+      maybeLoadCommunityBanks()
     } catch (err) {
       console.error('Learn play error:', err)
     }
@@ -224,23 +231,23 @@ export function LearnShell() {
         )}
 
         {feedback === 'success' && (
-          <div className="bg-success/10 border border-success/30 rounded p-3 mb-4 space-y-2">
+          <div className="bg-success/10 border border-success/30 rounded-xl p-4 mb-4 space-y-3">
             <p className="text-sm text-success font-medium">Correct! +{challenge.xp} XP</p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleNext}
-                className="px-3 py-1 text-xs bg-success/20 text-success rounded hover:bg-success/30 transition-colors"
-              >
-                Next challenge →
-              </button>
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2">
               <button
                 type="button"
                 onClick={handleApplyToStudio}
-                className="px-3 py-1 text-xs bg-accent/20 text-accent rounded hover:bg-accent/30 transition-colors"
+                className="w-full sm:w-auto px-4 py-2.5 text-sm font-semibold bg-accent text-bg rounded-lg hover:bg-accent/90 shadow-[0_0_14px_rgba(167,139,250,0.35)] transition-all active:scale-95"
                 title="Add this code as a new Studio track and switch modes"
               >
-                Apply to Studio
+                Apply to Studio →
+              </button>
+              <button
+                type="button"
+                onClick={handleNext}
+                className="w-full sm:w-auto px-3 py-2 text-xs bg-success/20 text-success rounded-lg hover:bg-success/30 transition-colors"
+              >
+                Next challenge →
               </button>
             </div>
             {level.id === 4 && (
@@ -263,14 +270,14 @@ export function LearnShell() {
   )
 
   const transport = (
-    <div className="h-14 shrink-0 bg-bg-surface border-t border-border flex items-center px-3 sm:px-4 gap-2 sm:gap-3">
+    <div className="h-14 shrink-0 bg-bg-surface/95 backdrop-blur-md border-t border-border flex items-center px-3 sm:px-4 gap-2 sm:gap-3 pb-[max(0px,env(safe-area-inset-bottom))]">
       <button
         type="button"
         onClick={isPlaying ? handleStop : handlePlay}
-        className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+        className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold transition-all active:scale-95 ${
           isPlaying
-            ? 'bg-error/20 text-error hover:bg-error/30'
-            : 'bg-accent/20 text-accent hover:bg-accent/30'
+            ? 'bg-error/35 text-error hover:bg-error/45'
+            : 'bg-accent text-bg hover:bg-accent/90 shadow-[0_0_14px_rgba(167,139,250,0.4)]'
         }`}
         aria-label={isPlaying ? 'Stop' : 'Play'}
       >
@@ -289,9 +296,9 @@ export function LearnShell() {
         <button
           type="button"
           onClick={handleApplyToStudio}
-          className="px-3 py-2 text-xs font-medium bg-accent/20 text-accent rounded hover:bg-accent/30 transition-colors hidden sm:inline-flex"
+          className="px-4 py-2 text-xs font-semibold bg-accent text-bg rounded-lg hover:bg-accent/90 shadow-[0_0_14px_rgba(167,139,250,0.35)] transition-all active:scale-95 hidden sm:inline-flex"
         >
-          Apply to Studio
+          Apply to Studio →
         </button>
       )}
 

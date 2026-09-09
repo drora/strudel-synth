@@ -14,8 +14,8 @@ import { useSessionStore } from '../../store/session-store'
 import { useUIStore } from '../../store/ui-store'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useVisualViewportHeight } from '../../hooks/useVisualViewport'
-import { evaluateCode, stop, composeTracks, initEngine } from '../../engine/strudel'
-import { resumeAudioContext } from '../../engine/audio-context'
+import { evaluateCode, stop, composeTracks, initEngine, maybeLoadCommunityBanks } from '../../engine/strudel'
+import { ensureAudioUnlocked } from '../../engine/audio-context'
 import { reshuffleTrack } from '../../engine/reshuffle'
 import { liveUpdateEngine } from '../../engine/live-update'
 import { useSessionPersistence } from '../../hooks/useSessionPersistence'
@@ -95,13 +95,20 @@ function StudioShell() {
             const q = useUIStore.getState().getEffectiveQuantization(state.activeTrackId)
             liveUpdateEngine.queueUpdate(q, 'hotkey')
           } else {
-            await resumeAudioContext()
+            const unlock = await ensureAudioUnlocked()
+            if (!unlock.ok) {
+              useUIStore.getState().setAudioError('Tap Play again — iOS blocked audio')
+              return
+            }
+            useUIStore.getState().setAudioError(null)
             await initEngine()
+            await ensureAudioUnlocked()
             state.setPlaying(true)
             liveUpdateEngine.markPlayStarted()
             const code = composeTracks(state.tracks, state.bpm)
             await evaluateCode(code)
             liveUpdateEngine.markPlayStarted()
+            maybeLoadCommunityBanks()
           }
         } catch (err) {
           console.error('Eval all error:', err)
@@ -172,7 +179,7 @@ function StudioShell() {
     >
       {/* Mobile top bar with hamburger — 44px hit targets */}
       {isMobile && (
-        <div className="flex items-center h-11 px-2 bg-bg-surface border-b border-border shrink-0">
+        <div className="flex items-center h-11 px-2 bg-bg-surface/95 backdrop-blur-md border-b border-border shrink-0">
           <button
             onClick={() => setShowMobileSidebar(true)}
             className="min-w-11 min-h-11 flex items-center justify-center text-text-muted hover:text-text rounded transition-colors"
