@@ -21,6 +21,8 @@ interface JamState {
   undoStack: JamUndoEntry[]
   lastPeek: string | null
   soundTrackId: string | null
+  /** Track id for the Jam Code sheet overlay (null = closed). */
+  codeTrackId: string | null
 
   setVibe: (vibe: VibeId) => void
   setKitId: (kitId: string | null) => void
@@ -33,6 +35,7 @@ interface JamState {
   popUndo: () => JamUndoEntry | null
   setLastPeek: (peek: string | null) => void
   setSoundTrackId: (id: string | null) => void
+  setCodeTrackId: (id: string | null) => void
 }
 
 export const useJamStore = create<JamState>()(
@@ -48,6 +51,7 @@ export const useJamStore = create<JamState>()(
       undoStack: [],
       lastPeek: null,
       soundTrackId: null,
+      codeTrackId: null,
 
       setVibe: (vibe) => set({ vibe }),
       setKitId: (kitId) => set({ kitId }),
@@ -67,6 +71,7 @@ export const useJamStore = create<JamState>()(
       },
       setLastPeek: (lastPeek) => set({ lastPeek }),
       setSoundTrackId: (soundTrackId) => set({ soundTrackId }),
+      setCodeTrackId: (codeTrackId) => set({ codeTrackId }),
     }),
     {
       name: 'strudel-studio-jam',
