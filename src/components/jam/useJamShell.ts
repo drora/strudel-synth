@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useMemo, useState } from 'react'
+import { useEffect, useCallback, useMemo } from 'react'
 import { useSessionStore } from '../../store/session-store'
 import { useUIStore } from '../../store/ui-store'
 import { useJamStore } from '../../store/jam-store'
@@ -42,13 +42,6 @@ export function useJamShell() {
   const kits = useMemo(() => getKitsForVibe(vibe), [vibe])
   const activeKit = kitId ? getKit(kitId) : undefined
   const soundTrack = tracks.find((t) => t.id === soundTrackId)
-
-  const [cyclePulse, setCyclePulse] = useState(0)
-  useEffect(() => {
-    if (!isPlaying) return
-    const id = window.setInterval(() => setCyclePulse((n) => (n + 1) % 1000), 500)
-    return () => window.clearInterval(id)
-  }, [isPlaying])
 
   const redeal = useCallback(() => {
     const stateTracks = useSessionStore.getState().tracks
@@ -202,7 +195,6 @@ export function useJamShell() {
     kits,
     activeKit,
     soundTrack,
-    cyclePulse,
     shellStyle,
     redeal,
     applyKit,
