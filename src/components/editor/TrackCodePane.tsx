@@ -14,6 +14,8 @@ import type { Track } from '../../engine/types'
 interface TrackCodePaneProps {
   track: Track
   isActive: boolean
+  /** Mobile one-track focus: inactive → header only; active → full-height editor */
+  focusMode?: boolean
 }
 
 async function startOrQueueUpdate(quant: Quantization) {
@@ -31,7 +33,7 @@ async function startOrQueueUpdate(quant: Quantization) {
   liveUpdateEngine.markPlayStarted()
 }
 
-export function TrackCodePane({ track, isActive }: TrackCodePaneProps) {
+export function TrackCodePane({ track, isActive, focusMode = false }: TrackCodePaneProps) {
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const codeRef = useRef(track.code)
@@ -124,8 +126,10 @@ export function TrackCodePane({ track, isActive }: TrackCodePaneProps) {
     [track.id, handleEvaluate],
   )
 
+  const showEditor = !focusMode || isActive
+
   useEffect(() => {
-    if (!editorRef.current) return
+    if (!showEditor || !editorRef.current) return
 
     const extensions = createExtensions({
       onEvaluate: () => handleEvaluate(),
@@ -150,7 +154,7 @@ export function TrackCodePane({ track, isActive }: TrackCodePaneProps) {
       viewRef.current = null
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [track.id])
+  }, [track.id, showEditor])
 
   useEffect(() => {
     const view = viewRef.current
@@ -176,17 +180,24 @@ export function TrackCodePane({ track, isActive }: TrackCodePaneProps) {
               ? 'bg-accent/30 text-accent'
               : 'bg-accent/10 text-accent hover:bg-accent/20'
 
+  const touchBtn = focusMode ? 'min-h-11 min-w-11 px-2 py-2 text-xs' : 'px-1.5 py-0.5 text-[10px]'
+  const touchUpdate = focusMode ? 'min-h-11 px-3 py-2 text-xs' : 'px-2 py-0.5 text-[10px]'
+
   return (
     <div
       className={`
         flex flex-col border-b border-border transition-colors
         ${isActive ? 'bg-bg' : 'bg-bg/50'}
         ${track.locked ? 'border-l-2' : ''}
+        ${focusMode && isActive ? 'flex-1 min-h-0' : ''}
+        ${focusMode && !isActive ? 'shrink-0' : ''}
       `}
       style={track.locked ? { borderLeftColor: track.color } : undefined}
     >
       <div
-        className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border/50 cursor-pointer"
+        className={`flex items-center gap-1.5 px-3 border-b border-border/50 cursor-pointer ${
+          focusMode ? 'py-2 min-h-11' : 'py-1.5'
+        }`}
         onClick={() => useSessionStore.getState().setActiveTrack(track.id)}
         style={{ borderLeftWidth: track.locked ? 0 : 3, borderLeftColor: track.color }}
       >
@@ -198,120 +209,132 @@ export function TrackCodePane({ track, isActive }: TrackCodePaneProps) {
         <div className="flex-1" />
         {track.error && <span className="text-[10px] text-error mr-1">error</span>}
 
-        <button
-          onClick={(e) => { e.stopPropagation(); handleReshuffle() }}
-          className="px-1.5 py-0.5 text-[10px] rounded bg-bg-elevated text-text-muted hover:text-accent hover:bg-accent/10 transition-colors"
-          title="Reshuffle pattern (Ctrl+Shift+R)"
-        >
-          Shuffle
-        </button>
-
-        <div className="relative flex items-center rounded overflow-visible" ref={menuRef}>
-          <button
-            onClick={handleToggleLock}
-            className={`px-1.5 py-0.5 text-[10px] transition-colors border-r ${
-              track.locked
-                ? 'bg-accent/30 text-accent border-accent/30'
-                : 'bg-bg-elevated text-text-muted hover:text-text border-border'
-            }`}
-            title={`${track.locked ? 'Unlock' : 'Lock'} auto-update (Ctrl+L)`}
-          >
-            {track.locked ? '\uD83D\uDD12' : '\uD83D\uDD13'}
-          </button>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              void handleEvaluate()
-            }}
-            onContextMenu={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              setMenuOpen(true)
-            }}
-            className={`px-2 py-0.5 text-[10px] font-medium transition-colors ${updateBtnClass}`}
-            title={`Update (${effectiveQuant}) — right-click or ▾ for quantization`}
-          >
-            {updateStatus === 'queued'
-              ? `Queued ·${quantShort}`
-              : updateStatus === 'dirty'
-                ? 'Dirty'
-                : updateStatus === 'applied'
-                  ? 'Applied'
-                  : `Update ·${quantShort}`}
-          </button>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              setMenuOpen((o) => !o)
-            }}
-            className={`px-1 py-0.5 text-[10px] border-l border-border/40 ${updateBtnClass}`}
-            title="Quantization: 1 / 2 / 4 / immediate"
-            aria-label="Quantization menu"
-          >
-            ▾
-          </button>
-
-          {menuOpen && (
-            <div
-              className="absolute right-0 top-full mt-1 z-50 min-w-[11rem] rounded border border-border bg-bg-surface shadow-lg py-1"
-              onClick={(e) => e.stopPropagation()}
+        {(!focusMode || isActive) && (
+          <>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleReshuffle() }}
+              className={`${touchBtn} rounded bg-bg-elevated text-text-muted hover:text-accent hover:bg-accent/10 transition-colors flex items-center justify-center`}
+              title="Reshuffle pattern (Ctrl+Shift+R)"
             >
-              <div className="px-2 py-1 text-[9px] uppercase tracking-wider text-text-muted">
-                This track
-              </div>
-              {QUANT_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  className={`w-full text-left px-2 py-1 text-[11px] hover:bg-accent/15 ${
-                    effectiveQuant === opt.value ? 'text-accent' : 'text-text'
-                  }`}
-                  onClick={() => pickQuant(opt.value, false)}
+              Shuffle
+            </button>
+
+            <div className="relative flex items-center rounded overflow-visible" ref={menuRef}>
+              <button
+                onClick={handleToggleLock}
+                className={`${touchBtn} transition-colors border-r flex items-center justify-center ${
+                  track.locked
+                    ? 'bg-accent/30 text-accent border-accent/30'
+                    : 'bg-bg-elevated text-text-muted hover:text-text border-border'
+                }`}
+                title={`${track.locked ? 'Unlock' : 'Lock'} auto-update (Ctrl+L)`}
+              >
+                {track.locked ? '\uD83D\uDD12' : '\uD83D\uDD13'}
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  void handleEvaluate()
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setMenuOpen(true)
+                }}
+                className={`${touchUpdate} font-medium transition-colors ${updateBtnClass}`}
+                title={`Update (${effectiveQuant}) — right-click or ▾ for quantization`}
+              >
+                {updateStatus === 'queued'
+                  ? `Queued ·${quantShort}`
+                  : updateStatus === 'dirty'
+                    ? 'Dirty'
+                    : updateStatus === 'applied'
+                      ? 'Applied'
+                      : `Update ·${quantShort}`}
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setMenuOpen((o) => !o)
+                }}
+                className={`${focusMode ? 'min-h-11 min-w-11 px-2 text-xs' : 'px-1 py-0.5 text-[10px]'} border-l border-border/40 ${updateBtnClass}`}
+                title="Quantization: 1 / 2 / 4 / immediate"
+                aria-label="Quantization menu"
+              >
+                ▾
+              </button>
+
+              {menuOpen && (
+                <div
+                  className="absolute right-0 top-full mt-1 z-50 min-w-[11rem] rounded border border-border bg-bg-surface shadow-lg py-1"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  {opt.label}
-                  {trackQuant === opt.value ? ' ✓' : ''}
-                </button>
-              ))}
-              <div className="border-t border-border my-1" />
-              <div className="px-2 py-1 text-[9px] uppercase tracking-wider text-text-muted">
-                Set global default
-              </div>
-              {QUANT_OPTIONS.map((opt) => (
-                <button
-                  key={`def-${opt.value}`}
-                  className={`w-full text-left px-2 py-1 text-[11px] hover:bg-accent/15 ${
-                    defaultQuantization === opt.value ? 'text-accent' : 'text-text-muted'
-                  }`}
-                  onClick={() => pickQuant(opt.value, true)}
-                >
-                  Default → {opt.label}
-                  {defaultQuantization === opt.value ? ' ★' : ''}
-                </button>
-              ))}
-              {trackQuant && (
-                <>
+                  <div className="px-2 py-1 text-[9px] uppercase tracking-wider text-text-muted">
+                    This track
+                  </div>
+                  {QUANT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      className={`w-full text-left px-2 py-1.5 text-[11px] hover:bg-accent/15 ${
+                        effectiveQuant === opt.value ? 'text-accent' : 'text-text'
+                      }`}
+                      onClick={() => pickQuant(opt.value, false)}
+                    >
+                      {opt.label}
+                      {trackQuant === opt.value ? ' ✓' : ''}
+                    </button>
+                  ))}
                   <div className="border-t border-border my-1" />
-                  <button
-                    className="w-full text-left px-2 py-1 text-[11px] text-text-muted hover:bg-accent/15"
-                    onClick={() => {
-                      useUIStore.getState().setTrackQuantization(track.id, null)
-                      setMenuOpen(false)
-                    }}
-                  >
-                    Clear track override
-                  </button>
-                </>
+                  <div className="px-2 py-1 text-[9px] uppercase tracking-wider text-text-muted">
+                    Set global default
+                  </div>
+                  {QUANT_OPTIONS.map((opt) => (
+                    <button
+                      key={`def-${opt.value}`}
+                      className={`w-full text-left px-2 py-1.5 text-[11px] hover:bg-accent/15 ${
+                        defaultQuantization === opt.value ? 'text-accent' : 'text-text-muted'
+                      }`}
+                      onClick={() => pickQuant(opt.value, true)}
+                    >
+                      Default → {opt.label}
+                      {defaultQuantization === opt.value ? ' ★' : ''}
+                    </button>
+                  ))}
+                  {trackQuant && (
+                    <>
+                      <div className="border-t border-border my-1" />
+                      <button
+                        className="w-full text-left px-2 py-1.5 text-[11px] text-text-muted hover:bg-accent/15"
+                        onClick={() => {
+                          useUIStore.getState().setTrackQuantization(track.id, null)
+                          setMenuOpen(false)
+                        }}
+                      >
+                        Clear track override
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
-      <div
-        ref={editorRef}
-        className={`overflow-auto ${isActive ? 'min-h-24 max-h-64' : 'min-h-12 max-h-24'}`}
-      />
+      {showEditor && (
+        <div
+          ref={editorRef}
+          className={`overflow-auto ${
+            focusMode
+              ? 'flex-1 min-h-0'
+              : isActive
+                ? 'min-h-24 max-h-64'
+                : 'min-h-12 max-h-24'
+          }`}
+        />
+      )}
 
       {track.error && (
         <div className="px-3 py-1 bg-error/10 text-error text-xs font-mono truncate">
