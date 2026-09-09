@@ -1,7 +1,12 @@
 import { create } from 'zustand'
 import type { Track, TrackRole, Template } from '../engine/types'
-import { ROLE_COLORS } from '../engine/types'
 import type { SavedSession } from '../engine/session-codec'
+import {
+  applyTemplate,
+  applySavedSession,
+  applySectionToTracks,
+  buildLearnTrack,
+} from '../engine/session-manager'
 
 interface SessionState {
   tracks: Track[]
@@ -78,21 +83,7 @@ export const useSessionStore = create<SessionState>((set) => ({
     })),
 
   loadTemplate: (template) => {
-    const tracks: Track[] = template.tracks.map((t) => ({
-      ...t,
-      id: genId(),
-      muted: false,
-      soloed: false,
-      locked: false,
-      volume: 1,
-      error: null,
-    }))
-    set({
-      tracks,
-      bpm: template.bpm,
-      activeTrackId: tracks[0]?.id ?? null,
-      templateId: template.id,
-    })
+    set(applyTemplate(template, genId))
   },
 
   addTrack: (track) => {
@@ -104,26 +95,12 @@ export const useSessionStore = create<SessionState>((set) => ({
   },
 
   applyLearnCode: ({ code, name, role }) => {
-    const resolvedRole: TrackRole = role ?? 'custom'
-    const id = genId()
-    const track: Track = {
-      id,
-      name: name?.trim() || 'From Learn',
-      role: resolvedRole,
-      code,
-      color: ROLE_COLORS[resolvedRole],
-      muted: false,
-      soloed: false,
-      locked: false,
-      volume: 1,
-      error: null,
-    }
+    const track = buildLearnTrack({ code, name, role, genId })
     set((state) => ({
       tracks: [...state.tracks, track],
-      activeTrackId: id,
-      // Keep existing bpm / templateId — do not reset the session
+      activeTrackId: track.id,
     }))
-    return id
+    return track.id
   },
 
   removeTrack: (trackId) =>
@@ -190,36 +167,15 @@ export const useSessionStore = create<SessionState>((set) => ({
     }),
 
   loadSavedSession: (session) => {
-    const tracks: Track[] = session.tracks.map((t) => ({
-      id: genId(),
-      name: t.name,
-      role: t.role,
-      code: t.code,
-      color: t.color || ROLE_COLORS[t.role],
-      muted: !!t.muted,
-      soloed: !!t.soloed,
-      locked: false,
-      volume: typeof t.volume === 'number' ? t.volume : 1,
-      error: null,
-    }))
-    set({
-      tracks,
-      bpm: session.bpm,
-      activeTrackId: tracks[0]?.id ?? null,
-      templateId: session.templateId,
-    })
+    set(applySavedSession(session, genId))
   },
 
   applySection: (section) =>
     set((state) => {
-      const byId = new Map(section.tracks.map((t) => [t.id, t]))
+      const merged = applySectionToTracks(state.tracks, section)
       return {
-        bpm: typeof section.bpm === 'number' ? section.bpm : state.bpm,
-        tracks: state.tracks.map((t, i) => {
-          const snap = byId.get(t.id) ?? section.tracks[i]
-          if (!snap) return t
-          return { ...t, code: snap.code, muted: snap.muted, error: null }
-        }),
+        bpm: merged.bpm ?? state.bpm,
+        tracks: merged.tracks,
       }
     }),
 
