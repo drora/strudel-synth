@@ -86,3 +86,16 @@ export function getSoundFromCode(code: string): string | null {
     ?? code.match(/\.s\(\s*["']([^"']+)["']\s*\)/)
   return m?.[1] ?? null
 }
+
+/** Set or append `.n(index)` for drum-machine sample variant. */
+export function setNInCode(code: string, n: number): string {
+  const regex = /\.n\([^)]*\)/
+  const replacement = `.n(${Math.max(0, Math.floor(n))})`
+  if (regex.test(code)) return code.replace(regex, replacement)
+  return code.trimEnd() + replacement
+}
+
+export function getNFromCode(code: string): number | null {
+  const m = code.match(/\.n\(\s*(\d+)\s*\)/)
+  return m ? parseInt(m[1]!, 10) : null
+}
