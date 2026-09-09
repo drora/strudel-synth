@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { useSessionStore } from '../../store/session-store'
 import type { Track } from '../../engine/types'
 import { ROLE_PRESETS } from '../../engine/presets'
@@ -17,6 +18,7 @@ export function TrackItem({ track, onSelect }: TrackItemProps) {
   const removeTrack = useSessionStore((s) => s.removeTrack)
   const setVolume = useSessionStore((s) => s.setVolume)
 
+  const isMobile = useIsMobile()
   const isActive = track.id === activeTrackId
   const preset = ROLE_PRESETS[track.role]
 
@@ -36,7 +38,7 @@ export function TrackItem({ track, onSelect }: TrackItemProps) {
       onClick={() => { setActiveTrack(track.id); onSelect?.() }}
     >
       {/* Track header with M/S always visible */}
-      <div className="flex items-center gap-1.5 px-3 py-1.5">
+      <div className={`flex items-center gap-1.5 px-3 ${isMobile ? 'py-2 min-h-11' : 'py-1.5'}`}>
         <div
           className="w-2 h-2 rounded-full shrink-0"
           style={{ backgroundColor: track.color }}
@@ -48,7 +50,7 @@ export function TrackItem({ track, onSelect }: TrackItemProps) {
         <button
           onClick={(e) => { e.stopPropagation(); toggleMute(track.id) }}
           className={`
-            w-5 h-5 text-[9px] font-bold rounded flex items-center justify-center transition-colors shrink-0
+            ${isMobile ? 'w-11 h-11 text-xs' : 'w-5 h-5 text-[9px]'} font-bold rounded flex items-center justify-center transition-colors shrink-0
             ${track.muted
               ? 'bg-error/25 text-error'
               : 'text-text-muted/40 hover:text-text-muted hover:bg-bg'}
@@ -60,7 +62,7 @@ export function TrackItem({ track, onSelect }: TrackItemProps) {
         <button
           onClick={(e) => { e.stopPropagation(); toggleSolo(track.id) }}
           className={`
-            w-5 h-5 text-[9px] font-bold rounded flex items-center justify-center transition-colors shrink-0
+            ${isMobile ? 'w-11 h-11 text-xs' : 'w-5 h-5 text-[9px]'} font-bold rounded flex items-center justify-center transition-colors shrink-0
             ${track.soloed
               ? 'bg-accent/25 text-accent'
               : 'text-text-muted/40 hover:text-text-muted hover:bg-bg'}

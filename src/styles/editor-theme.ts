@@ -48,14 +48,17 @@ export const strudelDarkTheme = EditorView.theme(
         backgroundColor: '#a78bfa30',
       },
     },
-    // Phase 1 — slightly larger editor font on touch / coarse pointers.
-    // Layout redesign stays Phase 3; this is CM-theme only.
+    // Phase 1 + 3 — 16px editor font on touch; slightly roomier line height for thumbs.
     '@media (pointer: coarse)': {
       '&': {
         fontSize: '16px',
       },
       '.cm-content': {
         padding: '14px 0',
+        lineHeight: '1.55',
+      },
+      '.cm-gutters': {
+        minWidth: '2.5rem',
       },
     },
   },
@@ -89,7 +92,6 @@ export const miniNotationTheme = EditorView.baseTheme({
 })
 
 /**
- * TODO (Phase 3 layout): if coarse-pointer font bump is insufficient on small
- * phones, consider line-height / gutter padding tweaks here — do not redesign
- * AppShell track chrome in Phase 1.
+ * Phase 3 layout lives in AppShell / CodePane / TransportBar / LearnShell.
+ * Keep CM theme tweaks here only (font / gutter / line-height).
  */

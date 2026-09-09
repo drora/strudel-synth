@@ -4,6 +4,7 @@ import { TransportBar } from '../transport/TransportBar'
 import { TemplatePickerModal } from '../templates/TemplatePickerModal'
 import { TrackList } from '../sidebar/TrackList'
 import { RightPanel } from './RightPanel'
+import { MobileDrawer } from './MobileDrawer'
 import { Cheatsheet } from '../cheatsheet/Cheatsheet'
 import { SuggestionBanner } from '../editor/SuggestionBanner'
 import { PianoKeyboard } from '../piano/PianoKeyboard'
@@ -12,6 +13,7 @@ import { LearnShell } from '../learning/LearnShell'
 import { useSessionStore } from '../../store/session-store'
 import { useUIStore } from '../../store/ui-store'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { useVisualViewportHeight } from '../../hooks/useVisualViewport'
 import { evaluateCode, stop, composeTracks, initEngine } from '../../engine/strudel'
 import { resumeAudioContext } from '../../engine/audio-context'
 import { reshuffleTrack } from '../../engine/reshuffle'
@@ -27,39 +29,13 @@ export function AppShell() {
   return <StudioShell />
 }
 
-/** Slide-in drawer overlay for mobile panels */
-function MobileDrawer({
-  open,
-  onClose,
-  side,
-  children,
-}: {
-  open: boolean
-  onClose: () => void
-  side: 'left' | 'right'
-  children: React.ReactNode
-}) {
-  if (!open) return null
-
-  return (
-    <div className="fixed inset-0 z-40 flex" onClick={onClose}>
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" />
-      {/* Panel */}
-      <div
-        className={`relative z-50 h-full overflow-y-auto bg-bg-surface shadow-2xl ${
-          side === 'left' ? 'mr-auto' : 'ml-auto'
-        }`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {children}
-      </div>
-    </div>
-  )
-}
-
 function StudioShell() {
   const isMobile = useIsMobile()
+  const vvHeight = useVisualViewportHeight()
+  const activeTrackName = useSessionStore((s) => {
+    const t = s.tracks.find((tr) => tr.id === s.activeTrackId)
+    return t?.name ?? 'Tracks'
+  })
   const [showCheatsheet, setShowCheatsheet] = useState(false)
   const [showRightPanel, setShowRightPanel] = useState(!isMobile)
   const [showPiano, setShowPiano] = useState(false)
@@ -180,14 +156,21 @@ function StudioShell() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  const shellStyle = isMobile
+    ? { height: vvHeight > 0 ? vvHeight : undefined, minHeight: 0 }
+    : undefined
+
   return (
-    <div className="flex flex-col h-full bg-bg">
-      {/* Mobile top bar with hamburger */}
+    <div
+      className={`flex flex-col bg-bg w-full flex-1 ${isMobile ? 'min-h-0 overflow-hidden' : 'h-full'}`}
+      style={shellStyle}
+    >
+      {/* Mobile top bar with hamburger — 44px hit targets */}
       {isMobile && (
-        <div className="flex items-center h-10 px-3 bg-bg-surface border-b border-border shrink-0">
+        <div className="flex items-center h-11 px-2 bg-bg-surface border-b border-border shrink-0">
           <button
             onClick={() => setShowMobileSidebar(true)}
-            className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-text rounded transition-colors"
+            className="min-w-11 min-h-11 flex items-center justify-center text-text-muted hover:text-text rounded transition-colors"
             aria-label="Open track list"
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -196,12 +179,14 @@ function StudioShell() {
               <line x1="3" y1="13" x2="15" y2="13" />
             </svg>
           </button>
-          <span className="ml-2 text-xs font-medium text-text-muted">Tracks</span>
+          <span className="ml-1 text-xs font-medium text-text-muted truncate">
+            {activeTrackName}
+          </span>
           <div className="flex-1" />
           <button
             onClick={() => setShowMobileRightPanel(true)}
-            className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-text rounded transition-colors"
-            aria-label="Open panels"
+            className="min-w-11 min-h-11 flex items-center justify-center text-text-muted hover:text-text rounded transition-colors"
+            aria-label="Open effects / panels"
           >
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <rect x="3" y="3" width="12" height="12" rx="2" />
@@ -217,7 +202,7 @@ function StudioShell() {
         {!isMobile && <TrackList />}
 
         {/* Center column */}
-        <div className="flex-1 min-w-0 flex flex-col">
+        <div className="flex-1 min-w-0 flex flex-col min-h-0">
           <div className="flex-1 min-h-0 overflow-hidden">
             <CodePane />
           </div>
@@ -226,7 +211,7 @@ function StudioShell() {
           {showRecorder && <VoiceRecorder />}
         </div>
 
-        {/* Right panel — hidden on mobile (use drawer) */}
+        {/* Right panel — hidden on mobile (use bottom sheet) */}
         {!isMobile && showRightPanel && <RightPanel />}
       </div>
 
@@ -239,16 +224,26 @@ function StudioShell() {
         isMobile={isMobile}
       />
 
-      {/* Mobile drawers */}
+      {/* Mobile drawers: tracks = left; FX/docs = bottom sheet (thumb-friendly) */}
       {isMobile && (
         <>
-          <MobileDrawer open={showMobileSidebar} onClose={() => setShowMobileSidebar(false)} side="left">
-            <div className="w-72">
+          <MobileDrawer
+            open={showMobileSidebar}
+            onClose={() => setShowMobileSidebar(false)}
+            side="left"
+            label="Tracks"
+          >
+            <div className="w-72 h-full">
               <TrackList onTrackSelect={() => setShowMobileSidebar(false)} />
             </div>
           </MobileDrawer>
-          <MobileDrawer open={showMobileRightPanel} onClose={() => setShowMobileRightPanel(false)} side="right">
-            <div className="w-72">
+          <MobileDrawer
+            open={showMobileRightPanel}
+            onClose={() => setShowMobileRightPanel(false)}
+            side="bottom"
+            label="Effects and panels"
+          >
+            <div className="w-full max-h-[70dvh]">
               <RightPanel />
             </div>
           </MobileDrawer>

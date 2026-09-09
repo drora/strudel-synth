@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { PlayButton } from './PlayButton'
 import { BpmControl } from './BpmControl'
 import { TransportViz } from './TransportViz'
@@ -5,6 +6,9 @@ import { SampleLoadingIndicator } from './SampleLoadingIndicator'
 import { useSessionStore } from '../../store/session-store'
 import { useUIStore, QUANT_OPTIONS } from '../../store/ui-store'
 import type { Quantization } from '../../engine/live-update'
+import { liveUpdateEngine } from '../../engine/live-update'
+import { composeTracks, initEngine, evaluateCode } from '../../engine/strudel'
+import { resumeAudioContext } from '../../engine/audio-context'
 
 interface TransportBarProps {
   onToggleDocs?: () => void
@@ -14,147 +18,358 @@ interface TransportBarProps {
   isMobile?: boolean
 }
 
-export function TransportBar({ onToggleDocs, onToggleCheatsheet, onTogglePiano, onToggleRecorder, isMobile }: TransportBarProps) {
+async function startOrQueueUpdate(quant: Quantization) {
+  const state = useSessionStore.getState()
+  if (state.isPlaying) {
+    liveUpdateEngine.queueUpdate(quant, 'manual')
+    return
+  }
+  await resumeAudioContext()
+  await initEngine()
+  state.setPlaying(true)
+  liveUpdateEngine.markPlayStarted()
+  const code = composeTracks(state.tracks, state.bpm)
+  await evaluateCode(code)
+  liveUpdateEngine.markPlayStarted()
+}
+
+export function TransportBar({
+  onToggleDocs,
+  onToggleCheatsheet,
+  onTogglePiano,
+  onToggleRecorder,
+  isMobile,
+}: TransportBarProps) {
   const tracks = useSessionStore((s) => s.tracks)
+  const activeTrackId = useSessionStore((s) => s.activeTrackId)
+  const activeTrack = tracks.find((t) => t.id === activeTrackId)
   const anyLocked = tracks.some((t) => t.locked)
   const anyMuted = tracks.some((t) => t.muted)
   const defaultQuantization = useUIStore((s) => s.defaultQuantization)
   const crossfadeSwaps = useUIStore((s) => s.crossfadeSwaps)
+  const effectiveQuant = useUIStore((s) => s.getEffectiveQuantization(activeTrackId))
+  const quantShort =
+    QUANT_OPTIONS.find((o) => o.value === effectiveQuant)?.short ?? effectiveQuant
+
+  const [moreOpen, setMoreOpen] = useState(false)
+  const moreRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!moreOpen) return
+    const onDoc = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [moreOpen])
 
   const handleLockAll = () => useSessionStore.getState().lockAll()
 
   const handleMuteAll = () => {
     const state = useSessionStore.getState()
-    // If any muted, unmute all. Otherwise mute all.
     state.tracks.forEach((t) => {
       if (anyMuted && t.muted) state.toggleMute(t.id)
       if (!anyMuted && !t.muted) state.toggleMute(t.id)
     })
   }
 
-  return (
-    <div className={`flex items-center gap-3 px-3 bg-bg-surface border-t border-border ${
-      isMobile ? 'flex-wrap py-2 gap-2' : 'h-14 gap-4 px-4'
-    }`}>
-      {/* Play / Stop */}
-      <PlayButton />
+  const handleActiveUpdate = useCallback(async () => {
+    if (!activeTrackId) return
+    try {
+      const q = useUIStore.getState().getEffectiveQuantization(activeTrackId)
+      await startOrQueueUpdate(q)
+      useSessionStore.getState().setError(activeTrackId, null)
+    } catch (err) {
+      useSessionStore.getState().setError(
+        activeTrackId,
+        err instanceof Error ? err.message : String(err),
+      )
+    }
+  }, [activeTrackId])
 
-      {/* BPM */}
-      <BpmControl />
+  const handleActiveLock = useCallback(() => {
+    if (activeTrackId) useSessionStore.getState().toggleLock(activeTrackId)
+  }, [activeTrackId])
 
-      {/* Separator */}
-      <div className="w-px h-6 bg-border" />
+  const hit = isMobile ? 'min-h-11 min-w-11 px-3 py-2 text-xs' : 'px-2 py-1 text-xs'
+  const hitSm = isMobile ? 'min-h-11 px-3 py-2 text-xs' : 'px-2 py-1 text-[10px]'
 
-      {/* Global track controls */}
-      <button
-        onClick={handleLockAll}
-        className={`px-2 py-1 text-xs rounded transition-colors flex items-center gap-1 ${
-          anyLocked
-            ? 'bg-accent/20 text-accent'
-            : 'bg-bg-elevated text-text-muted hover:text-text'
-        }`}
-        title="Lock/unlock all tracks (Ctrl+Shift+L)"
-      >
-        {anyLocked ? 'Unlock All' : 'Lock All'}
-      </button>
-
-      <button
-        onClick={handleMuteAll}
-        className={`px-2 py-1 text-xs rounded transition-colors ${
-          anyMuted
-            ? 'bg-error/20 text-error'
-            : 'bg-bg-elevated text-text-muted hover:text-text'
-        }`}
-        title="Mute/unmute all tracks"
-      >
-        {anyMuted ? 'Unmute All' : 'Mute All'}
-      </button>
-
-      {/* Global default quantization (persisted via ui-store) */}
-      <label
-        className="flex items-center gap-1 text-[10px] text-text-muted"
-        title="Default quantization for Update / Lock / hotkeys"
-      >
-        <span className="hidden sm:inline">Quant</span>
-        <select
-          value={defaultQuantization}
-          onChange={(e) =>
-            useUIStore.getState().setDefaultQuantization(e.target.value as Quantization)
-          }
-          className="bg-bg-elevated text-text text-[10px] rounded px-1.5 py-1 border border-border focus:outline-none focus:border-accent"
-        >
-          {QUANT_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.short === '∞' ? 'now' : o.short}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      {/*
-        Crossfade swaps — STUBBED disabled.
-        Strudel's xfade(left, amount, right) blends two concurrent patterns; it is not
-        a compose/evaluate swap transition API. Enabling would invent broken audio wiring.
-      */}
-      <button
-        type="button"
-        disabled
-        aria-disabled="true"
-        title="Crossfade swaps unavailable — Strudel xfade() is concurrent blend, not a pattern-swap API"
-        className="px-2 py-1 text-[10px] rounded bg-bg-elevated text-text-muted/50 cursor-not-allowed line-through decoration-text-muted/40"
-      >
-        Crossfade{crossfadeSwaps ? ' on' : ''}
-      </button>
-
-      {/* Sample loading progress */}
-      <SampleLoadingIndicator />
-
-      {/* Beat visualizer + track dots */}
-      <div className="flex-1 flex items-center justify-center">
-        <TransportViz />
-      </div>
-
-      {/* Panel toggles */}
+  const secondaryToggles = (
+    <>
       <button
         onClick={onTogglePiano}
-        className="px-2 py-1 text-[10px] text-text-muted hover:text-accent rounded transition-colors"
+        className={`${hitSm} text-text-muted hover:text-accent rounded transition-colors`}
         title="Toggle piano keyboard"
       >
         Keys
       </button>
       <button
         onClick={onToggleRecorder}
-        className="px-2 py-1 text-[10px] text-text-muted hover:text-accent rounded transition-colors"
+        className={`${hitSm} text-text-muted hover:text-accent rounded transition-colors`}
         title="Voice recorder"
       >
         Rec
       </button>
       <button
         onClick={onToggleDocs}
-        className="px-2 py-1 text-[10px] text-text-muted hover:text-accent rounded transition-colors"
+        className={`${hitSm} text-text-muted hover:text-accent rounded transition-colors`}
         title="Toggle right panel"
       >
         Panel
       </button>
       <button
         onClick={onToggleCheatsheet}
-        className="px-2 py-1 text-[10px] text-text-muted hover:text-accent rounded transition-colors"
+        className={`${hitSm} text-text-muted hover:text-accent rounded transition-colors`}
         title="Cheatsheet (Cmd+/)"
       >
         ?
       </button>
-
-      {/* Separator */}
-      <div className="w-px h-6 bg-border" />
-
-      {/* Learn mode switch */}
       <button
         onClick={() => useUIStore.getState().setAppMode('learn')}
-        className="px-3 py-1 text-[10px] font-medium text-text-muted hover:text-accent bg-bg-elevated hover:bg-accent/10 rounded transition-colors"
+        className={`${hitSm} font-medium text-text-muted hover:text-accent bg-bg-elevated hover:bg-accent/10 rounded transition-colors`}
         title="Switch to Learn Mode"
       >
         Learn
       </button>
+    </>
+  )
+
+  return (
+    <div
+      className={`flex items-center bg-bg-surface border-t border-border shrink-0 ${
+        isMobile ? 'flex-wrap gap-2 px-2 py-2' : 'h-14 gap-4 px-4'
+      }`}
+    >
+      {/* Play / Stop — primary thumb target */}
+      <PlayButton large={!!isMobile} />
+
+      {/* BPM */}
+      <BpmControl compact={!!isMobile} />
+
+      {!isMobile && <div className="w-px h-6 bg-border" />}
+
+      {/* Mobile thumb primaries: Update + Lock for active track */}
+      {isMobile && (
+        <>
+          <button
+            type="button"
+            disabled={!activeTrack}
+            onClick={() => void handleActiveUpdate()}
+            className={`${hit} font-medium rounded transition-colors disabled:opacity-40 bg-accent/20 text-accent`}
+            title={`Update active track (${effectiveQuant})`}
+          >
+            Update ·{quantShort}
+          </button>
+          <button
+            type="button"
+            disabled={!activeTrack}
+            onClick={handleActiveLock}
+            className={`${hit} rounded transition-colors disabled:opacity-40 flex items-center justify-center ${
+              activeTrack?.locked
+                ? 'bg-accent/30 text-accent'
+                : 'bg-bg-elevated text-text-muted'
+            }`}
+            title="Lock / unlock active track"
+          >
+            {activeTrack?.locked ? '🔒' : '🔓'}
+          </button>
+        </>
+      )}
+
+      {/* Desktop: Lock All / Mute All / Quant / Crossfade stub */}
+      {!isMobile && (
+        <>
+          <button
+            onClick={handleLockAll}
+            className={`px-2 py-1 text-xs rounded transition-colors flex items-center gap-1 ${
+              anyLocked
+                ? 'bg-accent/20 text-accent'
+                : 'bg-bg-elevated text-text-muted hover:text-text'
+            }`}
+            title="Lock/unlock all tracks (Ctrl+Shift+L)"
+          >
+            {anyLocked ? 'Unlock All' : 'Lock All'}
+          </button>
+
+          <button
+            onClick={handleMuteAll}
+            className={`px-2 py-1 text-xs rounded transition-colors ${
+              anyMuted
+                ? 'bg-error/20 text-error'
+                : 'bg-bg-elevated text-text-muted hover:text-text'
+            }`}
+            title="Mute/unmute all tracks"
+          >
+            {anyMuted ? 'Unmute All' : 'Mute All'}
+          </button>
+
+          <label
+            className="flex items-center gap-1 text-[10px] text-text-muted"
+            title="Default quantization for Update / Lock / hotkeys"
+          >
+            <span className="hidden sm:inline">Quant</span>
+            <select
+              value={defaultQuantization}
+              onChange={(e) =>
+                useUIStore.getState().setDefaultQuantization(e.target.value as Quantization)
+              }
+              className="bg-bg-elevated text-text text-[10px] rounded px-1.5 py-1 border border-border focus:outline-none focus:border-accent"
+            >
+              {QUANT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.short === '∞' ? 'now' : o.short}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {/*
+            Crossfade swaps — STUBBED disabled.
+            Strudel's xfade(left, amount, right) blends two concurrent patterns; it is not
+            a compose/evaluate swap transition API. Enabling would invent broken audio wiring.
+          */}
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            title="Crossfade swaps unavailable — Strudel xfade() is concurrent blend, not a pattern-swap API"
+            className="px-2 py-1 text-[10px] rounded bg-bg-elevated text-text-muted/50 cursor-not-allowed line-through decoration-text-muted/40"
+          >
+            Crossfade{crossfadeSwaps ? ' on' : ''}
+          </button>
+        </>
+      )}
+
+      {/* Sample loading progress */}
+      <SampleLoadingIndicator />
+
+      {/* Beat visualizer + track dots */}
+      <div className={`flex-1 flex items-center justify-center ${isMobile ? 'min-w-[4rem]' : ''}`}>
+        <TransportViz />
+      </div>
+
+      {/* Desktop secondary toggles inline; mobile → More menu */}
+      {isMobile ? (
+        <div className="relative" ref={moreRef}>
+          <button
+            type="button"
+            onClick={() => setMoreOpen((o) => !o)}
+            className={`${hit} rounded bg-bg-elevated text-text-muted hover:text-text`}
+            aria-haspopup="menu"
+            aria-expanded={moreOpen}
+            title="More controls"
+          >
+            More
+          </button>
+          {moreOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 bottom-full mb-2 z-50 min-w-[12rem] rounded-xl border border-border bg-bg-surface shadow-2xl py-2"
+            >
+              <div className="px-3 py-1 text-[9px] uppercase tracking-wider text-text-muted">
+                Jam
+              </div>
+              <button
+                role="menuitem"
+                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent/15 text-text"
+                onClick={() => {
+                  handleLockAll()
+                  setMoreOpen(false)
+                }}
+              >
+                {anyLocked ? 'Unlock All' : 'Lock All'}
+              </button>
+              <button
+                role="menuitem"
+                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent/15 text-text"
+                onClick={() => {
+                  handleMuteAll()
+                  setMoreOpen(false)
+                }}
+              >
+                {anyMuted ? 'Unmute All' : 'Mute All'}
+              </button>
+              <div className="px-3 py-2 flex items-center gap-2 text-sm text-text-muted">
+                <span>Quant</span>
+                <select
+                  value={defaultQuantization}
+                  onChange={(e) =>
+                    useUIStore.getState().setDefaultQuantization(e.target.value as Quantization)
+                  }
+                  className="flex-1 bg-bg-elevated text-text text-sm rounded px-2 py-1.5 border border-border min-h-11"
+                >
+                  {QUANT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="border-t border-border my-1" />
+              <div className="px-3 py-1 text-[9px] uppercase tracking-wider text-text-muted">
+                Panels
+              </div>
+              <button
+                role="menuitem"
+                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent/15 text-text"
+                onClick={() => {
+                  onTogglePiano?.()
+                  setMoreOpen(false)
+                }}
+              >
+                Keys
+              </button>
+              <button
+                role="menuitem"
+                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent/15 text-text"
+                onClick={() => {
+                  onToggleRecorder?.()
+                  setMoreOpen(false)
+                }}
+              >
+                Rec
+              </button>
+              <button
+                role="menuitem"
+                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent/15 text-text"
+                onClick={() => {
+                  onToggleDocs?.()
+                  setMoreOpen(false)
+                }}
+              >
+                Panel / FX
+              </button>
+              <button
+                role="menuitem"
+                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent/15 text-text"
+                onClick={() => {
+                  onToggleCheatsheet?.()
+                  setMoreOpen(false)
+                }}
+              >
+                Cheatsheet (?)
+              </button>
+              <div className="border-t border-border my-1" />
+              <button
+                role="menuitem"
+                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent/15 text-accent font-medium"
+                onClick={() => {
+                  useUIStore.getState().setAppMode('learn')
+                  setMoreOpen(false)
+                }}
+              >
+                Learn
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          {secondaryToggles}
+        </>
+      )}
     </div>
   )
 }
