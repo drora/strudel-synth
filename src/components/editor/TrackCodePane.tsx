@@ -4,9 +4,8 @@ import { EditorState } from '@codemirror/state'
 import { createExtensions } from './extensions'
 import { useSessionStore } from '../../store/session-store'
 import { useUIStore, QUANT_OPTIONS } from '../../store/ui-store'
-import { stop, composeTracks, initEngine, evaluateCode, maybeLoadCommunityBanks } from '../../engine/strudel'
-import { ensureAudioUnlocked } from '../../engine/audio-context'
 import { liveUpdateEngine, type UpdateStatus, type Quantization } from '../../engine/live-update'
+import { startOrQueueUpdate, stopPlayback } from '../../engine/playback'
 import { reshuffleTrack } from '../../engine/reshuffle'
 import { ROLE_PRESETS } from '../../engine/presets'
 import type { Track } from '../../engine/types'
@@ -16,28 +15,6 @@ interface TrackCodePaneProps {
   isActive: boolean
   /** Mobile one-track focus: inactive → header only; active → full-height editor */
   focusMode?: boolean
-}
-
-async function startOrQueueUpdate(quant: Quantization) {
-  const state = useSessionStore.getState()
-  if (state.isPlaying) {
-    liveUpdateEngine.queueUpdate(quant, 'manual')
-    return
-  }
-  const unlock = await ensureAudioUnlocked()
-  if (!unlock.ok) {
-    useUIStore.getState().setAudioError('Tap Play again — iOS blocked audio')
-    return
-  }
-  useUIStore.getState().setAudioError(null)
-  await initEngine()
-  await ensureAudioUnlocked()
-  state.setPlaying(true)
-  liveUpdateEngine.markPlayStarted()
-  const code = composeTracks(state.tracks, state.bpm)
-  await evaluateCode(code)
-  liveUpdateEngine.markPlayStarted()
-  maybeLoadCommunityBanks()
 }
 
 export function TrackCodePane({ track, isActive, focusMode = false }: TrackCodePaneProps) {
@@ -83,9 +60,7 @@ export function TrackCodePane({ track, isActive, focusMode = false }: TrackCodeP
   }, [track.id])
 
   const handleStop = useCallback(async () => {
-    liveUpdateEngine.markPlayStopped()
-    await stop()
-    useSessionStore.getState().setPlaying(false)
+    await stopPlayback()
   }, [])
 
   const handleChange = useCallback(
