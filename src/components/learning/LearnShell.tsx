@@ -40,7 +40,6 @@ export function LearnShell() {
   const level: Level = LEVELS[activeLevelIdx]
   const challenge: Challenge = level.challenges[activeChallengeIdx]
 
-  // Load starter code when challenge changes
   useEffect(() => {
     setCode(challenge.starterCode)
     setShowHint(false)
@@ -48,7 +47,6 @@ export function LearnShell() {
     setAppliedFlash(false)
   }, [challenge.id])
 
-  // XP total (localStorage-backed completed set)
   const xpTotal = Array.from(completed).reduce((sum, id) => {
     for (const l of LEVELS) {
       const c = l.challenges.find((ch) => ch.id === id)
@@ -114,7 +112,6 @@ export function LearnShell() {
     [isMobile],
   )
 
-  /** Promote challenge code into a new Studio track; leave existing tracks intact. */
   const handleApplyToStudio = useCallback(async () => {
     await handleStop()
     useSessionStore.getState().applyLearnCode({
@@ -126,7 +123,6 @@ export function LearnShell() {
     useUIStore.getState().setAppMode('studio')
   }, [code, challenge, handleStop])
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKey = async (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -310,15 +306,21 @@ export function LearnShell() {
 
       <button
         type="button"
+        onClick={() => useUIStore.getState().setAppMode('jam')}
+        className="min-h-11 px-3 py-1.5 text-xs font-medium text-accent bg-accent/10 rounded transition-colors"
+      >
+        Jam
+      </button>
+      <button
+        type="button"
         onClick={() => useUIStore.getState().setAppMode('studio')}
-        className="px-3 py-1.5 text-xs text-text-muted hover:text-text bg-bg-elevated rounded transition-colors"
+        className="min-h-11 px-3 py-1.5 text-xs text-text-muted hover:text-text bg-bg-elevated rounded transition-colors"
       >
         Studio
       </button>
     </div>
   )
 
-  // ---- Mobile: tabbed stack (does not touch AppShell Studio drawers) ----
   if (isMobile) {
     return (
       <div className="flex flex-col h-full bg-bg">
@@ -354,7 +356,6 @@ export function LearnShell() {
     )
   }
 
-  // ---- Desktop: three-column (same structure as main; list width flexible) ----
   return (
     <div className="flex flex-col h-full bg-bg">
       <div className="flex flex-1 min-h-0">
