@@ -169,6 +169,21 @@ export async function initEngine(): Promise<void> {
   const res = await initStrudel({
     prebake: async () => {
       await samples('github:tidalcycles/dirt-samples')
+      // Official Strudel drum-machine banks (RolandTR909 etc.) — required for kit .bank()
+      const DRUM_CDN = 'https://strudel.b-cdn.net'
+      await samples(
+        `${DRUM_CDN}/tidal-drum-machines.json`,
+        `${DRUM_CDN}/tidal-drum-machines/machines/`,
+        { prebake: true, tag: 'drum-machines' },
+      )
+      try {
+        const alias = (globalThis as any).aliasBank
+        if (typeof alias === 'function') {
+          const aliasRes = await fetch(`${DRUM_CDN}/tidal-drum-machines-alias.json`)
+          const json = await aliasRes.json()
+          for (const [k, v] of Object.entries(json)) alias(k, v)
+        }
+      } catch { /* optional */ }
     },
   })
   engine.evaluateFn = res.evaluate
