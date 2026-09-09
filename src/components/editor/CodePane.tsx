@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { EditorView } from '@codemirror/view'
-import { EditorState } from '@codemirror/state'
+import { EditorSelection, EditorState } from '@codemirror/state'
 import { createExtensions } from './extensions'
 
 interface CodePaneProps {
@@ -45,10 +45,21 @@ function LearnEditor({ code, onChange }: { code: string; onChange: (code: string
 
   useEffect(() => {
     const view = viewRef.current
-    if (!view || code === codeRef.current) return
+    if (!view) return
+    const current = view.state.doc.toString()
+    if (current === code) {
+      codeRef.current = code
+      return
+    }
+    const main = view.state.selection.main
+    const len = code.length
     codeRef.current = code
     view.dispatch({
       changes: { from: 0, to: view.state.doc.length, insert: code },
+      selection: EditorSelection.range(
+        Math.min(main.anchor, len),
+        Math.min(main.head, len),
+      ),
     })
   }, [code])
 
