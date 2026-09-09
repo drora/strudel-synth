@@ -124,7 +124,13 @@ export function useSessionManager() {
 }
 
 /** Compact A/B arrangement controls — sidebar + transport + mobile More. */
-export function ArrangementLite({ compact = false }: { compact?: boolean }) {
+export function ArrangementLite({
+  compact = false,
+  touchFriendly = false,
+}: {
+  compact?: boolean
+  touchFriendly?: boolean
+}) {
   const [sectionA, setSectionA] = useState<SectionSnap | null>(null)
   const [sectionB, setSectionB] = useState<SectionSnap | null>(null)
   const [flash, setFlash] = useState<string | null>(null)
@@ -170,8 +176,9 @@ export function ArrangementLite({ compact = false }: { compact?: boolean }) {
     flashMsg(which === 'a' ? 'Recall A' : 'Recall B')
   }
 
-  const btn =
-    compact
+  const btn = touchFriendly
+    ? 'min-h-11 px-3 py-2 text-xs bg-bg-elevated text-text-muted hover:text-text rounded transition-colors disabled:opacity-40'
+    : compact
       ? 'px-1.5 py-0.5 text-[9px] bg-bg-elevated text-text-muted hover:text-text rounded transition-colors disabled:opacity-40'
       : 'px-2 py-1 text-[10px] bg-bg-elevated text-text-muted hover:text-text rounded transition-colors disabled:opacity-40'
 
@@ -210,11 +217,17 @@ export function ArrangementLite({ compact = false }: { compact?: boolean }) {
 
 export function SessionControls({
   showArrangement = true,
+  touchFriendly = false,
 }: {
   showArrangement?: boolean
+  /** Larger ≥44px hit targets for mobile sheets */
+  touchFriendly?: boolean
 }) {
   const { saveSession, exportSession, importSession, copyShareLink } = useSessionManager()
   const pinEffects = useUIStore((s) => s.pinEffects)
+  const hit = touchFriendly
+    ? 'min-h-11 px-3 py-2 text-xs'
+    : 'px-2 py-1 text-[10px]'
   const [shareStatus, setShareStatus] = useState<string | null>(null)
   const shareTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -236,17 +249,17 @@ export function SessionControls({
       <div className="flex items-center gap-1 flex-wrap">
         <button
           onClick={() => saveSession()}
-          className="px-2 py-1 text-[10px] bg-bg-elevated text-text-muted hover:text-text rounded transition-colors"
+          className={`${hit} bg-bg-elevated text-text-muted hover:text-text rounded transition-colors`}
         >
           Save
         </button>
         <button
           onClick={exportSession}
-          className="px-2 py-1 text-[10px] bg-bg-elevated text-text-muted hover:text-text rounded transition-colors"
+          className={`${hit} bg-bg-elevated text-text-muted hover:text-text rounded transition-colors`}
         >
           Export
         </button>
-        <label className="px-2 py-1 text-[10px] bg-bg-elevated text-text-muted hover:text-text rounded transition-colors cursor-pointer">
+        <label className={`${hit} inline-flex items-center bg-bg-elevated text-text-muted hover:text-text rounded transition-colors cursor-pointer`}>
           Import
           <input
             type="file"
@@ -261,7 +274,7 @@ export function SessionControls({
         <button
           type="button"
           onClick={() => void onShare()}
-          className="px-2 py-1 text-[10px] bg-bg-elevated text-accent hover:bg-accent/15 rounded transition-colors"
+          className={`${hit} bg-bg-elevated text-accent hover:bg-accent/15 rounded transition-colors`}
           title="Copy shareable URL (session in hash)"
         >
           Copy share link
@@ -289,7 +302,7 @@ export function SessionControls({
           <div className="text-[9px] uppercase tracking-wider text-text-muted mb-1">
             Arrangement
           </div>
-          <ArrangementLite />
+          <ArrangementLite touchFriendly={touchFriendly} />
         </div>
       )}
     </div>
