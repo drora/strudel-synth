@@ -18,7 +18,7 @@ interface TransportBarProps {
   isMobile?: boolean
 }
 
-function AudioBadge() {
+function AudioBadge({ alwaysShow = false }: { alwaysShow?: boolean }) {
   const [state, setState] = useState(() => getAudioContextState())
   const audioError = useUIStore((s) => s.audioError)
   useEffect(() => {
@@ -32,7 +32,7 @@ function AudioBadge() {
       type="button"
       title={audioError ?? `AudioContext: ${state}`}
       onClick={() => { if (audioError) useUIStore.getState().setAudioError(null) }}
-      className={`hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] uppercase tracking-wider font-medium border ${
+      className={`${alwaysShow ? 'inline-flex' : 'hidden sm:inline-flex'} items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] uppercase tracking-wider font-medium border min-h-8 ${
         audioError ? 'border-error/40 text-error bg-error/10' : running ? 'border-success/30 text-success/80 bg-success/10' : 'border-border text-text-muted bg-bg-elevated'
       }`}
     >
@@ -61,6 +61,11 @@ function ShareLinkButton({ className }: { className?: string }) {
   )
 }
 
+const menuItem =
+  'w-full text-left px-3 py-2.5 min-h-11 text-sm hover:bg-accent/15 text-text flex items-center'
+const menuItemAccent =
+  'w-full text-left px-3 py-2.5 min-h-11 text-sm hover:bg-accent/15 text-accent font-medium flex items-center'
+
 export function TransportBar({
   onToggleDocs,
   onToggleCheatsheet,
@@ -75,6 +80,7 @@ export function TransportBar({
   const anyMuted = tracks.some((t) => t.muted)
   const defaultQuantization = useUIStore((s) => s.defaultQuantization)
   const crossfadeSwaps = useUIStore((s) => s.crossfadeSwaps)
+  const appMode = useUIStore((s) => s.appMode)
   const effectiveQuant = useUIStore((s) => s.getEffectiveQuantization(activeTrackId))
   const audioError = useUIStore((s) => s.audioError)
   const quantShort =
@@ -121,6 +127,8 @@ export function TransportBar({
   const handleActiveLock = useCallback(() => {
     if (activeTrackId) useSessionStore.getState().toggleLock(activeTrackId)
   }, [activeTrackId])
+
+  const closeMore = () => setMoreOpen(false)
 
   const hit = isMobile ? 'min-h-11 min-w-11 px-3 py-2 text-xs' : 'px-2 py-1 text-xs'
   const hitSm = isMobile ? 'min-h-11 px-3 py-2 text-xs' : 'px-2 py-1 text-[10px]'
@@ -172,31 +180,213 @@ export function TransportBar({
     </>
   )
 
+  const mobileMoreMenu = (
+    <div
+      role="menu"
+      className="absolute right-0 bottom-full mb-2 z-50 w-[min(100vw-1.5rem,20rem)] max-h-[min(70dvh,28rem)] overflow-y-auto rounded-xl border border-border bg-bg-surface shadow-2xl py-2"
+    >
+      <button
+        role="menuitem"
+        className={menuItemAccent}
+        onClick={() => {
+          useUIStore.getState().setAppMode('jam')
+          closeMore()
+        }}
+      >
+        Enter Jam Mode
+      </button>
+      <button
+        role="menuitem"
+        className={menuItem}
+        onClick={() => {
+          useUIStore.getState().setAppMode('studio')
+          closeMore()
+        }}
+      >
+        Enter Studio{appMode === 'studio' ? ' ✓' : ''}
+      </button>
+      <button
+        role="menuitem"
+        className={menuItem}
+        onClick={() => {
+          useUIStore.getState().setAppMode('learn')
+          closeMore()
+        }}
+      >
+        Enter Learn Mode
+      </button>
+
+      <div className="border-t border-border my-1" />
+
+      <button
+        role="menuitem"
+        className={menuItem}
+        disabled={!activeTrack}
+        onClick={() => {
+          void handleActiveUpdate()
+          closeMore()
+        }}
+      >
+        Update active ·{quantShort}
+      </button>
+      <button
+        role="menuitem"
+        className={menuItem}
+        disabled={!activeTrack}
+        onClick={() => {
+          handleActiveLock()
+          closeMore()
+        }}
+      >
+        {activeTrack?.locked ? 'Unlock active track' : 'Lock active track'}
+      </button>
+      <button
+        role="menuitem"
+        className={menuItem}
+        onClick={() => {
+          handleLockAll()
+          closeMore()
+        }}
+      >
+        {anyLocked ? 'Unlock All' : 'Lock All'}
+      </button>
+      <button
+        role="menuitem"
+        className={menuItem}
+        onClick={() => {
+          handleMuteAll()
+          closeMore()
+        }}
+      >
+        {anyMuted ? 'Unmute All' : 'Mute All'}
+      </button>
+      <div className="px-3 py-2 flex items-center gap-2 text-sm text-text-muted min-h-11">
+        <span className="shrink-0">Quant</span>
+        <select
+          value={defaultQuantization}
+          onChange={(e) =>
+            useUIStore.getState().setDefaultQuantization(e.target.value as Quantization)
+          }
+          className="flex-1 bg-bg-elevated text-text text-sm rounded px-2 py-2 border border-border min-h-11"
+          aria-label="Default quantization"
+        >
+          {QUANT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <button
+        type="button"
+        role="menuitem"
+        disabled
+        aria-disabled="true"
+        title="Crossfade swaps unavailable — Strudel xfade() is concurrent blend, not a pattern-swap API"
+        className={`${menuItem} text-text-muted/50 cursor-not-allowed line-through decoration-text-muted/40`}
+      >
+        Crossfade{crossfadeSwaps ? ' on' : ''} (unavailable)
+      </button>
+
+      <div className="border-t border-border my-1" />
+
+      <button
+        role="menuitem"
+        className={menuItem}
+        onClick={() => {
+          onTogglePiano?.()
+          closeMore()
+        }}
+      >
+        Keys (piano)
+      </button>
+      <button
+        role="menuitem"
+        className={menuItem}
+        onClick={() => {
+          onToggleRecorder?.()
+          closeMore()
+        }}
+      >
+        Voice recorder
+      </button>
+      <button
+        role="menuitem"
+        className={menuItem}
+        onClick={() => {
+          onToggleDocs?.()
+          closeMore()
+        }}
+      >
+        Panel / FX
+      </button>
+      <button
+        role="menuitem"
+        className={menuItem}
+        onClick={() => {
+          onToggleCheatsheet?.()
+          closeMore()
+        }}
+      >
+        Cheatsheet
+      </button>
+      <button
+        role="menuitem"
+        className={menuItem}
+        onClick={() => {
+          useUIStore.getState().setShowTemplateModal(true)
+          closeMore()
+        }}
+      >
+        Templates
+      </button>
+
+      <div className="border-t border-border my-1" />
+
+      <ShareLinkButton className={`${menuItemAccent}`} />
+      <div className="px-1 pb-1 [&_button]:min-h-11 [&_label]:min-h-11 [&_.border-b]:border-0">
+        <SessionControls showArrangement touchFriendly />
+      </div>
+    </div>
+  )
+
   return (
     <div className="shrink-0 flex flex-col">
       {audioError && (
         <div role="status" className="px-3 py-2 text-xs text-error bg-error/10 border-t border-error/30 flex items-center justify-between gap-2">
           <span>{audioError}</span>
-          <button type="button" className="text-error/80 hover:text-error underline shrink-0" onClick={() => useUIStore.getState().setAudioError(null)}>Dismiss</button>
+          <button type="button" className="text-error/80 hover:text-error underline shrink-0 min-h-11 px-2" onClick={() => useUIStore.getState().setAudioError(null)}>Dismiss</button>
         </div>
       )}
     <div
       className={`flex items-center bg-bg-surface/95 backdrop-blur-md border-t border-border shrink-0 ${
-        isMobile ? 'flex-wrap gap-2 px-3 py-2.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]' : 'h-14 gap-4 px-4'
+        isMobile
+          ? 'flex-wrap gap-2 px-3 py-2.5 pb-[max(0.5rem,env(safe-area-inset-bottom))]'
+          : 'h-14 gap-4 px-4'
       }`}
     >
-      {/* Play / Stop — primary thumb target */}
       <PlayButton large={!!isMobile} />
-      <AudioBadge />
-
-      {/* BPM */}
+      <AudioBadge alwaysShow={!!isMobile} />
       <BpmControl compact={!!isMobile} />
-
       {!isMobile && <div className="w-px h-6 bg-border" />}
-
-      {/* Mobile thumb primaries: Update + Lock for active track */}
       {isMobile && (
         <>
+          <button
+            type="button"
+            onClick={() => useUIStore.getState().setAppMode('jam')}
+            className={`${hit} font-medium text-accent bg-accent/10 hover:bg-accent/20 rounded transition-colors`}
+            title="Enter Jam Mode"
+          >
+            Jam
+          </button>
+          <button
+            type="button"
+            onClick={() => useUIStore.getState().setAppMode('learn')}
+            className={`${hit} font-medium text-text-muted hover:text-accent bg-bg-elevated hover:bg-accent/10 rounded transition-colors`}
+            title="Enter Learn Mode"
+          >
+            Learn
+          </button>
           <button
             type="button"
             disabled={!activeTrack}
@@ -221,8 +411,6 @@ export function TransportBar({
           </button>
         </>
       )}
-
-      {/* Desktop: Lock All / Mute All / Quant / Crossfade stub */}
       {!isMobile && (
         <>
           <button
@@ -236,7 +424,6 @@ export function TransportBar({
           >
             {anyLocked ? 'Unlock All' : 'Lock All'}
           </button>
-
           <button
             onClick={handleMuteAll}
             className={`px-2 py-1 text-xs rounded transition-colors ${
@@ -248,7 +435,6 @@ export function TransportBar({
           >
             {anyMuted ? 'Unmute All' : 'Mute All'}
           </button>
-
           <label
             className="flex items-center gap-1 text-[10px] text-text-muted"
             title="Default quantization for Update / Lock / hotkeys"
@@ -268,12 +454,6 @@ export function TransportBar({
               ))}
             </select>
           </label>
-
-          {/*
-            Crossfade swaps — STUBBED disabled.
-            Strudel's xfade(left, amount, right) blends two concurrent patterns; it is not
-            a compose/evaluate swap transition API. Enabling would invent broken audio wiring.
-          */}
           <button
             type="button"
             disabled
@@ -285,10 +465,7 @@ export function TransportBar({
           </button>
         </>
       )}
-
-      {/* Sample loading progress */}
       <SampleLoadingIndicator />
-
       {!isMobile && (
         <>
           <div className="w-px h-6 bg-border" />
@@ -296,133 +473,22 @@ export function TransportBar({
           <ShareLinkButton className="px-2 py-1 text-[10px] rounded bg-bg-elevated text-accent hover:bg-accent/15" />
         </>
       )}
-
-      {/* Beat visualizer + track dots */}
-      <div className={`flex-1 flex items-center justify-center ${isMobile ? 'min-w-[4rem]' : ''}`}>
+      <div className={`flex-1 flex items-center justify-center ${isMobile ? 'min-w-[3rem]' : ''}`}>
         <TransportViz />
       </div>
-
-      {/* Desktop secondary toggles inline; mobile → More menu */}
       {isMobile ? (
-        <div className="relative" ref={moreRef}>
+        <div className="relative ml-auto" ref={moreRef}>
           <button
             type="button"
             onClick={() => setMoreOpen((o) => !o)}
             className={`${hit} rounded bg-bg-elevated text-text-muted hover:text-text`}
             aria-haspopup="menu"
             aria-expanded={moreOpen}
-            title="More controls"
+            title="More controls — all Studio actions"
           >
             More
           </button>
-          {moreOpen && (
-            <div
-              role="menu"
-              className="absolute right-0 bottom-full mb-2 z-50 min-w-[12rem] rounded-xl border border-border bg-bg-surface shadow-2xl py-2"
-            >
-              <div className="px-3 py-1 text-[9px] uppercase tracking-wider text-text-muted">
-                Jam
-              </div>
-              <button
-                role="menuitem"
-                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent/15 text-text"
-                onClick={() => {
-                  handleLockAll()
-                  setMoreOpen(false)
-                }}
-              >
-                {anyLocked ? 'Unlock All' : 'Lock All'}
-              </button>
-              <button
-                role="menuitem"
-                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent/15 text-text"
-                onClick={() => {
-                  handleMuteAll()
-                  setMoreOpen(false)
-                }}
-              >
-                {anyMuted ? 'Unmute All' : 'Mute All'}
-              </button>
-              <div className="px-3 py-2 flex items-center gap-2 text-sm text-text-muted">
-                <span>Quant</span>
-                <select
-                  value={defaultQuantization}
-                  onChange={(e) =>
-                    useUIStore.getState().setDefaultQuantization(e.target.value as Quantization)
-                  }
-                  className="flex-1 bg-bg-elevated text-text text-sm rounded px-2 py-1.5 border border-border min-h-11"
-                >
-                  {QUANT_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="border-t border-border my-1" />
-              <div className="px-3 py-1 text-[9px] uppercase tracking-wider text-text-muted">
-                Panels
-              </div>
-              <button
-                role="menuitem"
-                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent/15 text-text"
-                onClick={() => {
-                  onTogglePiano?.()
-                  setMoreOpen(false)
-                }}
-              >
-                Keys
-              </button>
-              <button
-                role="menuitem"
-                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent/15 text-text"
-                onClick={() => {
-                  onToggleRecorder?.()
-                  setMoreOpen(false)
-                }}
-              >
-                Rec
-              </button>
-              <button
-                role="menuitem"
-                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent/15 text-text"
-                onClick={() => {
-                  onToggleDocs?.()
-                  setMoreOpen(false)
-                }}
-              >
-                Panel / FX
-              </button>
-              <button
-                role="menuitem"
-                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent/15 text-text"
-                onClick={() => {
-                  onToggleCheatsheet?.()
-                  setMoreOpen(false)
-                }}
-              >
-                Cheatsheet (?)
-              </button>
-              <div className="border-t border-border my-1" />
-              <div className="px-3 py-1 text-[9px] uppercase tracking-wider text-text-muted">
-                Session / Producer
-              </div>
-              <div className="px-1 pb-1 [&_.border-b]:border-0">
-                <SessionControls showArrangement />
-              </div>
-              <div className="border-t border-border my-1" />
-              <button
-                role="menuitem"
-                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent/15 text-accent font-medium"
-                onClick={() => {
-                  useUIStore.getState().setAppMode('learn')
-                  setMoreOpen(false)
-                }}
-              >
-                Learn
-              </button>
-            </div>
-          )}
+          {moreOpen && mobileMoreMenu}
         </div>
       ) : (
         <>
