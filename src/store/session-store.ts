@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import type { Track, Template } from '../engine/types'
+import type { Track, TrackRole, Template } from '../engine/types'
+import { ROLE_COLORS } from '../engine/types'
 
 interface SessionState {
   tracks: Track[]
@@ -23,6 +24,16 @@ interface SessionState {
   toggleLock: (trackId: string) => void
   lockAll: () => void
   reorderTracks: (fromIndex: number, toIndex: number) => void
+  /**
+   * Phase 4: promote Learn challenge code into a Studio track.
+   * Always adds a new track (never clobbers existing Studio work).
+   * Returns the new track id.
+   */
+  applyLearnCode: (opts: {
+    code: string
+    name?: string
+    role?: TrackRole
+  }) => string
 }
 
 let nextId = 1
@@ -81,6 +92,29 @@ export const useSessionStore = create<SessionState>((set) => ({
       tracks: [...state.tracks, { ...track, id }],
       activeTrackId: id,
     }))
+  },
+
+  applyLearnCode: ({ code, name, role }) => {
+    const resolvedRole: TrackRole = role ?? 'custom'
+    const id = genId()
+    const track: Track = {
+      id,
+      name: name?.trim() || 'From Learn',
+      role: resolvedRole,
+      code,
+      color: ROLE_COLORS[resolvedRole],
+      muted: false,
+      soloed: false,
+      locked: false,
+      volume: 1,
+      error: null,
+    }
+    set((state) => ({
+      tracks: [...state.tracks, track],
+      activeTrackId: id,
+      // Keep existing bpm / templateId — do not reset the session
+    }))
+    return id
   },
 
   removeTrack: (trackId) =>
