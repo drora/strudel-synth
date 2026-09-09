@@ -11,7 +11,7 @@ export const PREBAKE_MIN_VISIBLE_MS = 600
 
 
 
-export function queueJam(reason: 'kit' | 'jam' | 'reshuffle' = 'jam') {
+export function queueJam(reason: 'kit' | 'jam' | 'reshuffle' | 'mute-solo' = 'jam') {
   if (!useSessionStore.getState().isPlaying) return
   const q = useUIStore.getState().getEffectiveQuantization(
     useSessionStore.getState().activeTrackId,
