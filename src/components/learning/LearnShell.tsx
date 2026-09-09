@@ -6,6 +6,7 @@ import { evaluateCode, initEngine, stop, maybeLoadCommunityBanks } from '../../e
 import { ensureAudioUnlocked } from '../../engine/audio-context'
 import { useUIStore } from '../../store/ui-store'
 import { useSessionStore } from '../../store/session-store'
+import { useJamStore } from '../../store/jam-store'
 import { useIsMobile } from '../../hooks/useIsMobile'
 
 const LS_KEY = 'strudel-learn-progress'
@@ -112,15 +113,16 @@ export function LearnShell() {
     [isMobile],
   )
 
-  const handleApplyToStudio = useCallback(async () => {
+  const handleApplyToJam = useCallback(async () => {
     await handleStop()
-    useSessionStore.getState().applyLearnCode({
+    const trackId = useSessionStore.getState().applyLearnCode({
       code,
       name: challenge.title,
       role: challenge.studioRole ?? 'custom',
     })
     setAppliedFlash(true)
-    useUIStore.getState().setAppMode('studio')
+    useJamStore.getState().setCodeTrackId(trackId)
+    useUIStore.getState().setAppMode('jam')
   }, [code, challenge, handleStop])
 
   useEffect(() => {
@@ -232,11 +234,11 @@ export function LearnShell() {
             <div className="flex flex-col sm:flex-row flex-wrap gap-2">
               <button
                 type="button"
-                onClick={handleApplyToStudio}
+                onClick={handleApplyToJam}
                 className="w-full sm:w-auto px-4 py-2.5 text-sm font-semibold bg-accent text-bg rounded-lg hover:bg-accent/90 shadow-[0_0_14px_rgba(167,139,250,0.35)] transition-all active:scale-95"
-                title="Add this code as a new Studio track and switch modes"
+                title="Add this code as a new Jam track and open its Code sheet"
               >
-                Apply to Studio →
+                Apply to Jam →
               </button>
               <button
                 type="button"
@@ -248,7 +250,7 @@ export function LearnShell() {
             </div>
             {level.id === 4 && (
               <p className="text-[11px] text-text-muted leading-relaxed">
-                In Studio: use Update / Lock on the new track to hear edits on the cycle.
+                In Jam: open Code on the new track — Update / Lock lands edits on the cycle.
               </p>
             )}
           </div>
@@ -259,7 +261,7 @@ export function LearnShell() {
           </div>
         )}
         {appliedFlash && (
-          <p className="text-[11px] text-accent">Opening Studio with your track…</p>
+          <p className="text-[11px] text-accent">Opening Jam with your track…</p>
         )}
       </div>
     </div>
@@ -291,10 +293,10 @@ export function LearnShell() {
       {feedback === 'success' && (
         <button
           type="button"
-          onClick={handleApplyToStudio}
+          onClick={handleApplyToJam}
           className="px-4 py-2 text-xs font-semibold bg-accent text-bg rounded-lg hover:bg-accent/90 shadow-[0_0_14px_rgba(167,139,250,0.35)] transition-all active:scale-95 hidden sm:inline-flex"
         >
-          Apply to Studio →
+          Apply to Jam →
         </button>
       )}
 
@@ -309,14 +311,7 @@ export function LearnShell() {
         onClick={() => useUIStore.getState().setAppMode('jam')}
         className="min-h-11 px-3 py-1.5 text-xs font-medium text-accent bg-accent/10 rounded transition-colors"
       >
-        Jam
-      </button>
-      <button
-        type="button"
-        onClick={() => useUIStore.getState().setAppMode('studio')}
-        className="min-h-11 px-3 py-1.5 text-xs text-text-muted hover:text-text bg-bg-elevated rounded transition-colors"
-      >
-        Studio
+        ← Jam
       </button>
     </div>
   )
