@@ -7,7 +7,7 @@
 ## Use it
 
 1. **Jam** — pick a vibe/kit, hit Play, Shuffle / Spice / deal cards.
-2. **Tap a track** — Sound|FX sheet (chips write real Strudel code).
+2. **Tap a track** — Sound|FX sheet (chips write real Strudel code). **+ Track** adds a role with preset code without switching kits.
 3. **Edit in Code** / header **`</> Code`** — CodeMirror sheet for that track (Update / Lock / quantize). Stays in Jam; no mode bounce.
 4. **Learn** — challenges with Check / hints; **Apply to Jam** adds a track and opens its Code sheet.
 

@@ -8,6 +8,7 @@ Guide for coding agents working on [`drora/strudel-synth`](https://github.com/dr
 
 - **Jam** (`JamShell`) — default and primary UI.
 - **Code** — sheet/overlay inside Jam (`JamCodeSheet` → `TrackCodePane`).
+- **+ Track** — under Sounds/FX chips; pick role → `ROLE_PRESETS` default → Sound|FX sheet (no kit switch).
 - **Learn** — optional (`LearnShell`); “Apply to Jam” adds a track and opens its Code sheet.
 
 Out of scope unless explicitly requested: Hydra, MIDI panels, xfade, timeline rewrite, audio-engine rewrite.
