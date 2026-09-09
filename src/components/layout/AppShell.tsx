@@ -112,7 +112,8 @@ function StudioShell() {
         e.preventDefault()
         try {
           if (state.isPlaying) {
-            liveUpdateEngine.queueUpdate('1', 'hotkey')
+            const q = useUIStore.getState().getEffectiveQuantization(state.activeTrackId)
+            liveUpdateEngine.queueUpdate(q, 'hotkey')
           } else {
             await resumeAudioContext()
             await initEngine()
@@ -166,7 +167,10 @@ function StudioShell() {
         if (activeTrack) {
           const newCode = reshuffleTrack(activeTrack.role, activeTrack.code)
           state.setCode(activeTrack.id, newCode)
-          if (state.isPlaying) liveUpdateEngine.queueUpdate('1', 'reshuffle')
+          if (state.isPlaying) {
+            const q = useUIStore.getState().getEffectiveQuantization(activeTrack.id)
+            liveUpdateEngine.queueUpdate(q, 'reshuffle')
+          }
         }
         return
       }
