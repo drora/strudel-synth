@@ -3,7 +3,8 @@ import { BpmControl } from './BpmControl'
 import { TransportViz } from './TransportViz'
 import { SampleLoadingIndicator } from './SampleLoadingIndicator'
 import { useSessionStore } from '../../store/session-store'
-import { useUIStore } from '../../store/ui-store'
+import { useUIStore, QUANT_OPTIONS } from '../../store/ui-store'
+import type { Quantization } from '../../engine/live-update'
 
 interface TransportBarProps {
   onToggleDocs?: () => void
@@ -17,6 +18,8 @@ export function TransportBar({ onToggleDocs, onToggleCheatsheet, onTogglePiano, 
   const tracks = useSessionStore((s) => s.tracks)
   const anyLocked = tracks.some((t) => t.locked)
   const anyMuted = tracks.some((t) => t.muted)
+  const defaultQuantization = useUIStore((s) => s.defaultQuantization)
+  const crossfadeSwaps = useUIStore((s) => s.crossfadeSwaps)
 
   const handleLockAll = () => useSessionStore.getState().lockAll()
 
@@ -65,6 +68,42 @@ export function TransportBar({ onToggleDocs, onToggleCheatsheet, onTogglePiano, 
         title="Mute/unmute all tracks"
       >
         {anyMuted ? 'Unmute All' : 'Mute All'}
+      </button>
+
+      {/* Global default quantization (persisted via ui-store) */}
+      <label
+        className="flex items-center gap-1 text-[10px] text-text-muted"
+        title="Default quantization for Update / Lock / hotkeys"
+      >
+        <span className="hidden sm:inline">Quant</span>
+        <select
+          value={defaultQuantization}
+          onChange={(e) =>
+            useUIStore.getState().setDefaultQuantization(e.target.value as Quantization)
+          }
+          className="bg-bg-elevated text-text text-[10px] rounded px-1.5 py-1 border border-border focus:outline-none focus:border-accent"
+        >
+          {QUANT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.short === '∞' ? 'now' : o.short}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {/*
+        Crossfade swaps — STUBBED disabled.
+        Strudel's xfade(left, amount, right) blends two concurrent patterns; it is not
+        a compose/evaluate swap transition API. Enabling would invent broken audio wiring.
+      */}
+      <button
+        type="button"
+        disabled
+        aria-disabled="true"
+        title="Crossfade swaps unavailable — Strudel xfade() is concurrent blend, not a pattern-swap API"
+        className="px-2 py-1 text-[10px] rounded bg-bg-elevated text-text-muted/50 cursor-not-allowed line-through decoration-text-muted/40"
+      >
+        Crossfade{crossfadeSwaps ? ' on' : ''}
       </button>
 
       {/* Sample loading progress */}

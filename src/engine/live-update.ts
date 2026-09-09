@@ -18,6 +18,17 @@ interface PendingUpdate {
   queuedAt: number
 }
 
+export interface BoundaryInfo {
+  /** Pending quantization integer (1/2/4); null if idle or immediate. */
+  quantInt: number | null
+  /** Fractional progress [0,1) within the current quant window toward the next fire boundary. */
+  progress: number
+  /** Absolute cycle time of the next aligned boundary (estimate). */
+  nextBoundary: number
+  /** Current absolute cycle. */
+  cycle: number
+}
+
 type StatusListener = (status: UpdateStatus, meta?: { reason?: QueueReason; error?: string }) => void
 
 /**
@@ -57,6 +68,10 @@ class LiveUpdateEngine {
 
   getStatus(): UpdateStatus {
     return this.status
+  }
+
+  getPending(): PendingUpdate | null {
+    return this.pending
   }
 
   markDirty() {
@@ -115,6 +130,27 @@ class LiveUpdateEngine {
   /** Current cycle position (fractional). */
   getCurrentCycle(): number {
     return this.estimateCycle()
+  }
+
+  /**
+   * Progress toward the next fire boundary for TransportViz "next boundary" marker.
+   * Uses pending quant when queued; otherwise defaults to 1-cycle "the one".
+   */
+  getBoundaryInfo(): BoundaryInfo {
+    const cycle = this.estimateCycle()
+    const quantInt =
+      this.pending && this.pending.quantization !== 'immediate'
+        ? Math.max(1, parseInt(this.pending.quantization, 10) || 1)
+        : 1
+    const nextBoundary = Math.ceil((cycle + 1e-9) / quantInt) * quantInt
+    const windowStart = nextBoundary - quantInt
+    const progress = Math.min(1, Math.max(0, (cycle - windowStart) / quantInt))
+    return {
+      quantInt: this.pending ? quantInt : null,
+      progress,
+      nextBoundary,
+      cycle,
+    }
   }
 
   private setStatus(status: UpdateStatus, meta?: { reason?: QueueReason; error?: string }) {
