@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useSessionStore } from '../../store/session-store'
+import { useUIStore } from '../../store/ui-store'
 import { EffectKnob } from './EffectKnob'
 import { liveUpdateEngine } from '../../engine/live-update'
 
@@ -72,10 +73,25 @@ const EFFECT_SECTIONS: EffectSection[] = [
   },
 ]
 
+/** Scalar number only — returns null for patterned / expression args. */
 function parseEffectValue(code: string, key: string): number | null {
   const regex = new RegExp(`\\.${key}\\((\\d+\\.?\\d*)\\)`)
   const match = code.match(regex)
   return match ? parseFloat(match[1]) : null
+}
+
+/**
+ * True when `.key(...)` exists but the argument is not a plain scalar number
+ * (mini-notation, sine, expressions, etc.).
+ */
+function isPatternedEffect(code: string, key: string): boolean {
+  const call = new RegExp(`\\.${key}\\(([^)]*)\\)`)
+  const m = code.match(call)
+  if (!m) return false
+  const inner = m[1].trim()
+  if (inner.length === 0) return false
+  if (/^\d+\.?\d*$/.test(inner)) return false
+  return true
 }
 
 function setEffectInCode(code: string, key: string, value: number): string {
@@ -105,16 +121,34 @@ export function EffectsPanel() {
   }, [])
 
   const handleParamChange = useCallback(
-    (key: string, value: number) => {
+    (key: string, value: number, force = false) => {
       if (!activeTrack) return
+
+      // Skip overwrite when value is patterned unless user confirmed (force).
+      if (!force && isPatternedEffect(activeTrack.code, key)) {
+        return
+      }
+
       const newCode = setEffectInCode(activeTrack.code, key, value)
       setCode(activeTrack.id, newCode)
       liveUpdateEngine.markDirty()
       if (useSessionStore.getState().isPlaying) {
-        liveUpdateEngine.queueUpdate("1", "effects")
+        const q = useUIStore.getState().getEffectiveQuantization(activeTrack.id)
+        liveUpdateEngine.queueUpdate(q, 'effects')
       }
     },
     [activeTrack, setCode]
+  )
+
+  const handlePatternConfirm = useCallback(
+    (key: string, value: number) => {
+      if (!activeTrack) return
+      const ok = window.confirm(
+        `.${key}(...) is a pattern/expression in code.\nReplace it with scalar ${value}?`,
+      )
+      if (ok) handleParamChange(key, value, true)
+    },
+    [activeTrack, handleParamChange],
   )
 
   if (!activeTrack) {
@@ -149,6 +183,7 @@ export function EffectsPanel() {
               <div className="px-3 pb-2 grid grid-cols-2 gap-x-2 gap-y-1">
                 {section.params.map((param) => {
                   const currentValue = parseEffectValue(activeTrack.code, param.key)
+                  const patterned = isPatternedEffect(activeTrack.code, param.key)
                   return (
                     <EffectKnob
                       key={param.key}
@@ -158,7 +193,9 @@ export function EffectsPanel() {
                       max={param.max}
                       step={param.step}
                       onChange={(v) => handleParamChange(param.key, v)}
+                      onForceChange={(v) => handlePatternConfirm(param.key, v)}
                       isActive={currentValue !== null}
+                      isPattern={patterned}
                     />
                   )
                 })}
