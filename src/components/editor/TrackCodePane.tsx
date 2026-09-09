@@ -3,9 +3,10 @@ import { EditorView } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { createExtensions } from './extensions'
 import { useSessionStore } from '../../store/session-store'
+import { useUIStore, QUANT_OPTIONS } from '../../store/ui-store'
 import { stop, composeTracks, initEngine, evaluateCode } from '../../engine/strudel'
 import { resumeAudioContext } from '../../engine/audio-context'
-import { liveUpdateEngine, type UpdateStatus } from '../../engine/live-update'
+import { liveUpdateEngine, type UpdateStatus, type Quantization } from '../../engine/live-update'
 import { reshuffleTrack } from '../../engine/reshuffle'
 import { ROLE_PRESETS } from '../../engine/presets'
 import type { Track } from '../../engine/types'
@@ -15,7 +16,7 @@ interface TrackCodePaneProps {
   isActive: boolean
 }
 
-async function startOrQueueUpdate(quant: 'immediate' | '1' | '2' | '4' = '1') {
+async function startOrQueueUpdate(quant: Quantization) {
   const state = useSessionStore.getState()
   if (state.isPlaying) {
     liveUpdateEngine.queueUpdate(quant, 'manual')
@@ -35,14 +36,34 @@ export function TrackCodePane({ track, isActive }: TrackCodePaneProps) {
   const viewRef = useRef<EditorView | null>(null)
   const codeRef = useRef(track.code)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const preset = ROLE_PRESETS[track.role]
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle')
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  const defaultQuantization = useUIStore((s) => s.defaultQuantization)
+  const trackQuant = useUIStore((s) => s.trackQuantization[track.id])
+  const effectiveQuant = trackQuant ?? defaultQuantization
+  const quantShort =
+    QUANT_OPTIONS.find((o) => o.value === effectiveQuant)?.short ?? effectiveQuant
 
   useEffect(() => liveUpdateEngine.subscribe((s) => setUpdateStatus(s)), [])
 
-  const handleEvaluate = useCallback(async () => {
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDoc = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [menuOpen])
+
+  const handleEvaluate = useCallback(async (quant?: Quantization) => {
+    const q = quant ?? useUIStore.getState().getEffectiveQuantization(track.id)
     try {
-      await startOrQueueUpdate('1')
+      await startOrQueueUpdate(q)
       useSessionStore.getState().setError(track.id, null)
     } catch (err) {
       useSessionStore.getState().setError(
@@ -69,7 +90,8 @@ export function TrackCodePane({ track, isActive }: TrackCodePaneProps) {
       if (currentTrack?.locked && state.isPlaying) {
         if (debounceRef.current) clearTimeout(debounceRef.current)
         debounceRef.current = setTimeout(() => {
-          liveUpdateEngine.queueUpdate('1', 'lock')
+          const q = useUIStore.getState().getEffectiveQuantization(track.id)
+          liveUpdateEngine.queueUpdate(q, 'lock')
         }, 300)
       }
     },
@@ -81,7 +103,8 @@ export function TrackCodePane({ track, isActive }: TrackCodePaneProps) {
     useSessionStore.getState().setCode(track.id, newCode)
     liveUpdateEngine.markDirty()
     if (useSessionStore.getState().isPlaying) {
-      liveUpdateEngine.queueUpdate('1', 'reshuffle')
+      const q = useUIStore.getState().getEffectiveQuantization(track.id)
+      liveUpdateEngine.queueUpdate(q, 'reshuffle')
     }
   }, [track.id, track.role, track.code])
 
@@ -90,11 +113,22 @@ export function TrackCodePane({ track, isActive }: TrackCodePaneProps) {
     useSessionStore.getState().toggleLock(track.id)
   }, [track.id])
 
+  const pickQuant = useCallback(
+    (q: Quantization, asDefault: boolean) => {
+      const ui = useUIStore.getState()
+      ui.setTrackQuantization(track.id, q)
+      if (asDefault) ui.setDefaultQuantization(q)
+      setMenuOpen(false)
+      void handleEvaluate(q)
+    },
+    [track.id, handleEvaluate],
+  )
+
   useEffect(() => {
     if (!editorRef.current) return
 
     const extensions = createExtensions({
-      onEvaluate: handleEvaluate,
+      onEvaluate: () => handleEvaluate(),
       onStop: handleStop,
       onChange: handleChange,
     })
@@ -172,7 +206,7 @@ export function TrackCodePane({ track, isActive }: TrackCodePaneProps) {
           Shuffle
         </button>
 
-        <div className="flex items-center rounded overflow-hidden">
+        <div className="relative flex items-center rounded overflow-visible" ref={menuRef}>
           <button
             onClick={handleToggleLock}
             className={`px-1.5 py-0.5 text-[10px] transition-colors border-r ${
@@ -190,17 +224,87 @@ export function TrackCodePane({ track, isActive }: TrackCodePaneProps) {
               e.stopPropagation()
               void handleEvaluate()
             }}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setMenuOpen(true)
+            }}
             className={`px-2 py-0.5 text-[10px] font-medium transition-colors ${updateBtnClass}`}
-            title="Update on the one (Ctrl+Enter)"
+            title={`Update (${effectiveQuant}) — right-click or ▾ for quantization`}
           >
             {updateStatus === 'queued'
-              ? 'Queued'
+              ? `Queued ·${quantShort}`
               : updateStatus === 'dirty'
                 ? 'Dirty'
                 : updateStatus === 'applied'
                   ? 'Applied'
-                  : 'Update'}
+                  : `Update ·${quantShort}`}
           </button>
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setMenuOpen((o) => !o)
+            }}
+            className={`px-1 py-0.5 text-[10px] border-l border-border/40 ${updateBtnClass}`}
+            title="Quantization: 1 / 2 / 4 / immediate"
+            aria-label="Quantization menu"
+          >
+            ▾
+          </button>
+
+          {menuOpen && (
+            <div
+              className="absolute right-0 top-full mt-1 z-50 min-w-[11rem] rounded border border-border bg-bg-surface shadow-lg py-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-2 py-1 text-[9px] uppercase tracking-wider text-text-muted">
+                This track
+              </div>
+              {QUANT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  className={`w-full text-left px-2 py-1 text-[11px] hover:bg-accent/15 ${
+                    effectiveQuant === opt.value ? 'text-accent' : 'text-text'
+                  }`}
+                  onClick={() => pickQuant(opt.value, false)}
+                >
+                  {opt.label}
+                  {trackQuant === opt.value ? ' ✓' : ''}
+                </button>
+              ))}
+              <div className="border-t border-border my-1" />
+              <div className="px-2 py-1 text-[9px] uppercase tracking-wider text-text-muted">
+                Set global default
+              </div>
+              {QUANT_OPTIONS.map((opt) => (
+                <button
+                  key={`def-${opt.value}`}
+                  className={`w-full text-left px-2 py-1 text-[11px] hover:bg-accent/15 ${
+                    defaultQuantization === opt.value ? 'text-accent' : 'text-text-muted'
+                  }`}
+                  onClick={() => pickQuant(opt.value, true)}
+                >
+                  Default → {opt.label}
+                  {defaultQuantization === opt.value ? ' ★' : ''}
+                </button>
+              ))}
+              {trackQuant && (
+                <>
+                  <div className="border-t border-border my-1" />
+                  <button
+                    className="w-full text-left px-2 py-1 text-[11px] text-text-muted hover:bg-accent/15"
+                    onClick={() => {
+                      useUIStore.getState().setTrackQuantization(track.id, null)
+                      setMenuOpen(false)
+                    }}
+                  >
+                    Clear track override
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
