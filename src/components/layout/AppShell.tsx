@@ -180,6 +180,15 @@ function StudioShell() {
           </span>
           <div className="flex-1" />
           <button
+            type="button"
+            onClick={() => useUIStore.getState().setShowTemplateModal(true)}
+            className="min-w-11 min-h-11 px-2 flex items-center justify-center text-text-muted hover:text-accent text-[10px] font-medium rounded transition-colors"
+            aria-label="Open templates"
+            title="Templates"
+          >
+            Tpl
+          </button>
+          <button
             onClick={() => setShowMobileRightPanel(true)}
             className="min-w-11 min-h-11 flex items-center justify-center text-text-muted hover:text-text rounded transition-colors"
             aria-label="Open effects / panels"

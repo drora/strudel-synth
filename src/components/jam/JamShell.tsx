@@ -22,13 +22,22 @@ export function JamShell() {
           <div className="text-sm font-semibold tracking-wide">Strudel Studio</div>
           <div className="text-[10px] uppercase tracking-wider text-accent">Jam Mode</div>
         </div>
-        <button
-          type="button"
-          className="min-h-11 px-3 rounded-lg text-xs font-medium bg-accent/15 text-accent border border-accent/30"
-          onClick={() => useUIStore.getState().setAppMode('studio')}
-        >
-          {'</>'} Code
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="min-h-11 px-3 rounded-lg text-xs font-medium bg-bg-elevated text-text-muted border border-border hover:text-accent"
+            onClick={() => useUIStore.getState().setAppMode('learn')}
+          >
+            Learn
+          </button>
+          <button
+            type="button"
+            className="min-h-11 px-3 rounded-lg text-xs font-medium bg-accent/15 text-accent border border-accent/30"
+            onClick={() => useUIStore.getState().setAppMode('studio')}
+          >
+            {'</>'} Studio
+          </button>
+        </div>
       </header>
 
       {j.showKitLoadingBanner && (

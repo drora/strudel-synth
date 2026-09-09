@@ -64,7 +64,7 @@ export const useUIStore = create<UIState>()(
   persist(
     (set, get) => ({
       showTemplateModal: true,
-      appMode: 'studio',
+      appMode: 'jam',
       sampleLoading: { totalBanks: 0, loadedBanks: 0, failedBanks: 0, done: false, phase: 'idle' },
       audioError: null,
 
