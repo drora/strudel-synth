@@ -105,7 +105,7 @@ export const STRUDEL_REFERENCE = `
 - Melodic: pluck, arpy, jvbass, juno, sax, gtr, sitar, pad
 - FX: perc, tabla, metal, mouth, click, noise, space, wind, wobble, hoover, stab
 - NOTE: "piano" and "guitar" are NOT valid sample names. Use gtr for guitar, pluck for plucked sounds, or use note("c3").sound("sine") for pitched synths
-- Banks: RolandTR808, RolandTR909, RolandCR78
+- Banks: RolandTR808, RolandTR909, RolandCompurhythm78
 - Synth oscillators (use with sound()): sawtooth, square, triangle, sine
 
 ## FM Synthesis

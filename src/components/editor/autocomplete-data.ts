@@ -62,7 +62,7 @@ export const strudelMethodCompletions: Completion[] = [
   { label: 'end', type: 'method', detail: '(pos)', info: 'Sample end 0–1. end(0.75)' },
   { label: 'speed', type: 'method', detail: '(rate)', info: 'Playback speed. speed(2), speed(-1)' },
   { label: 'unit', type: 'method', detail: '(u)', info: 'Speed unit: "r"=rate "c"=cycle "s"=seconds. unit("c")' },
-  { label: 'cut', type: 'method', detail: '(group)', info: 'Cut group (choke). cut(1)' },
+  { label: 'cut', type: 'method', detail: '(n)', info: 'Cut group (choke). cut(1)' },
   { label: 'loop', type: 'method', detail: '(n)', info: 'Loop sample. loop(1)' },
   { label: 'loopAt', type: 'method', detail: '(n)', info: 'Fit sample to n cycles. loopAt(2)' },
   { label: 'clip', type: 'method', detail: '(n)', info: 'Clip event duration. clip(0.5)' },
@@ -435,5 +435,5 @@ export function getSampleCompletions(): Completion[] {
 
 // Sample banks
 export const bankCompletions: Completion[] = [
-  'RolandTR808', 'RolandTR909', 'RolandCR78', 'AkaiLinn',
+  'RolandTR808', 'RolandTR909', 'RolandCompurhythm78', 'AkaiLinn',
 ].map((name) => ({ label: name, type: 'text', info: `Bank: ${name}` }))

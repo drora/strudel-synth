@@ -246,7 +246,7 @@ export function registerWebMCPTools() {
     annotations: { readOnlyHint: true },
     execute: () => {
       const samples = ['bd', 'sd', 'hh', 'oh', 'cp', 'rim', 'cb', 'lt', 'mt', 'ht', 'cr', 'ride', 'tom', 'perc', 'tabla', 'sax', 'flute', 'piano', 'bass', 'guitar', 'pluck', 'pad', 'string', 'brass', 'vox', 'mouth', 'click', 'noise', 'metal', 'gong', 'bell']
-      const banks = ['RolandTR808', 'RolandTR909', 'RolandCR78', 'AkaiLinn']
+      const banks = ['RolandTR808', 'RolandTR909', 'RolandCompurhythm78', 'AkaiLinn']
       logActivity({ timestamp: Date.now(), tool: 'get_samples', params: {}, result: 'Sample list returned', status: 'success' })
       return toolResult(JSON.stringify({ samples, banks }))
     },

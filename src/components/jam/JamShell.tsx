@@ -215,26 +215,19 @@ export function JamShell() {
           ))}
         </div>
 
-        {/* Kit pills */}
-        <div>
-          <div className="text-[10px] uppercase tracking-wider text-text-muted mb-1.5">Kit</div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {kits.map((k) => (
-              <button
-                key={k.id}
-                type="button"
-                onClick={() => applyKit(k.id)}
-                className={`shrink-0 min-h-11 px-3 rounded-xl text-xs border transition-colors ${
-                  kitId === k.id
-                    ? 'border-accent bg-accent/15 text-accent'
-                    : 'border-border bg-bg-elevated text-text-muted'
-                }`}
-              >
-                {k.name}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Kit hero — opens picker (obvious on phone) */}
+        <button
+          type="button"
+          onClick={() => useJamStore.getState().setShowKitPicker(true)}
+          className="w-full min-h-12 px-4 rounded-xl border border-accent/40 bg-accent/10 text-left flex items-center justify-between gap-2 hover:border-accent transition-colors"
+        >
+          <span className="text-sm font-medium text-accent truncate">
+            Kit · {activeKit?.name ?? 'Pick one'}
+          </span>
+          <span className="text-accent shrink-0" aria-hidden>
+            ▾
+          </span>
+        </button>
 
         {/* BPM ring */}
         <div className="flex flex-col items-center py-2">
@@ -347,16 +340,20 @@ export function JamShell() {
             <p className="text-xs text-text-muted">
               Timbre is the difference — choose how this jam should sound.
             </p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2.5">
               {kits.map((k) => (
                 <button
                   key={k.id}
                   type="button"
                   onClick={() => applyKit(k.id, true)}
-                  className="min-h-14 px-3 py-2 rounded-xl border border-border text-left hover:border-accent"
+                  className={`min-h-14 px-3 py-3 rounded-xl border text-left transition-colors ${
+                    kitId === k.id
+                      ? 'border-accent bg-accent/15'
+                      : 'border-border hover:border-accent'
+                  }`}
                 >
-                  <div className="text-xs font-medium">{k.name}</div>
-                  <div className="text-[10px] text-text-muted">{k.description}</div>
+                  <div className="text-sm font-medium">{k.name}</div>
+                  <div className="text-[11px] text-text-muted mt-0.5 leading-snug">{k.description}</div>
                 </button>
               ))}
             </div>
