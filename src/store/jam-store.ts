@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { VibeId } from '../engine/kits'
 import type { MutationCard } from '../engine/mutators'
+import type { MissionCard } from '../engine/missions'
 
 export interface JamUndoEntry {
   trackId: string
@@ -16,6 +17,7 @@ interface JamState {
   showKitPicker: boolean
   hasPickedKit: boolean
   mutationDeal: MutationCard[]
+  missionDeal: MissionCard[]
   undoStack: JamUndoEntry[]
   lastPeek: string | null
   soundTrackId: string | null
@@ -26,6 +28,7 @@ interface JamState {
   setShowKitPicker: (show: boolean) => void
   setHasPickedKit: (v: boolean) => void
   setMutationDeal: (cards: MutationCard[]) => void
+  setMissionDeal: (cards: MissionCard[]) => void
   pushUndo: (entry: JamUndoEntry) => void
   popUndo: () => JamUndoEntry | null
   setLastPeek: (peek: string | null) => void
@@ -41,6 +44,7 @@ export const useJamStore = create<JamState>()(
       showKitPicker: true,
       hasPickedKit: false,
       mutationDeal: [],
+      missionDeal: [],
       undoStack: [],
       lastPeek: null,
       soundTrackId: null,
@@ -51,6 +55,7 @@ export const useJamStore = create<JamState>()(
       setShowKitPicker: (showKitPicker) => set({ showKitPicker }),
       setHasPickedKit: (hasPickedKit) => set({ hasPickedKit }),
       setMutationDeal: (mutationDeal) => set({ mutationDeal }),
+      setMissionDeal: (missionDeal) => set({ missionDeal }),
       pushUndo: (entry) =>
         set((s) => ({ undoStack: [...s.undoStack.slice(-19), entry] })),
       popUndo: () => {
