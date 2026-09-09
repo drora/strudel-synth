@@ -4,7 +4,7 @@ export type MobileDrawerSide = 'left' | 'right' | 'bottom'
 
 /**
  * Slide-in drawer / bottom sheet for mobile panels.
- * Extracted from AppShell so Studio + Learn can share the same pattern.
+ * Blur backdrop, rounded top sheet, safe-area padding.
  */
 export function MobileDrawer({
   open,
@@ -31,22 +31,25 @@ export function MobileDrawer({
       onClick={onClose}
       role="presentation"
     >
-      <div className="absolute inset-0 bg-black/50" aria-hidden />
+      <div
+        className="absolute inset-0 bg-black/45 backdrop-blur-md"
+        aria-hidden
+      />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={label}
-        className={`relative z-50 overflow-y-auto bg-bg-surface shadow-2xl ${
+        className={`relative z-50 overflow-y-auto bg-bg-surface/95 backdrop-blur-xl shadow-2xl border-border ${
           isBottom
-            ? 'w-full max-h-[75dvh] rounded-t-2xl ml-0 mr-0'
+            ? 'w-full max-h-[75dvh] rounded-t-2xl border-t pb-[env(safe-area-inset-bottom)]'
             : side === 'left'
-              ? 'h-full mr-auto'
-              : 'h-full ml-auto'
+              ? 'h-full mr-auto border-r pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]'
+              : 'h-full ml-auto border-l pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         {isBottom && (
-          <div className="sticky top-0 z-10 flex flex-col items-center pt-2 pb-1 bg-bg-surface">
+          <div className="sticky top-0 z-10 flex flex-col items-center pt-2.5 pb-1.5 bg-bg-surface/95 backdrop-blur-xl">
             <div className="w-10 h-1 rounded-full bg-border" aria-hidden />
           </div>
         )}
