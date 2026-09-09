@@ -12,7 +12,8 @@ function setLiveBpm(bpm: number) {
   }
 }
 
-export function BpmControl() {
+export function BpmControl(props: { compact?: boolean } = {}) {
+  const compact = props.compact ?? false
   const bpm = useSessionStore((s) => s.bpm)
   const isPlaying = useSessionStore((s) => s.isPlaying)
   const setBpm = useSessionStore((s) => s.setBpm)
@@ -73,7 +74,7 @@ export function BpmControl() {
     <div className="flex items-center gap-1">
       {/* Draggable label */}
       <label
-        className="text-text-muted text-xs uppercase tracking-wide cursor-ns-resize select-none px-1"
+        className={`text-text-muted text-xs uppercase tracking-wide cursor-ns-resize select-none px-1 ${compact ? 'min-h-11 flex items-center' : ''}`}
         onPointerDown={handleDragStart}
         onPointerMove={handleDragMove}
         onPointerUp={handleDragEnd}
@@ -94,12 +95,12 @@ export function BpmControl() {
             if (e.key === 'Enter') commitEdit()
             if (e.key === 'Escape') setIsEditing(false)
           }}
-          className="w-14 bg-bg-elevated border border-accent rounded px-2 py-1 text-center text-text font-mono text-sm focus:outline-none"
+          className={`w-14 bg-bg-elevated border border-accent rounded px-2 text-center text-text font-mono text-sm focus:outline-none ${compact ? 'min-h-11 py-2' : 'py-1'}`}
         />
       ) : (
         <button
           onClick={startEdit}
-          className="w-14 bg-bg-elevated border border-border rounded px-2 py-1 text-center text-text font-mono text-sm hover:border-accent transition-colors"
+          className={`w-14 bg-bg-elevated border border-border rounded px-2 text-center text-text font-mono text-sm hover:border-accent transition-colors ${compact ? 'min-h-11 py-2' : 'py-1'}`}
           title="Click to type BPM"
         >
           {bpm}

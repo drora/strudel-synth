@@ -3,6 +3,7 @@ import { EditorView } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { createExtensions } from './extensions'
 import { useSessionStore } from '../../store/session-store'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { TrackCodePane } from './TrackCodePane'
 
 interface CodePaneProps {
@@ -43,7 +44,7 @@ function LearnEditor({ code, onChange }: { code: string; onChange: (code: string
       viewRef.current?.destroy()
       viewRef.current = null
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Sync external code changes (challenge switch)
@@ -69,9 +70,15 @@ export function CodePane({ learnMode, learnCode, onLearnCodeChange }: CodePanePr
   return <StudioCodePane />
 }
 
+/**
+ * Studio multi-track editors.
+ * Mobile (Phase 3): one-track focus — active track editor fills height;
+ * inactive tracks collapse to headers only (full list still in left drawer).
+ */
 function StudioCodePane() {
   const tracks = useSessionStore((s) => s.tracks)
   const activeTrackId = useSessionStore((s) => s.activeTrackId)
+  const isMobile = useIsMobile()
 
   if (tracks.length === 0) {
     return (
@@ -82,12 +89,17 @@ function StudioCodePane() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
+    <div
+      className={`flex flex-col h-full ${
+        isMobile ? 'overflow-hidden' : 'overflow-y-auto'
+      }`}
+    >
       {tracks.map((track) => (
         <TrackCodePane
           key={track.id}
           track={track}
           isActive={track.id === activeTrackId}
+          focusMode={isMobile}
         />
       ))}
     </div>
