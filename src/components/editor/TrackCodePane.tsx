@@ -101,7 +101,8 @@ export function TrackCodePane({ track, isActive, focusMode = false }: TrackCodeP
   )
 
   const handleReshuffle = useCallback(() => {
-    const newCode = reshuffleTrack(track.role, track.code)
+    const pinEffects = useUIStore.getState().pinEffects
+    const newCode = reshuffleTrack(track.role, track.code, { pinEffects })
     useSessionStore.getState().setCode(track.id, newCode)
     liveUpdateEngine.markDirty()
     if (useSessionStore.getState().isPlaying) {
