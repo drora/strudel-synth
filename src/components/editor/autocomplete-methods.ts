@@ -109,7 +109,7 @@ export const strudelMethodCompletions: Completion[] = [
   { label: 'early', type: 'method', detail: '(t)', info: 'Shift earlier. early(0.25)' },
   { label: 'late', type: 'method', detail: '(t)', info: 'Shift later. late(0.25)' },
   { label: 'off', type: 'method', detail: '(t, fn)', info: 'Offset copy. off(0.125, add(note(7)))' },
-  { label: 'press', type: 'method', detail: '(amt)', info: 'Syncopate (shift by half). press()' },
+  { label: 'press', type: 'method', detail: '()', info: 'Syncopate (shift by half). press()' },
   { label: 'swing', type: 'method', detail: '(amt)', info: 'Swing feel. swing(0.5)' },
 
   // ---- Tonal ----
