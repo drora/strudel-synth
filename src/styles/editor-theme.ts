@@ -48,12 +48,22 @@ export const strudelDarkTheme = EditorView.theme(
         backgroundColor: '#a78bfa30',
       },
     },
+    // Phase 1 — slightly larger editor font on touch / coarse pointers.
+    // Layout redesign stays Phase 3; this is CM-theme only.
+    '@media (pointer: coarse)': {
+      '&': {
+        fontSize: '16px',
+      },
+      '.cm-content': {
+        padding: '14px 0',
+      },
+    },
   },
-  { dark: true }
+  { dark: true },
 )
 
 export const strudelHighlightStyle = EditorView.baseTheme({
-  // Strudel-specific token colors
+  // Strudel-specific token colors (classHighlighter → .tok-*)
   '.tok-keyword': { color: '#c084fc' },
   '.tok-string': { color: '#22d3ee' },
   '.tok-string2': { color: '#22d3ee' },
@@ -67,3 +77,19 @@ export const strudelHighlightStyle = EditorView.baseTheme({
   '.tok-typeName': { color: '#ff44cc' },
   '.tok-bool': { color: '#fb923c' },
 })
+
+/** Mini-notation mark decorations inside strings (see mini-highlight.ts). */
+export const miniNotationTheme = EditorView.baseTheme({
+  '.cm-mini-rest': { color: '#64748b', fontStyle: 'italic' },
+  '.cm-mini-op': { color: '#f472b6', fontWeight: '600' },
+  '.cm-mini-bracket': { color: '#fbbf24' },
+  '.cm-mini-number': { color: '#fb923c' },
+  '.cm-mini-note': { color: '#4ade80' },
+  '.cm-mini-punct': { color: '#94a3b8' },
+})
+
+/**
+ * TODO (Phase 3 layout): if coarse-pointer font bump is insufficient on small
+ * phones, consider line-height / gutter padding tweaks here — do not redesign
+ * AppShell track chrome in Phase 1.
+ */

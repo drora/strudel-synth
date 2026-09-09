@@ -1,9 +1,13 @@
 import { keymap, EditorView } from '@codemirror/view'
 import { javascript } from '@codemirror/lang-javascript'
-import { strudelDarkTheme, strudelHighlightStyle } from '../../styles/editor-theme'
-import { strudelAutocomplete } from './strudel-autocomplete'
+import { syntaxHighlighting } from '@codemirror/language'
+import { classHighlighter } from '@lezer/highlight'
+import { strudelDarkTheme, strudelHighlightStyle, miniNotationTheme } from '../../styles/editor-theme'
+import { strudelAutocomplete, lookupCompletionInfo } from './strudel-autocomplete'
 import { strudelLinter } from './strudel-linter'
 import { inlineSliderPlugin } from './inline-slider'
+import { miniHighlightPlugin } from './mini-highlight'
+import { cursorDocsExtension } from './cursor-docs'
 
 export function createExtensions(options: {
   onEvaluate: () => void
@@ -12,11 +16,16 @@ export function createExtensions(options: {
 }) {
   return [
     javascript(),
+    // Activate .tok-* classes used by strudelHighlightStyle (were previously inert).
+    syntaxHighlighting(classHighlighter),
     strudelDarkTheme,
     strudelHighlightStyle,
+    miniNotationTheme,
     strudelAutocomplete,
     strudelLinter,
     inlineSliderPlugin,
+    miniHighlightPlugin,
+    cursorDocsExtension(lookupCompletionInfo),
     keymap.of([
       {
         key: 'Ctrl-Enter',

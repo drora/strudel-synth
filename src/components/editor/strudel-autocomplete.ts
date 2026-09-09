@@ -1,4 +1,9 @@
-import { autocompletion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete'
+import {
+  autocompletion,
+  type Completion,
+  type CompletionContext,
+  type CompletionResult,
+} from '@codemirror/autocomplete'
 import {
   strudelMethodCompletions,
   strudelGlobalCompletions,
@@ -8,6 +13,44 @@ import {
   bankCompletions,
   getSampleCompletions,
 } from './autocomplete-data'
+import type { CursorDocsKind } from './cursor-docs'
+
+/** Ensure every completion exposes a string `info` for the CM info panel. */
+function withInfo(options: readonly Completion[]): Completion[] {
+  return options.map((opt) => {
+    if (typeof opt.info === 'string' && opt.info.length > 0) return opt
+    if (typeof opt.info === 'function') return opt
+    const detail = opt.detail ? ` ${opt.detail}` : ''
+    return {
+      ...opt,
+      info: opt.info ?? `${opt.label}${detail}`,
+    }
+  })
+}
+
+/** Lookup used by cursor→docs / SuggestionBanner. */
+export function lookupCompletionInfo(
+  label: string,
+  kind: CursorDocsKind,
+): string | undefined {
+  const pools: Completion[][] = []
+  if (kind === 'method') pools.push(strudelMethodCompletions)
+  else if (kind === 'global') pools.push(strudelGlobalCompletions)
+  else if (kind === 'mini') {
+    pools.push(miniNotationCompletions)
+    pools.push(getSampleCompletions())
+  } else {
+    pools.push(strudelMethodCompletions, strudelGlobalCompletions, miniNotationCompletions)
+  }
+  for (const pool of pools) {
+    const hit = pool.find((c) => c.label === label)
+    if (!hit) continue
+    if (typeof hit.info === 'string') return hit.info
+    if (hit.detail) return `${hit.label} ${hit.detail}`
+    return hit.label
+  }
+  return undefined
+}
 
 function strudelCompletion(context: CompletionContext): CompletionResult | null {
   const line = context.state.doc.lineAt(context.pos)
@@ -18,7 +61,7 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
   if (scaleMatch) {
     return {
       from: context.pos - scaleMatch[1].length,
-      options: scaleCompletions,
+      options: withInfo(scaleCompletions),
       validFor: /^[\w\s]*$/,
     }
   }
@@ -28,7 +71,7 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
   if (chordMatch) {
     return {
       from: context.pos - chordMatch[1].length,
-      options: chordCompletions,
+      options: withInfo(chordCompletions),
       validFor: /^[\w]*$/,
     }
   }
@@ -38,27 +81,28 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
   if (bankMatch) {
     return {
       from: context.pos - bankMatch[1].length,
-      options: bankCompletions,
+      options: withInfo(bankCompletions),
       validFor: /^[\w]*$/,
     }
   }
 
   // ── Inside s("...") or sound("...") — complete sample names (dynamic!) ──
-  const sampleMatch = textBefore.match(/(?:^|\b)s\(["']([^"']*)$/) || textBefore.match(/sound\(["']([^"']*)$/)
+  const sampleMatch =
+    textBefore.match(/(?:^|\b)s\(["']([^"']*)$/) ||
+    textBefore.match(/sound\(["']([^"']*)$/)
   if (sampleMatch) {
-    // Get the last word after space (inside mini-notation, user may type "bd sd h|")
     const inner = sampleMatch[1]
     const lastWord = inner.match(/(?:^|[\s~\[\]<>,])(\w*)$/)
     if (lastWord) {
       return {
         from: context.pos - lastWord[1].length,
-        options: getSampleCompletions(),
+        options: withInfo(getSampleCompletions()),
         validFor: /^[\w]*$/,
       }
     }
     return {
       from: context.pos - inner.length,
-      options: getSampleCompletions(),
+      options: withInfo(getSampleCompletions()),
       validFor: /^[\w]*$/,
     }
   }
@@ -73,50 +117,48 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
       'db', 'eb', 'gb', 'ab', 'bb',
     ]
     const octaves = ['0', '1', '2', '3', '4', '5', '6', '7']
-    const noteCompletions = notes.flatMap((n) =>
+    const noteCompletions: Completion[] = notes.flatMap((n) =>
       octaves.map((o) => ({
         label: `${n}${o}`,
         type: 'text' as const,
         info: `Note ${n.toUpperCase()}${o}`,
-        boost: o === '3' || o === '4' ? 2 : 0, // Boost common octaves
-      }))
+        boost: o === '3' || o === '4' ? 2 : 0,
+      })),
     )
     if (lastWord) {
       return {
         from: context.pos - lastWord[1].length,
-        options: noteCompletions,
+        options: withInfo(noteCompletions),
         validFor: /^[\w]*$/,
       }
     }
     return {
       from: context.pos - inner.length,
-      options: noteCompletions,
+      options: withInfo(noteCompletions),
       validFor: /^[\w]*$/,
     }
   }
 
   // ── Inside any string with mini-notation context ──
-  // Detect if cursor is inside quotes and user typed a special char
   const inString = textBefore.match(/["']([^"']*)$/)
   if (inString) {
     const inner = inString[1]
-    // Only show mini-notation help if the last char could be a mini-notation trigger
     const lastChar = inner.slice(-1)
     if (['*', '/', '!', '@', '?', '~', '(', '[', '<', ',', ':'].includes(lastChar)) {
       return {
         from: context.pos,
-        options: miniNotationCompletions,
+        options: withInfo(miniNotationCompletions),
         validFor: /^$/,
       }
     }
   }
 
-  // ── After a dot — complete methods ──
+  // ── After a dot — complete methods (info already in autocomplete-data) ──
   const dotMatch = textBefore.match(/\.(\w*)$/)
   if (dotMatch) {
     return {
       from: context.pos - dotMatch[1].length,
-      options: strudelMethodCompletions,
+      options: withInfo(strudelMethodCompletions),
       validFor: /^\w*$/,
     }
   }
@@ -126,7 +168,7 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
   if (wordMatch && wordMatch[1].length >= 2) {
     return {
       from: context.pos - wordMatch[1].length,
-      options: strudelGlobalCompletions,
+      options: withInfo(strudelGlobalCompletions),
       validFor: /^\w*$/,
     }
   }
@@ -134,8 +176,17 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
   return null
 }
 
+/**
+ * Ghost-text deferred: CM inline completions need extra UX surface and
+ * fight mobile keyboards. Phase 1 instead couples SuggestionBanner +
+ * DocsPanel to cursor context via cursor-docs.ts.
+ */
 export const strudelAutocomplete = autocompletion({
   override: [strudelCompletion],
   activateOnTyping: true,
   maxRenderedOptions: 25,
+  // Show the `info` panel beside the selected option (signatures live in autocomplete-data).
+  defaultKeymap: true,
+  icons: true,
+  closeOnBlur: true,
 })
