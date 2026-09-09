@@ -10,14 +10,14 @@ import { SuggestionBanner } from '../editor/SuggestionBanner'
 import { PianoKeyboard } from '../piano/PianoKeyboard'
 import { VoiceRecorder } from '../recorder/VoiceRecorder'
 import { LearnShell } from '../learning/LearnShell'
+import { JamShell } from '../jam/JamShell'
 import { useSessionStore } from '../../store/session-store'
 import { useUIStore } from '../../store/ui-store'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useVisualViewportHeight } from '../../hooks/useVisualViewport'
-import { evaluateCode, stop, composeTracks, initEngine, maybeLoadCommunityBanks } from '../../engine/strudel'
-import { ensureAudioUnlocked } from '../../engine/audio-context'
 import { reshuffleTrack } from '../../engine/reshuffle'
 import { liveUpdateEngine } from '../../engine/live-update'
+import { stopPlayback, startOrQueueUpdate } from '../../engine/playback'
 import { useSessionPersistence } from '../../hooks/useSessionPersistence'
 import { RestoreAutosavePrompt } from '../session/SessionManager'
 
@@ -26,6 +26,9 @@ export function AppShell() {
 
   if (appMode === 'learn') {
     return <LearnShell />
+  }
+  if (appMode === 'jam') {
+    return <JamShell />
   }
 
   return <StudioShell />
@@ -91,25 +94,8 @@ function StudioShell() {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Enter') {
         e.preventDefault()
         try {
-          if (state.isPlaying) {
-            const q = useUIStore.getState().getEffectiveQuantization(state.activeTrackId)
-            liveUpdateEngine.queueUpdate(q, 'hotkey')
-          } else {
-            const unlock = await ensureAudioUnlocked()
-            if (!unlock.ok) {
-              useUIStore.getState().setAudioError('Tap Play again — iOS blocked audio')
-              return
-            }
-            useUIStore.getState().setAudioError(null)
-            await initEngine()
-            await ensureAudioUnlocked()
-            state.setPlaying(true)
-            liveUpdateEngine.markPlayStarted()
-            const code = composeTracks(state.tracks, state.bpm)
-            await evaluateCode(code)
-            liveUpdateEngine.markPlayStarted()
-            maybeLoadCommunityBanks()
-          }
+          const q = useUIStore.getState().getEffectiveQuantization(state.activeTrackId)
+          await startOrQueueUpdate(q, 'hotkey')
         } catch (err) {
           console.error('Eval all error:', err)
         }
@@ -118,9 +104,7 @@ function StudioShell() {
 
       if ((e.ctrlKey || e.metaKey) && e.key === '.') {
         e.preventDefault()
-        liveUpdateEngine.markPlayStopped()
-        await stop()
-        state.setPlaying(false)
+        await stopPlayback()
         return
       }
 
