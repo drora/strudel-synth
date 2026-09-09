@@ -23,7 +23,7 @@ interface SessionState {
   setVolume: (trackId: string, volume: number) => void
   setTrackName: (trackId: string, name: string) => void
   loadTemplate: (template: Template) => void
-  addTrack: (track: Omit<Track, 'id'>) => void
+  addTrack: (track: Omit<Track, 'id'>) => string
   removeTrack: (trackId: string) => void
   toggleMute: (trackId: string) => void
   toggleSolo: (trackId: string) => void
@@ -31,8 +31,8 @@ interface SessionState {
   lockAll: () => void
   reorderTracks: (fromIndex: number, toIndex: number) => void
   /**
-   * Phase 4: promote Learn challenge code into a Studio track.
-   * Always adds a new track (never clobbers existing Studio work).
+   * Promote Learn challenge code into a Jam session track.
+   * Always adds a new track (never clobbers existing work).
    * Returns the new track id.
    */
   applyLearnCode: (opts: {
@@ -92,6 +92,7 @@ export const useSessionStore = create<SessionState>((set) => ({
       tracks: [...state.tracks, { ...track, id }],
       activeTrackId: id,
     }))
+    return id
   },
 
   applyLearnCode: ({ code, name, role }) => {
