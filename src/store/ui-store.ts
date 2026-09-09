@@ -18,8 +18,7 @@ interface SampleLoadingState {
 }
 
 interface UIState {
-  showTemplateModal: boolean
-  appMode: 'studio' | 'learn' | 'jam'
+  appMode: 'jam' | 'learn'
   sampleLoading: SampleLoadingState
   /** Transient banner for iOS audio unlock failures (not persisted). */
   audioError: string | null
@@ -37,8 +36,7 @@ interface UIState {
   /** Phase 5: keep trailing effect chain (.lpf/.room/…) when reshuffling. */
   pinEffects: boolean
 
-  setShowTemplateModal: (show: boolean) => void
-  setAppMode: (mode: 'studio' | 'learn' | 'jam') => void
+  setAppMode: (mode: 'jam' | 'learn') => void
   setSampleLoadingTotal: (total: number) => void
   /** Reset counters and start a loading phase (prebake or community). */
   beginSampleLoading: (total: number, phase: SampleLoadingPhase) => void
@@ -63,7 +61,6 @@ function isQuantization(v: unknown): v is Quantization {
 export const useUIStore = create<UIState>()(
   persist(
     (set, get) => ({
-      showTemplateModal: true,
       appMode: 'jam',
       sampleLoading: { totalBanks: 0, loadedBanks: 0, failedBanks: 0, done: false, phase: 'idle' },
       audioError: null,
@@ -73,7 +70,6 @@ export const useUIStore = create<UIState>()(
       crossfadeSwaps: false,
       pinEffects: false,
 
-      setShowTemplateModal: (showTemplateModal) => set({ showTemplateModal }),
       setAppMode: (appMode) => set({ appMode }),
       setSampleLoadingTotal: (total) =>
         set((s) => ({ sampleLoading: { ...s.sampleLoading, totalBanks: total } })),
@@ -136,10 +132,12 @@ export const useUIStore = create<UIState>()(
         // track overrides are session-local; only persist global default
       }),
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<UIState>
+        const p = (persisted ?? {}) as Partial<UIState> & { appMode?: string }
+        const mode = p.appMode === 'learn' ? 'learn' : 'jam'
         return {
           ...current,
           ...p,
+          appMode: mode,
           defaultQuantization: isQuantization(p.defaultQuantization)
             ? p.defaultQuantization
             : current.defaultQuantization,

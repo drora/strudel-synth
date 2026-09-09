@@ -29,7 +29,9 @@ const JAM_FX_CONTROLS: Array<{
   { key: 'gain', label: 'Gain', steps: [0.3, 0.5, 0.7, 0.85, 1, 1.15, 1.3] },
 ]
 
-function queueJam(reason: 'kit' | 'jam' | 'reshuffle' = 'jam') {
+const VOL_STEPS = [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5]
+
+function queueJam(reason: 'kit' | 'jam' | 'reshuffle' | 'mute-solo' = 'jam') {
   if (!useSessionStore.getState().isPlaying) return
   const q = useUIStore.getState().getEffectiveQuantization(
     useSessionStore.getState().activeTrackId,
@@ -41,9 +43,10 @@ interface JamTrackSheetProps {
   track: Track
 }
 
+type SheetTab = 'sound' | 'fx' | 'mix'
+
 export function JamTrackSheet({ track }: JamTrackSheetProps) {
-  const [sheetTab, setSheetTab] = useState<'sound' | 'fx'>('sound')
-  // Subscribe so FX chips update after apply
+  const [sheetTab, setSheetTab] = useState<SheetTab>('sound')
   const live = useSessionStore((s) => s.tracks.find((t) => t.id === track.id)) ?? track
 
   const applySound = (choice: SoundChoice) => {
@@ -78,30 +81,55 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
     queueJam('jam')
   }
 
+  const toggleMute = () => {
+    useSessionStore.getState().toggleMute(live.id)
+    const muted = useSessionStore.getState().tracks.find((t) => t.id === live.id)?.muted
+    useJamStore.getState().setLastPeek(`${live.name} · ${muted ? 'muted' : 'on'}`)
+    liveUpdateEngine.markDirty()
+    queueJam('mute-solo')
+  }
+
+  const setVolume = (v: number) => {
+    useSessionStore.getState().setVolume(live.id, v)
+    useJamStore.getState().setLastPeek(`${live.name} · vol ${v}`)
+    liveUpdateEngine.markDirty()
+    queueJam('mute-solo')
+  }
+
   const editSoundInCode = () => {
     useSessionStore.getState().setActiveTrack(live.id)
-    useJamStore.getState().setSoundTrackId(null)
-    useUIStore.getState().setAppMode('studio')
+    const jam = useJamStore.getState()
+    jam.setSoundTrackId(null)
+    jam.setCodeTrackId(live.id)
   }
+
+  const tabs: Array<{ id: SheetTab; label: string }> = [
+    { id: 'sound', label: 'Sound' },
+    { id: 'fx', label: 'FX' },
+    { id: 'mix', label: 'Mix' },
+  ]
 
   return (
     <div className="fixed inset-0 z-40 bg-black/70 flex items-end sm:items-center justify-center p-3">
       <div className="w-full max-w-md rounded-2xl bg-bg-elevated border border-border p-4 space-y-3 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-semibold truncate" style={{ color: live.color }}>
-            {live.name}
+          <div className="min-w-0">
+            <div className="text-sm font-semibold truncate" style={{ color: live.color }}>
+              {live.name}
+              {live.muted ? ' · M' : ''}
+            </div>
           </div>
           <div className="flex rounded-lg border border-border overflow-hidden text-[11px] shrink-0">
-            {(['sound', 'fx'] as const).map((tab) => (
+            {tabs.map((tab) => (
               <button
-                key={tab}
+                key={tab.id}
                 type="button"
-                onClick={() => setSheetTab(tab)}
+                onClick={() => setSheetTab(tab.id)}
                 className={`min-h-9 px-3 capitalize ${
-                  sheetTab === tab ? 'bg-accent text-bg' : 'text-text-muted'
+                  sheetTab === tab.id ? 'bg-accent text-bg' : 'text-text-muted'
                 }`}
               >
-                {tab === 'fx' ? 'FX' : 'Sound'}
+                {tab.label}
               </button>
             ))}
           </div>
@@ -155,6 +183,61 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {sheetTab === 'mix' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">
+                On / Off
+              </span>
+              <button
+                type="button"
+                onClick={toggleMute}
+                className={`min-h-11 px-4 rounded-xl text-xs font-medium border ${
+                  live.muted
+                    ? 'border-error/40 bg-error/15 text-error'
+                    : 'border-accent/40 bg-accent/15 text-accent'
+                }`}
+              >
+                {live.muted ? 'Muted' : 'On'}
+              </button>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">
+                  Volume
+                </span>
+                <span className="text-[10px] text-text-muted tabular-nums">{live.volume}</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={1.5}
+                step={0.05}
+                value={live.volume}
+                onChange={(e) => setVolume(Number(e.target.value))}
+                className="w-full accent-[var(--color-accent,#a78bfa)]"
+                aria-label="Track volume"
+              />
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {VOL_STEPS.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setVolume(v)}
+                    className={`min-h-9 px-2.5 rounded-lg text-[11px] border ${
+                      Math.abs(live.volume - v) < 0.001
+                        ? 'border-accent bg-accent/20 text-accent'
+                        : 'border-border text-text-muted'
+                    }`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
