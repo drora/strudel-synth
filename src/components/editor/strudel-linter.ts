@@ -1,104 +1,154 @@
 import { linter, type Diagnostic } from '@codemirror/lint'
+import type { EditorView } from '@codemirror/view'
 
 /**
  * Static linter for Strudel code.
- * Catches common syntax mistakes before evaluation.
+ * - Prefer @strudel/mini parse for mini-notation strings at known call sites
+ * - Keep bracket / paren / typo checks as always-on fallback
  */
-function strudelLint(view: { state: { doc: { toString: () => string } } }): Diagnostic[] {
+
+type MiniParse = (code: string) => unknown
+
+let mini2astFn: MiniParse | null | undefined
+
+/** Lazy-load so a missing/broken @strudel/mini never breaks the editor bundle. */
+async function ensureMini(): Promise<MiniParse | null> {
+  if (mini2astFn !== undefined) return mini2astFn
+  try {
+    const mod = await import('@strudel/mini')
+    mini2astFn = (mod.mini2ast ?? mod.parse) as MiniParse
+  } catch {
+    mini2astFn = null
+  }
+  return mini2astFn
+}
+
+// Kick off load early (non-blocking)
+void ensureMini()
+
+/** Call sites where the string arg is almost certainly mini-notation. */
+const MINI_CALL_BEFORE =
+  /(?:^|[^\w$.])(?:s|note|sound|struct|n|speed|gain|pan|room|delay|lpf|hpf|vowel|chop)\(\s*$/
+
+function looksLikeMini(inner: string): boolean {
+  return /[~*![\]<>@?/|,()]/.test(inner)
+}
+
+function bracketBalanceDiagnostics(
+  inner: string,
+  strStart: number,
+  matchIndex: number,
+  matchLen: number,
+): Diagnostic[] {
+  const diagnostics: Diagnostic[] = []
+  const pairs: [string, string, string][] = [
+    ['[', ']', 'bracket'],
+    ['<', '>', 'angle bracket'],
+    ['(', ')', 'paren'],
+  ]
+
+  for (const [open, close, label] of pairs) {
+    let depth = 0
+    for (let i = 0; i < inner.length; i++) {
+      if (inner[i] === open) depth++
+      else if (inner[i] === close) depth--
+      if (depth < 0) {
+        diagnostics.push({
+          from: strStart + i,
+          to: strStart + i + 1,
+          severity: 'error',
+          message: `Unmatched closing ${label} ${close}`,
+        })
+        break
+      }
+    }
+    if (depth > 0) {
+      diagnostics.push({
+        from: matchIndex,
+        to: matchIndex + matchLen,
+        severity: 'error',
+        message: `Unmatched opening ${label} ${open} (${depth} unclosed)`,
+      })
+    }
+  }
+  return diagnostics
+}
+
+function tryMiniParseDiagnostics(
+  parse: MiniParse,
+  inner: string,
+  strStart: number,
+): Diagnostic[] {
+  try {
+    parse(inner)
+    return []
+  } catch (err) {
+    const e = err as {
+      message?: string
+      location?: { start?: { offset?: number }; end?: { offset?: number } }
+    }
+    const startOff = e.location?.start?.offset
+    const endOff = e.location?.end?.offset
+    const msg = (e.message ?? String(err)).replace(/^\[mini\]\s*/i, '')
+    if (typeof startOff === 'number') {
+      const from = strStart + Math.max(0, startOff)
+      const to =
+        strStart +
+        Math.max(from - strStart + 1, typeof endOff === 'number' ? endOff : startOff + 1)
+      return [
+        {
+          from,
+          to: Math.min(to, strStart + inner.length),
+          severity: 'error',
+          message: `Mini-notation: ${msg}`,
+        },
+      ]
+    }
+    // mini2ast sometimes wraps without peg location — fall through to brackets
+    return [
+      {
+        from: strStart,
+        to: strStart + Math.max(1, inner.length),
+        severity: 'warning',
+        message: `Mini-notation: ${msg}`,
+      },
+    ]
+  }
+}
+
+function strudelLint(view: EditorView): Diagnostic[] {
   const code = view.state.doc.toString()
   const diagnostics: Diagnostic[] = []
+  const parse = mini2astFn === undefined ? null : mini2astFn
 
-  // ── Check: Unmatched brackets in mini-notation ──
-  // Find all quoted strings and check bracket balance
+  // ── Quoted strings: mini parse (when available) + bracket fallback ──
   const stringRegex = /(["'])((?:\\.|(?!\1).)*?)\1/g
   let match: RegExpExecArray | null
   while ((match = stringRegex.exec(code)) !== null) {
     const inner = match[2]
-    const strStart = match.index + 1 // skip opening quote
+    const strStart = match.index + 1
+    const before = code.slice(Math.max(0, match.index - 48), match.index)
+    const isMiniSite = MINI_CALL_BEFORE.test(before) || looksLikeMini(inner)
 
-    // Check [] balance
-    let bracketDepth = 0
-    for (let i = 0; i < inner.length; i++) {
-      if (inner[i] === '[') bracketDepth++
-      else if (inner[i] === ']') bracketDepth--
-      if (bracketDepth < 0) {
-        diagnostics.push({
-          from: strStart + i,
-          to: strStart + i + 1,
-          severity: 'error',
-          message: 'Unmatched closing bracket ]',
-        })
-        break
-      }
-    }
-    if (bracketDepth > 0) {
-      diagnostics.push({
-        from: match.index,
-        to: match.index + match[0].length,
-        severity: 'error',
-        message: `Unmatched opening bracket [ (${bracketDepth} unclosed)`,
-      })
+    if (isMiniSite && parse) {
+      diagnostics.push(...tryMiniParseDiagnostics(parse, inner, strStart))
     }
 
-    // Check <> balance
-    let angleDepth = 0
-    for (let i = 0; i < inner.length; i++) {
-      if (inner[i] === '<') angleDepth++
-      else if (inner[i] === '>') angleDepth--
-      if (angleDepth < 0) {
-        diagnostics.push({
-          from: strStart + i,
-          to: strStart + i + 1,
-          severity: 'error',
-          message: 'Unmatched closing angle bracket >',
-        })
-        break
-      }
-    }
-    if (angleDepth > 0) {
-      diagnostics.push({
-        from: match.index,
-        to: match.index + match[0].length,
-        severity: 'error',
-        message: `Unmatched opening angle bracket < (${angleDepth} unclosed)`,
-      })
-    }
-
-    // Check () balance inside mini-notation (euclidean rhythms)
-    let parenDepth = 0
-    for (let i = 0; i < inner.length; i++) {
-      if (inner[i] === '(') parenDepth++
-      else if (inner[i] === ')') parenDepth--
-      if (parenDepth < 0) {
-        diagnostics.push({
-          from: strStart + i,
-          to: strStart + i + 1,
-          severity: 'error',
-          message: 'Unmatched closing paren )',
-        })
-        break
-      }
-    }
-    if (parenDepth > 0) {
-      diagnostics.push({
-        from: match.index,
-        to: match.index + match[0].length,
-        severity: 'error',
-        message: `Unmatched opening paren ( (${parenDepth} unclosed)`,
-      })
-    }
+    // Bracket checks always retained as fallback (even when mini parse is active)
+    diagnostics.push(
+      ...bracketBalanceDiagnostics(inner, strStart, match.index, match[0].length),
+    )
   }
 
   // ── Check: Unmatched JS-level parens ──
   let jsParenDepth = 0
   for (let i = 0; i < code.length; i++) {
     const ch = code[i]
-    // Skip strings
     if (ch === '"' || ch === "'" || ch === '`') {
       const closer = ch
       i++
       while (i < code.length && code[i] !== closer) {
-        if (code[i] === '\\') i++ // skip escaped
+        if (code[i] === '\\') i++
         i++
       }
       continue
@@ -117,7 +167,7 @@ function strudelLint(view: { state: { doc: { toString: () => string } } }): Diag
   }
   if (jsParenDepth > 0) {
     diagnostics.push({
-      from: code.length - 1,
+      from: Math.max(0, code.length - 1),
       to: code.length,
       severity: 'error',
       message: `${jsParenDepth} unclosed parenthesis`,
@@ -140,8 +190,10 @@ function strudelLint(view: { state: { doc: { toString: () => string } } }): Diag
   const missingCallRegex = /\.(gain|lpf|hpf|room|delay|pan|speed|crush)\s*(?=[.\n]|$)/g
   let typoMatch: RegExpExecArray | null
   while ((typoMatch = missingCallRegex.exec(code)) !== null) {
-    // Make sure it's not followed by (
-    const after = code.slice(typoMatch.index + typoMatch[0].length, typoMatch.index + typoMatch[0].length + 5)
+    const after = code.slice(
+      typoMatch.index + typoMatch[0].length,
+      typoMatch.index + typoMatch[0].length + 5,
+    )
     if (!after.startsWith('(')) {
       diagnostics.push({
         from: typoMatch.index + 1,
@@ -155,4 +207,13 @@ function strudelLint(view: { state: { doc: { toString: () => string } } }): Diag
   return diagnostics
 }
 
-export const strudelLinter = linter(strudelLint, { delay: 500 })
+/**
+ * Async-capable wrapper: once @strudel/mini loads, re-lint so mini diagnostics appear.
+ */
+export const strudelLinter = linter(
+  async (view) => {
+    await ensureMini()
+    return strudelLint(view)
+  },
+  { delay: 500 },
+)
