@@ -17,6 +17,8 @@ interface UIState {
   showTemplateModal: boolean
   appMode: 'studio' | 'learn'
   sampleLoading: SampleLoadingState
+  /** Transient banner for iOS audio unlock failures (not persisted). */
+  audioError: string | null
 
   /** Global default live-update quantization (persisted). */
   defaultQuantization: Quantization
@@ -36,6 +38,7 @@ interface UIState {
   setSampleLoadingTotal: (total: number) => void
   onBankLoaded: (success: boolean) => void
   setSampleLoadingDone: () => void
+  setAudioError: (msg: string | null) => void
 
   setDefaultQuantization: (q: Quantization) => void
   setTrackQuantization: (trackId: string, q: Quantization | null) => void
@@ -57,6 +60,7 @@ export const useUIStore = create<UIState>()(
       showTemplateModal: true,
       appMode: 'studio',
       sampleLoading: { totalBanks: 0, loadedBanks: 0, failedBanks: 0, done: false },
+      audioError: null,
 
       defaultQuantization: '1',
       trackQuantization: {},
@@ -77,6 +81,7 @@ export const useUIStore = create<UIState>()(
         })),
       setSampleLoadingDone: () =>
         set((s) => ({ sampleLoading: { ...s.sampleLoading, done: true } })),
+      setAudioError: (audioError) => set({ audioError }),
 
       setDefaultQuantization: (defaultQuantization) => set({ defaultQuantization }),
 
