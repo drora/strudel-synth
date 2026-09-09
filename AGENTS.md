@@ -9,7 +9,7 @@ Guide for coding agents working on [`drora/strudel-synth`](https://github.com/dr
 - **Jam** (`JamShell`) — default and primary UI.
 - **Code** — sheet/overlay inside Jam (`JamCodeSheet` → `TrackCodePane`).
 - **+ Track** — under Sounds/FX chips; pick role → `ROLE_PRESETS` default → Sound|FX sheet (no kit switch).
-- **Liveloop** — cycle phase on the BPM ring (`JamPhaseRing` / `useLoopPhase` via `liveUpdateEngine`), mic Rec (`JamMicRec` / `engine/mic-sample.ts`), simple A/B punch (`JamABToggle` near Kit).
+- **Liveloop** — cycle phase on the BPM ring (`JamPhaseRing`) and a subtle per-track phase tick on chips (`JamTrackChip` / `useLoopPhase` via `liveUpdateEngine`); mic Rec (`JamMicRec` / `engine/mic-sample.ts`); simple A/B punch (`JamABToggle` near Kit). Mute is 1-tap via the **M** on each track chip (Mix tab volume still available).
 - **Learn** — optional (`LearnShell`); “Apply to Jam” adds a track and opens its Code sheet.
 
 Out of scope unless explicitly requested: Hydra, MIDI panels, xfade, clip rack, timeline rewrite, audio-engine rewrite.
@@ -20,7 +20,7 @@ Out of scope unless explicitly requested: Hydra, MIDI panels, xfade, clip rack, 
 src/
   App.tsx                 → AppShell (thin jam | learn router)
   components/
-    jam/                  → JamShell, JamCodeSheet, JamTrackSheet, kits UI, deals,
+    jam/                  → JamShell, JamTrackChip, JamCodeSheet, JamTrackSheet, kits UI, deals,
                             JamPhaseRing, JamMicRec, JamABToggle
     editor/               → TrackCodePane, CodeMirror extensions, autocomplete
     learning/             → LearnShell + challenge-data
@@ -40,7 +40,7 @@ src/
 | Missions / mutations | `engine/missions.ts`, `engine/mutators.ts` |
 | Sample registry / prebake | `engine/samples.ts`, `engine/strudel.ts` |
 | Mic → sample → track | `engine/mic-sample.ts`, `components/jam/JamMicRec.tsx` |
-| Loop phase (BPM ring) | `hooks/useLoopPhase.ts`, `components/jam/JamPhaseRing.tsx`, `liveUpdateEngine` |
+| Loop phase (BPM ring + chip ticks) | `hooks/useLoopPhase.ts`, `JamPhaseRing`, `JamTrackChip`, `liveUpdateEngine` |
 | A/B arrangement punch | `store/jam-store.ts` (`stashVariant` / `punchVariant` / `toggleAb`), `JamABToggle` |
 | FX in code | `engine/code-effects.ts` |
 | Session encode / autosave helpers | `engine/session-codec.ts`, `engine/session-manager.ts` |
