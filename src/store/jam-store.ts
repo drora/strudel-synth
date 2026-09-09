@@ -3,12 +3,18 @@ import { persist } from 'zustand/middleware'
 import type { VibeId } from '../engine/kits'
 import type { MutationCard } from '../engine/mutators'
 import type { MissionCard } from '../engine/missions'
+import type { SectionSnap } from '../engine/session-manager'
+import { useSessionStore } from './session-store'
+import { liveUpdateEngine } from '../engine/live-update'
+import { useUIStore } from './ui-store'
 
 export interface JamUndoEntry {
   trackId: string
   code: string
   label: string
 }
+
+export type AbSlot = 'a' | 'b'
 
 interface JamState {
   vibe: VibeId
@@ -23,6 +29,10 @@ interface JamState {
   soundTrackId: string | null
   /** Track id for the Jam Code sheet overlay (null = closed). */
   codeTrackId: string | null
+  /** Simple A/B arrangement slots (session-local, not persisted). */
+  variantA: SectionSnap | null
+  variantB: SectionSnap | null
+  activeVariant: AbSlot | null
 
   setVibe: (vibe: VibeId) => void
   setKitId: (kitId: string | null) => void
@@ -36,6 +46,28 @@ interface JamState {
   setLastPeek: (peek: string | null) => void
   setSoundTrackId: (id: string | null) => void
   setCodeTrackId: (id: string | null) => void
+  /** Capture current track codes+mute (+bpm) into A or B. */
+  stashVariant: (slot: AbSlot) => void
+  /** Apply A or B (no-op if empty). */
+  punchVariant: (slot: AbSlot) => void
+  /** Punch the other slot, or stash+activate if empty. */
+  toggleAb: () => void
+}
+
+function snapshotSection(): SectionSnap {
+  const s = useSessionStore.getState()
+  return {
+    bpm: s.bpm,
+    tracks: s.tracks.map((t) => ({ id: t.id, code: t.code, muted: t.muted })),
+  }
+}
+
+function queueSectionUpdate() {
+  if (!useSessionStore.getState().isPlaying) return
+  const q = useUIStore.getState().getEffectiveQuantization(
+    useSessionStore.getState().activeTrackId,
+  )
+  liveUpdateEngine.queueUpdate(q, 'section')
 }
 
 export const useJamStore = create<JamState>()(
@@ -52,6 +84,9 @@ export const useJamStore = create<JamState>()(
       lastPeek: null,
       soundTrackId: null,
       codeTrackId: null,
+      variantA: null,
+      variantB: null,
+      activeVariant: null,
 
       setVibe: (vibe) => set({ vibe }),
       setKitId: (kitId) => set({ kitId }),
@@ -72,6 +107,48 @@ export const useJamStore = create<JamState>()(
       setLastPeek: (lastPeek) => set({ lastPeek }),
       setSoundTrackId: (soundTrackId) => set({ soundTrackId }),
       setCodeTrackId: (codeTrackId) => set({ codeTrackId }),
+
+      stashVariant: (slot) => {
+        const snap = snapshotSection()
+        if (slot === 'a') {
+          set({ variantA: snap, activeVariant: 'a' })
+          get().setLastPeek('A/B · saved A')
+        } else {
+          set({ variantB: snap, activeVariant: 'b' })
+          get().setLastPeek('A/B · saved B')
+        }
+      },
+
+      punchVariant: (slot) => {
+        const snap = slot === 'a' ? get().variantA : get().variantB
+        if (!snap) {
+          get().stashVariant(slot)
+          return
+        }
+        useSessionStore.getState().applySection(snap)
+        set({ activeVariant: slot })
+        get().setLastPeek(`A/B · punch ${slot.toUpperCase()}`)
+        queueSectionUpdate()
+      },
+
+      toggleAb: () => {
+        const { variantA, variantB, activeVariant } = get()
+        if (!variantA && !variantB) {
+          get().stashVariant('a')
+          return
+        }
+        if (variantA && !variantB) {
+          get().stashVariant('b')
+          return
+        }
+        if (!variantA && variantB) {
+          get().stashVariant('a')
+          return
+        }
+        // Both set — punch the other
+        const next: AbSlot = activeVariant === 'a' ? 'b' : 'a'
+        get().punchVariant(next)
+      },
     }),
     {
       name: 'strudel-studio-jam',
