@@ -1,61 +1,16 @@
 import { useCallback } from 'react'
 import { useSessionStore } from '../../store/session-store'
-import { stop, composeTracks, initEngine, evaluateCode, maybeLoadCommunityBanks } from '../../engine/strudel'
-import { ensureAudioUnlocked, getAudioContextState } from '../../engine/audio-context'
-import { liveUpdateEngine } from '../../engine/live-update'
-import { useUIStore } from '../../store/ui-store'
+import { startPlayback, stopPlayback } from '../../engine/playback'
 
 export function PlayButton({ large = false }: { large?: boolean }) {
   const isPlaying = useSessionStore((s) => s.isPlaying)
 
   const handleClick = useCallback(async () => {
-    const state = useSessionStore.getState()
-
-    if (state.isPlaying) {
-      liveUpdateEngine.markPlayStopped()
-      await stop()
-      state.setPlaying(false)
-      useUIStore.getState().setAudioError(null)
+    if (useSessionStore.getState().isPlaying) {
+      await stopPlayback()
       return
     }
-
-    try {
-      // MUST unlock in the same user-gesture turn before init/evaluate (iOS)
-      const unlock = await ensureAudioUnlocked()
-      if (!unlock.ok) {
-        useUIStore.getState().setAudioError(
-          'Tap Play again — iOS blocked audio',
-        )
-        return
-      }
-      useUIStore.getState().setAudioError(null)
-
-      await initEngine()
-
-      // Re-check after init (Strudel may have created its own context)
-      const after = await ensureAudioUnlocked()
-      if (!after.ok && getAudioContextState() !== 'running') {
-        useUIStore.getState().setAudioError(
-          'Tap Play again — iOS blocked audio',
-        )
-        return
-      }
-
-      state.setPlaying(true)
-      liveUpdateEngine.markPlayStarted()
-      const code = composeTracks(state.tracks, state.bpm)
-      await evaluateCode(code)
-      liveUpdateEngine.markPlayStarted()
-      maybeLoadCommunityBanks()
-    } catch (err) {
-      console.error('Playback error:', err)
-      liveUpdateEngine.markPlayStopped()
-      state.setPlaying(false)
-      const activeId = state.activeTrackId
-      if (activeId) {
-        state.setError(activeId, err instanceof Error ? err.message : String(err))
-      }
-    }
+    await startPlayback()
   }, [])
 
   return (
