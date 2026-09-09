@@ -2,14 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSessionStore } from '../../store/session-store'
 import { useUIStore } from '../../store/ui-store'
 import { liveUpdateEngine } from '../../engine/live-update'
+import { snapshotFromStore, type SavedSession } from '../../engine/session-codec'
 import {
-  AUTOSAVE_KEY,
-  SESSIONS_KEY,
-  buildShareUrl,
-  shareUrlTooLong,
-  snapshotFromStore,
-  type SavedSession,
-} from '../../engine/session-codec'
+  saveNamedSession,
+  readAutosave,
+  listSavedSessions,
+  shareSession,
+} from '../../engine/session-manager'
 
 export type { SavedSession }
 
@@ -54,44 +53,19 @@ function captureSection(): SectionSnap {
 export function useSessionManager() {
   const saveSession = useCallback((name?: string) => {
     const state = useSessionStore.getState()
-    const session = snapshotFromStore({
+    return saveNamedSession({
       ...state,
       name: name || `Session ${new Date().toLocaleString()}`,
     })
-
-    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(session))
-
-    let sessions: SavedSession[] = []
-    try {
-      sessions = JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]')
-    } catch { /* corrupt */ }
-    sessions.unshift(session)
-    if (sessions.length > 20) sessions.pop()
-    localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions))
-
-    return session
   }, [])
 
   const loadSession = useCallback((session: SavedSession) => {
     useSessionStore.getState().loadSavedSession(session)
   }, [])
 
-  const getAutoSave = useCallback((): SavedSession | null => {
-    const data = localStorage.getItem(AUTOSAVE_KEY)
-    try {
-      return data ? (JSON.parse(data) as SavedSession) : null
-    } catch {
-      return null
-    }
-  }, [])
+  const getAutoSave = useCallback((): SavedSession | null => readAutosave(), [])
 
-  const getSessions = useCallback((): SavedSession[] => {
-    try {
-      return JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]') as SavedSession[]
-    } catch {
-      return []
-    }
-  }, [])
+  const getSessions = useCallback((): SavedSession[] => listSavedSessions(), [])
 
   const exportSession = useCallback(() => {
     const session = snapshotFromStore({
@@ -126,21 +100,13 @@ export function useSessionManager() {
   )
 
   const copyShareLink = useCallback(async (): Promise<'ok' | 'long' | 'fail'> => {
-    const session = snapshotFromStore({
+    const { url, tooLong } = shareSession({
       ...useSessionStore.getState(),
       name: 'Shared',
     })
-    const url = buildShareUrl(session)
-    const hashIdx = url.indexOf('#')
-    const hash = hashIdx >= 0 ? url.slice(hashIdx) : ''
-    if (hash && typeof history !== 'undefined') {
-      try {
-        history.replaceState(null, '', `${location.pathname}${location.search}${hash}`)
-      } catch { /* ignore */ }
-    }
     try {
       await navigator.clipboard.writeText(url)
-      return shareUrlTooLong(url) ? 'long' : 'ok'
+      return tooLong ? 'long' : 'ok'
     } catch {
       return 'fail'
     }

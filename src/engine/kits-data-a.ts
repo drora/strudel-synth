@@ -1,0 +1,128 @@
+import type { Kit } from './kits-types'
+
+export const KITS_A: Kit[] = [
+
+  // —— Techno ——
+  {
+    id: 'techno-punch909',
+    vibe: 'techno',
+    name: 'Punch 909',
+    description: 'Classic punchy TR-909 kit',
+    bpm: 128,
+    drumsBank: 'RolandTR909',
+    tracks: [
+      { name: 'Kick', role: 'drums', code: 's("bd*4").bank("RolandTR909").gain(1.15)' },
+      { name: 'Hi-Hats', role: 'hihats', code: 's("~ hh ~ hh").bank("RolandTR909").gain(0.55)' },
+      { name: 'Clap', role: 'fx', code: 's("~ cp ~ cp").bank("RolandTR909").gain(0.85)' },
+      { name: 'Bass', role: 'bass', code: 'note("<c2 c2 eb2 f2>").sound("sawtooth").lpf(700).lpq(6).gain(0.7)' },
+      { name: 'Pad', role: 'pad', code: 'note("<[c3,eb3,g3] [eb3,g3,bb3]>").sound("triangle").lpf(550).room(0.4).gain(0.28)' },
+    ],
+  },
+  {
+    id: 'techno-boom808',
+    vibe: 'techno',
+    name: 'Boom 808',
+    description: 'Deep 808 body, darker hats',
+    bpm: 130,
+    drumsBank: 'RolandTR808',
+    tracks: [
+      { name: 'Kick', role: 'drums', code: 's("bd*4").bank("RolandTR808").gain(1.25)' },
+      { name: 'Hi-Hats', role: 'hihats', code: 's("hh*8").bank("RolandTR808").gain(0.35).hpf(4000)' },
+      { name: 'Clap', role: 'fx', code: 's("~ cp ~ cp").bank("RolandTR808").room(0.2).gain(0.75)' },
+      { name: 'Bass', role: 'bass', code: 'note("<c1 ~ c1 ~ eb1 ~ g1 ~>").sound("sine").lpf(180).gain(1.1)' },
+      { name: 'Lead', role: 'lead', code: 'note("<c4 eb4 g4 bb4>*2").sound("square").lpf(1800).delay(0.2).gain(0.25)' },
+    ],
+  },
+  {
+    id: 'techno-crisp-linn',
+    vibe: 'techno',
+    name: 'Crisp Linn',
+    description: 'Tight LinnDrum percussion',
+    bpm: 126,
+    drumsBank: 'LinnDrum',
+    tracks: [
+      { name: 'Kick', role: 'drums', code: 's("bd sd [~ bd] sd").bank("LinnDrum").gain(1.05)' },
+      { name: 'Hi-Hats', role: 'hihats', code: 's("hh*16").bank("LinnDrum").gain(0.28)' },
+      { name: 'Rim', role: 'fx', code: 's("~ rim ~ rim").bank("LinnDrum").gain(0.6)' },
+      { name: 'Bass', role: 'bass', code: 'note("c2 ~ eb2 ~ f2 ~ g2 ~").sound("square").lpf(450).gain(0.65)' },
+      { name: 'Arp', role: 'arp', code: 'note("<c3 eb3 g3 bb3>*8").sound("triangle").delay(0.4).delaytime(0.125).gain(0.22)' },
+    ],
+  },
+  {
+    id: 'techno-soft-cr78',
+    vibe: 'techno',
+    name: 'Soft CR78',
+    description: 'Vintage Compurhythm texture',
+    bpm: 120,
+    drumsBank: 'RolandCompurhythm78',
+    tracks: [
+      { name: 'Kick', role: 'drums', code: 's("bd ~ bd ~").bank("RolandCompurhythm78").gain(1.0)' },
+      { name: 'Hi-Hats', role: 'hihats', code: 's("[hh oh] hh hh").bank("RolandCompurhythm78").gain(0.4)' },
+      { name: 'Perc', role: 'fx', code: 's("~ cb ~ perc").bank("RolandCompurhythm78").room(0.35).gain(0.5)' },
+      { name: 'Bass', role: 'bass', code: 'note("<c2 eb2 f2 ab2>").sound("triangle").lpf(600).gain(0.6)' },
+      { name: 'Pad', role: 'pad', code: 'note("[c3,eb3,g3]").sound("sine").room(0.7).attack(0.2).gain(0.3)' },
+    ],
+  },
+  // —— Lo-fi ——
+  {
+    id: 'lofi-dusty808',
+    vibe: 'lofi',
+    name: 'Dusty 808',
+    description: 'Soft boom-bap 808',
+    bpm: 85,
+    drumsBank: 'RolandTR808',
+    tracks: [
+      { name: 'Drums', role: 'drums', code: 's("bd ~ ~ bd ~ ~ bd ~").bank("RolandTR808").gain(0.95)' },
+      { name: 'Rim', role: 'fx', code: 's("~ rim ~ ~ rim ~ ~ rim").bank("RolandTR808").gain(0.45)' },
+      { name: 'Hi-Hats', role: 'hihats', code: 's("hh*8").bank("RolandTR808").gain("0.35 0.18 0.4 0.18 0.35 0.18 0.45 0.22").lpf(4500)' },
+      { name: 'Chords', role: 'pad', code: 'note("<[c3,eb3,g3] [f3,ab3,c4] [eb3,g3,bb3] [ab3,c4,eb4]>").sound("triangle").lpf(1100).gain(0.32).attack(0.05)' },
+      { name: 'Bass', role: 'bass', code: 'note("<c2 f2 eb2 ab2>").sound("sawtooth").lpf(380).gain(0.5)' },
+    ],
+  },
+  {
+    id: 'lofi-vinyl-linn',
+    vibe: 'lofi',
+    name: 'Vinyl Linn',
+    description: 'Crisp breaks, warm keys',
+    bpm: 88,
+    drumsBank: 'LinnDrum',
+    tracks: [
+      { name: 'Kick', role: 'drums', code: 's("bd ~ ~ bd ~ bd ~ ~").bank("LinnDrum").gain(1.0)' },
+      { name: 'Snare', role: 'fx', code: 's("~ sd ~ ~ ~ sd ~ ~").bank("LinnDrum").gain(0.8)' },
+      { name: 'Hats', role: 'hihats', code: 's("hh*8").bank("LinnDrum").gain(0.3).lpf(5000)' },
+      { name: 'Keys', role: 'pad', code: 'note("<[c3,e3,g3] [a2,c3,e3]>").sound("sine").room(0.5).lpf(1400).gain(0.28)' },
+      { name: 'Bass', role: 'bass', code: 'note("c2 ~ ~ g1 ~ ~ eb2 ~").sound("triangle").lpf(320).gain(0.55)' },
+    ],
+  },
+  {
+    id: 'lofi-soft-cr78',
+    vibe: 'lofi',
+    name: 'Tape CR78',
+    description: 'Round vintage kit',
+    bpm: 80,
+    drumsBank: 'RolandCompurhythm78',
+    tracks: [
+      { name: 'Kick', role: 'drums', code: 's("bd ~ bd ~").bank("RolandCompurhythm78").gain(0.9)' },
+      { name: 'Hats', role: 'hihats', code: 's("~ hh ~ hh").bank("RolandCompurhythm78").gain(0.35).lpf(3500)' },
+      { name: 'Perc', role: 'fx', code: 's("~ ~ cp ~").bank("RolandCompurhythm78").room(0.4).gain(0.5)' },
+      { name: 'Pad', role: 'pad', code: 'note("<[c3,eb3,g3,bb3] [f3,ab3,c4]>").sound("sine").room(0.8).attack(0.3).gain(0.25)' },
+      { name: 'Bass', role: 'bass', code: 'note("<c2 ~ eb2 ~>").sound("sine").lpf(250).gain(0.6)' },
+    ],
+  },
+  {
+    id: 'lofi-909-chill',
+    vibe: 'lofi',
+    name: 'Chill 909',
+    description: '909 swung soft',
+    bpm: 92,
+    drumsBank: 'RolandTR909',
+    tracks: [
+      { name: 'Kick', role: 'drums', code: 's("bd ~ ~ ~ bd ~ bd ~").bank("RolandTR909").gain(0.85)' },
+      { name: 'Clap', role: 'fx', code: 's("~ ~ cp ~ ~ ~ cp ~").bank("RolandTR909").gain(0.55)' },
+      { name: 'Hats', role: 'hihats', code: 's("hh*8").bank("RolandTR909").gain(0.25).lpf(4000)' },
+      { name: 'Lead', role: 'lead', code: 'note("<c4 eb4 g4>*2").sound("triangle").room(0.45).gain(0.2)' },
+      { name: 'Bass', role: 'bass', code: 'note("<c2 g1 eb2 f2>").sound("sawtooth").lpf(420).gain(0.48)' },
+    ],
+  },
+  // —— Ambient ——
+]

@@ -1,6 +1,7 @@
 import type { Track } from './types'
 import { useUIStore } from '../store/ui-store'
 import { registerDynamicSamples } from '../components/editor/autocomplete-data'
+import { COMMUNITY_SAMPLE_BANKS } from './samples'
 import { syncToStrudelAudioContext, unlockAudio } from './audio-context'
 
 declare global {
@@ -30,34 +31,6 @@ function isMobileLike(): boolean {
   if (navigator.maxTouchPoints > 1 && /Mac/.test(ua)) return true
   return false
 }
-
-const COMMUNITY_SAMPLE_BANKS = [
-  'github:yaxu/clean-breaks',
-  'github:Bubobubobubobubo/Dough-Amen',
-  'github:Bubobubobubobubo/Dough-Juj',
-  'github:eddyflux/crate',
-  'github:TodePond/samples',
-  'github:algorave-dave/samples',
-  'github:AuditeMarlow/samples',
-  'github:terrorhank/samples',
-  'github:tesspilot/samples',
-  'github:TristanCacqueray/mirus',
-  'github:k09/samples',
-  'github:EloMorelo/samples',
-  'github:Nikeryms/Samples',
-  'github:RikyBac15/samples',
-  'github:fstiffo/polifonia-samples',
-  'github:kaiye10/strudelSamples',
-  'github:fjpolo/fjpolo-Strudel',
-  'github:mysinglelise/msl-strudel-samples',
-  'github:salsicha/capoeira_strudel',
-  'github:sonidosingapura/rochormatic',
-  'github:hvillase/cavlp-25p',
-  'github:bruveping/RepositorioDesonidosParaExperimentar02',
-  'github:QuantumVillage/quantum-music',
-  'github:Veikkosuhonen/graffathon25-demo',
-  'github:AustinOliverHaskell/ms-teams-sounds-strudel',
-]
 
 const SESSION_KEY = '__strudel_community_banks_loaded'
 
@@ -173,6 +146,14 @@ export async function initEngine(): Promise<void> {
       // dirt + tidal-drum-machines + piano + VCSL + mridangam + uzu-drumkit + uzu-wavetables
       const PREBAKE_TOTAL = 7
       ui.beginSampleLoading(PREBAKE_TOTAL, 'prebake')
+      // Let React paint the Jam/Studio loading banner before CDN fetches block the main thread.
+      await new Promise<void>((resolve) => {
+        if (typeof requestAnimationFrame === 'function') {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        } else {
+          setTimeout(resolve, 32)
+        }
+      })
 
       const track = async (fn: () => unknown) => {
         try {
@@ -212,11 +193,9 @@ export async function initEngine(): Promise<void> {
         }
       } catch { /* optional */ }
 
-      // On mobile, community banks are deferred — mark prebake done so Jam/Studio show ready.
-      // On desktop, loadCommunityBanks() will beginSampleLoading('community') next.
-      if (isMobileLike()) {
-        ui.setSampleLoadingDone()
-      }
+      // Always mark prebake done so Jam can clear "Loading kit samples…".
+      // Desktop then begins a fresh community phase via loadCommunityBanks().
+      ui.setSampleLoadingDone()
     },
   })
   engine.evaluateFn = res.evaluate
