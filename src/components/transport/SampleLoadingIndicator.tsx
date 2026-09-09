@@ -8,7 +8,17 @@ export function SampleLoadingIndicator({ compact = false }: { compact?: boolean 
   if (done) {
     return <DoneIndicator loaded={loadedBanks - failedBanks} failed={failedBanks} phase={phase} />
   }
-  if (totalBanks === 0) return null
+  // Prebake may paint before totals settle — still show a pulse label
+  if (totalBanks === 0) {
+    if (phase === 'prebake') {
+      return (
+        <div className="flex items-center gap-2 text-[10px] text-accent animate-pulse" title="Loading kit sample packs">
+          <span className="whitespace-nowrap">{compact ? 'Sounds' : 'Loading kit samples…'}</span>
+        </div>
+      )
+    }
+    return null
+  }
 
   const pct = Math.round((loadedBanks / Math.max(totalBanks, 1)) * 100)
   const label =
