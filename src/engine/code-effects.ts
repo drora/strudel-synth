@@ -40,6 +40,12 @@ export function setEffectInCode(code: string, key: string, value: number): strin
   return code.trimEnd() + replacement
 }
 
+/** Remove `.key(...)` if present (scalar or patterned args). */
+export function removeEffectFromCode(code: string, key: string): string {
+  const regex = new RegExp(`\\.${key}\\([^)]*\\)`)
+  return code.replace(regex, '')
+}
+
 /**
  * Split trailing `.method(...)` calls that look like effects / sound.
  * Nested parens inside args are not supported (good enough for studio code).
