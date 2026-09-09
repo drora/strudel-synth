@@ -18,6 +18,8 @@ import { evaluateCode, stop, composeTracks, initEngine } from '../../engine/stru
 import { resumeAudioContext } from '../../engine/audio-context'
 import { reshuffleTrack } from '../../engine/reshuffle'
 import { liveUpdateEngine } from '../../engine/live-update'
+import { useSessionPersistence } from '../../hooks/useSessionPersistence'
+import { RestoreAutosavePrompt } from '../session/SessionManager'
 
 export function AppShell() {
   const appMode = useUIStore((s) => s.appMode)
@@ -42,6 +44,8 @@ function StudioShell() {
   const [showRecorder, setShowRecorder] = useState(false)
   const [showMobileSidebar, setShowMobileSidebar] = useState(false)
   const [showMobileRightPanel, setShowMobileRightPanel] = useState(false)
+
+  const { restoreCandidate, acceptRestore, dismissRestore } = useSessionPersistence()
 
   const toggleCheatsheet = useCallback(() => setShowCheatsheet((v) => !v), [])
 
@@ -141,7 +145,8 @@ function StudioShell() {
         e.preventDefault()
         const activeTrack = state.tracks.find((t) => t.id === state.activeTrackId)
         if (activeTrack) {
-          const newCode = reshuffleTrack(activeTrack.role, activeTrack.code)
+          const pinEffects = useUIStore.getState().pinEffects
+          const newCode = reshuffleTrack(activeTrack.role, activeTrack.code, { pinEffects })
           state.setCode(activeTrack.id, newCode)
           if (state.isPlaying) {
             const q = useUIStore.getState().getEffectiveQuantization(activeTrack.id)
@@ -248,6 +253,14 @@ function StudioShell() {
             </div>
           </MobileDrawer>
         </>
+      )}
+
+      {restoreCandidate && (
+        <RestoreAutosavePrompt
+          session={restoreCandidate}
+          onRestore={acceptRestore}
+          onDismiss={dismissRestore}
+        />
       )}
 
       {/* Template Picker Modal */}

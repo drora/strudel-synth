@@ -28,6 +28,8 @@ interface UIState {
    * not a safe evaluate()/compose swap transition. Do not invent a broken wrap.
    */
   crossfadeSwaps: boolean
+  /** Phase 5: keep trailing effect chain (.lpf/.room/…) when reshuffling. */
+  pinEffects: boolean
 
   setShowTemplateModal: (show: boolean) => void
   setAppMode: (mode: 'studio' | 'learn') => void
@@ -40,6 +42,7 @@ interface UIState {
   getEffectiveQuantization: (trackId?: string | null) => Quantization
   /** No-op enabler — crossfade remains disabled until a real swap API exists. */
   setCrossfadeSwaps: (enabled: boolean) => void
+  setPinEffects: (enabled: boolean) => void
 }
 
 const QUANT_VALUES: Quantization[] = ['immediate', '1', '2', '4']
@@ -58,6 +61,7 @@ export const useUIStore = create<UIState>()(
       defaultQuantization: '1',
       trackQuantization: {},
       crossfadeSwaps: false,
+      pinEffects: false,
 
       setShowTemplateModal: (showTemplateModal) => set({ showTemplateModal }),
       setAppMode: (appMode) => set({ appMode }),
@@ -94,11 +98,14 @@ export const useUIStore = create<UIState>()(
 
       // Intentionally ignore `enabled: true` — see crossfadeSwaps comment.
       setCrossfadeSwaps: (_enabled) => set({ crossfadeSwaps: false }),
+
+      setPinEffects: (pinEffects) => set({ pinEffects }),
     }),
     {
       name: 'strudel-studio-ui',
       partialize: (s) => ({
         defaultQuantization: s.defaultQuantization,
+        pinEffects: s.pinEffects,
         // track overrides are session-local; only persist global default
       }),
       merge: (persisted, current) => {
@@ -109,6 +116,7 @@ export const useUIStore = create<UIState>()(
           defaultQuantization: isQuantization(p.defaultQuantization)
             ? p.defaultQuantization
             : current.defaultQuantization,
+          pinEffects: typeof p.pinEffects === 'boolean' ? p.pinEffects : current.pinEffects,
           // never hydrate crossfade on
           crossfadeSwaps: false,
         }

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Track, TrackRole, Template } from '../engine/types'
 import { ROLE_COLORS } from '../engine/types'
+import type { SavedSession } from '../engine/session-codec'
 
 interface SessionState {
   tracks: Track[]
@@ -34,6 +35,14 @@ interface SessionState {
     name?: string
     role?: TrackRole
   }) => string
+  /** Phase 5: restore a SavedSession including mute/volume (new ids). */
+  loadSavedSession: (session: SavedSession) => void
+  /** Phase 5: A/B arrangement — apply codes+mute (match by id, else index). */
+  applySection: (section: {
+    bpm?: number
+    tracks: Array<{ id: string; code: string; muted: boolean }>
+  }) => void
+  setMuted: (trackId: string, muted: boolean) => void
 }
 
 let nextId = 1
@@ -179,4 +188,45 @@ export const useSessionStore = create<SessionState>((set) => ({
       tracks.splice(toIndex, 0, moved)
       return { tracks }
     }),
+
+  loadSavedSession: (session) => {
+    const tracks: Track[] = session.tracks.map((t) => ({
+      id: genId(),
+      name: t.name,
+      role: t.role,
+      code: t.code,
+      color: t.color || ROLE_COLORS[t.role],
+      muted: !!t.muted,
+      soloed: !!t.soloed,
+      locked: false,
+      volume: typeof t.volume === 'number' ? t.volume : 1,
+      error: null,
+    }))
+    set({
+      tracks,
+      bpm: session.bpm,
+      activeTrackId: tracks[0]?.id ?? null,
+      templateId: session.templateId,
+    })
+  },
+
+  applySection: (section) =>
+    set((state) => {
+      const byId = new Map(section.tracks.map((t) => [t.id, t]))
+      return {
+        bpm: typeof section.bpm === 'number' ? section.bpm : state.bpm,
+        tracks: state.tracks.map((t, i) => {
+          const snap = byId.get(t.id) ?? section.tracks[i]
+          if (!snap) return t
+          return { ...t, code: snap.code, muted: snap.muted, error: null }
+        }),
+      }
+    }),
+
+  setMuted: (trackId, muted) =>
+    set((state) => ({
+      tracks: state.tracks.map((t) =>
+        t.id === trackId ? { ...t, muted } : t
+      ),
+    })),
 }))

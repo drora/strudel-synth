@@ -9,6 +9,7 @@ import type { Quantization } from '../../engine/live-update'
 import { liveUpdateEngine } from '../../engine/live-update'
 import { composeTracks, initEngine, evaluateCode } from '../../engine/strudel'
 import { resumeAudioContext } from '../../engine/audio-context'
+import { ArrangementLite, SessionControls, useSessionManager } from '../session/SessionManager'
 
 interface TransportBarProps {
   onToggleDocs?: () => void
@@ -31,6 +32,26 @@ async function startOrQueueUpdate(quant: Quantization) {
   const code = composeTracks(state.tracks, state.bpm)
   await evaluateCode(code)
   liveUpdateEngine.markPlayStarted()
+}
+
+
+function ShareLinkButton({ className }: { className?: string }) {
+  const { copyShareLink } = useSessionManager()
+  const [label, setLabel] = useState('Copy share link')
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      className={className}
+      onClick={async () => {
+        const r = await copyShareLink()
+        setLabel(r === 'fail' ? 'Hash set — copy address' : 'Link copied')
+        window.setTimeout(() => setLabel('Copy share link'), 1500)
+      }}
+    >
+      {label}
+    </button>
+  )
 }
 
 export function TransportBar({
@@ -245,6 +266,14 @@ export function TransportBar({
       {/* Sample loading progress */}
       <SampleLoadingIndicator />
 
+      {!isMobile && (
+        <>
+          <div className="w-px h-6 bg-border" />
+          <ArrangementLite compact />
+          <ShareLinkButton className="px-2 py-1 text-[10px] rounded bg-bg-elevated text-accent hover:bg-accent/15" />
+        </>
+      )}
+
       {/* Beat visualizer + track dots */}
       <div className={`flex-1 flex items-center justify-center ${isMobile ? 'min-w-[4rem]' : ''}`}>
         <TransportViz />
@@ -351,6 +380,13 @@ export function TransportBar({
               >
                 Cheatsheet (?)
               </button>
+              <div className="border-t border-border my-1" />
+              <div className="px-3 py-1 text-[9px] uppercase tracking-wider text-text-muted">
+                Session / Producer
+              </div>
+              <div className="px-1 pb-1 [&_.border-b]:border-0">
+                <SessionControls showArrangement />
+              </div>
               <div className="border-t border-border my-1" />
               <button
                 role="menuitem"
