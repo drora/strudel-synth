@@ -6,7 +6,7 @@
 
 ## Use it
 
-1. **Jam** — cold load picks a random kit and reshuffles unlocked riffs (`fresh · reshuffled`); open the kit browser (search / soft tags), Play, Shuffle / Spice / deals.
+1. **Jam** — open the kit browser (search / soft tags: tempo · bank · vibe), pick a kit, hit Play, Shuffle / Spice / deal cards.
 2. **Tap a track** — Sound|FX sheet (chips write real Strudel code; sheet stays open while browsing). **M** on the chip mutes. **+ Track** adds a role with preset code without switching kits.
 3. **Edit in Code** / header **`</> Code`** — CodeMirror sheet for that track (Update / Lock / quantize). Stays in Jam; no mode bounce.
 4. **Liveloop** — BPM ring + per-track phase ticks while playing; **Rec** (red) records mic → sample → track; Stop is neutral (not Rec-red); **A/B** near Kit stashes and punches arrangement variants.
@@ -31,6 +31,13 @@ About **71** kits in the Jam catalog (**27** originals + **44** Rank A/B/usable-
 - `@strudel/web` (+ core / mini / tonal)
 - Static hosting only (no backend) · **AGPL-3.0-or-later**
 
+
+## WebMCP + liveloop skill
+
+With a WebMCP-capable browser, agents can drive Jam (kits, A/B, FX, deals, phase, docs search) through tools registered in `src/engine/webmcp.ts`. Shared logic: `src/engine/jam-actions.ts`.
+
+**Agent skill:** [`resources/skills/jam-liveloop/`](./resources/skills/jam-liveloop/) — install notes in that folder’s README (`SKILL.md` + best practices). Point Cursor at it via copy/symlink into `~/.cursor/skills` or `.cursor/skills`.
+
 ## Develop
 
 ```bash
@@ -52,7 +59,7 @@ src/
   components/transport/ PlayButton, sample loading
   components/layout/    AppShell (jam | learn router only)
   engine/               Strudel, playback, kits (a–f data + kit-browser), missions, mutators,
-                        FX helpers, mic-sample (Rec → samples)
+                        FX helpers, jam-actions, webmcp, mic-sample (Rec → samples)
   hooks/                useLoopPhase, mobile / visual viewport
   store/                jam-store (incl. A/B), session-store, ui-store
 ```
