@@ -4,6 +4,9 @@ import { setBankInCode, setSoundInCode, setNInCode, getBankFromCode, getSoundFro
 import { KITS_A } from './kits-data-a'
 import { KITS_B } from './kits-data-b'
 import { KITS_C } from './kits-data-c'
+import { KITS_D } from './kits-data-d'
+import { KITS_E } from './kits-data-e'
+import { KITS_F } from './kits-data-f'
 import type { VibeId, VibeInfo, SoundChoice, KitTrack, Kit } from './kits-types'
 
 export type { VibeId, VibeInfo, SoundChoice, KitTrack, Kit }
@@ -15,7 +18,7 @@ export const VIBES: VibeInfo[] = [
   { id: 'house', label: 'House' },
 ]
 
-export const KITS: Kit[] = [...KITS_A, ...KITS_B, ...KITS_C]
+export const KITS: Kit[] = [...KITS_A, ...KITS_B, ...KITS_C, ...KITS_D, ...KITS_E, ...KITS_F]
 
 export function listVibes(): VibeInfo[] {
   return VIBES
@@ -61,6 +64,20 @@ export const SOUND_CHOICES: Record<TrackRole, SoundChoice[]> = {
     { id: 'dr110', label: 'DR-110', bank: 'BossDR110' },
     { id: 'dmx', label: 'DMX', bank: 'OberheimDMX' },
     { id: 'cr78', label: 'CR78 soft', bank: 'RolandCompurhythm78' },
+    { id: 'lm2', label: 'LM-2', bank: 'LinnLM2' },
+    { id: 'drumulator', label: 'Drumulator', bank: 'EmuDrumulator' },
+    { id: 'drumtraks', label: 'DrumTraks', bank: 'SequentialCircuitsDrumtracks' },
+    { id: 'r8', label: 'R-8', bank: 'RolandR8' },
+    { id: 'sds5', label: 'SDS5', bank: 'SimmonsSDS5' },
+    { id: 'dr550', label: 'DR-550', bank: 'BossDR550' },
+    { id: 'sr16', label: 'SR-16', bank: 'AlesisSR16' },
+    { id: '626', label: '626', bank: 'RolandTR626' },
+    { id: 'xr10', label: 'XR-10', bank: 'AkaiXR10' },
+    { id: 'rm50', label: 'RM-50', bank: 'YamahaRM50' },
+    { id: 'mc303', label: 'MC-303', bank: 'RolandMC303' },
+    { id: 'mfb512', label: 'MFB-512', bank: 'MFB512' },
+    { id: 'dpm48', label: 'DPM-48', bank: 'SakataDPM48' },
+    { id: 'spacedrum', label: 'Space Drum', bank: 'ViscoSpaceDrum' },
   ],
   hihats: [
     { id: '909', label: '909 hats', bank: 'RolandTR909' },
@@ -73,6 +90,14 @@ export const SOUND_CHOICES: Record<TrackRole, SoundChoice[]> = {
     { id: 'linn', label: 'Linn hats', bank: 'LinnDrum' },
     { id: 'lm1', label: 'LM-1 hats', bank: 'LinnLM1' },
     { id: 'cr78', label: 'CR78 hats', bank: 'RolandCompurhythm78' },
+    { id: 'lm2', label: 'LM-2 hats', bank: 'LinnLM2' },
+    { id: 'drumulator', label: 'Drumulator hats', bank: 'EmuDrumulator' },
+    { id: 'r8', label: 'R-8 hats', bank: 'RolandR8' },
+    { id: 'sr16', label: 'SR-16 hats', bank: 'AlesisSR16' },
+    { id: '626', label: '626 hats', bank: 'RolandTR626' },
+    { id: 'rm50', label: 'RM-50 hats', bank: 'YamahaRM50' },
+    { id: 'mc303', label: 'MC-303 hats', bank: 'RolandMC303' },
+    { id: 'dr550', label: 'DR-550 hats', bank: 'BossDR550' },
   ],
   fx: [
     { id: '909', label: '909 clap', bank: 'RolandTR909' },
@@ -85,6 +110,15 @@ export const SOUND_CHOICES: Record<TrackRole, SoundChoice[]> = {
     { id: 'linn', label: 'Linn snare', bank: 'LinnDrum' },
     { id: 'dmx', label: 'DMX clap', bank: 'OberheimDMX' },
     { id: 'cr78', label: 'CR78 perc', bank: 'RolandCompurhythm78' },
+    { id: 'lm2', label: 'LM-2 clap', bank: 'LinnLM2' },
+    { id: 'drumulator', label: 'Drumulator clap', bank: 'EmuDrumulator' },
+    { id: 'r8', label: 'R-8 clap', bank: 'RolandR8' },
+    { id: 'sr16', label: 'SR-16 snare', bank: 'AlesisSR16' },
+    { id: '626', label: '626 clap', bank: 'RolandTR626' },
+    { id: 'rm50', label: 'RM-50 clap', bank: 'YamahaRM50' },
+    { id: 'mc303', label: 'MC-303 clap', bank: 'RolandMC303' },
+    { id: 'sds5', label: 'SDS5 snare', bank: 'SimmonsSDS5' },
+    { id: 'mfb512', label: 'MFB-512 clap', bank: 'MFB512' },
   ],
   bass: [
     { id: 'saw', label: 'Saw bass', sound: 'sawtooth' },

@@ -6,13 +6,23 @@
 
 ## Use it
 
-1. **Jam** — pick a vibe/kit, hit Play, Shuffle / Spice / deal cards.
+1. **Jam** — open the kit browser (search / soft tags: tempo · bank · vibe), pick a kit, hit Play, Shuffle / Spice / deal cards.
 2. **Tap a track** — Sound|FX sheet (chips write real Strudel code; sheet stays open while browsing). **M** on the chip mutes. **+ Track** adds a role with preset code without switching kits.
 3. **Edit in Code** / header **`</> Code`** — CodeMirror sheet for that track (Update / Lock / quantize). Stays in Jam; no mode bounce.
 4. **Liveloop** — BPM ring + per-track phase ticks while playing; **Rec** (red) records mic → sample → track; Stop is neutral (not Rec-red); **A/B** near Kit stashes and punches arrangement variants.
 5. **Learn** — challenges with Check / hints; **Apply to Jam** adds a track and opens its Code sheet.
 
 Mobile: Jam is the default landing; touch targets and sheets are thumb-friendly. Desktop uses the same Jam shell.
+
+
+## Kits
+
+About **71** kits in the Jam catalog (**27** originals + **44** Rank A/B/usable-C cherry-picks across classic drum machines, dirt breaks, uzu, mridangam, VCSL, piano).
+
+- **Kit browser** — soft tags (tempo / bank / vibe) + search; bank short labels from `BANK_SHORT` in `kit-browser.ts`.
+- **Naming** — collision-safe ids and display names (model in the title: LM-2 Pocket, CR-1000 Disco, MC-303 Groove, …).
+- **Curated heavies** — RM-50 / MC-303 use `n(0)` slots only — not every sample in the UI.
+- Data: `engine/kits-data-{a..f}.ts` → `kits.ts` (`SOUND_CHOICES` for featured banks).
 
 ## Stack
 
@@ -41,8 +51,8 @@ src/
   components/learning/  LearnShell + challenges
   components/transport/ PlayButton, sample loading
   components/layout/    AppShell (jam | learn router only)
-  engine/               Strudel, playback, kits, missions, mutators, FX helpers,
-                        mic-sample (Rec → samples)
+  engine/               Strudel, playback, kits (a–f data + kit-browser), missions, mutators,
+                        FX helpers, mic-sample (Rec → samples)
   hooks/                useLoopPhase, mobile / visual viewport
   store/                jam-store (incl. A/B), session-store, ui-store
 ```
