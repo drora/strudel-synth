@@ -8,22 +8,8 @@ export interface SampleInfo {
   info: string
 }
 
-/** Featured drum-machine banks (CDN / tidal-drum-machines). */
-export const FEATURED_BANKS: string[] = [
-  'RolandTR808',
-  'RolandTR909',
-  'RolandTR707',
-  'RolandTR606',
-  'RolandTR505',
-  'RolandTR727',
-  'RolandCompurhythm78',
-  'LinnDrum',
-  'LinnLM1',
-  'AkaiMPC60',
-  'EmuSP12',
-  'BossDR110',
-  'OberheimDMX',
-]
+export { FEATURED_BANKS } from './samples-featured'
+import { EXTRA_AUTOCOMPLETE_SAMPLES } from './samples-curated'
 
 /** Dirt-samples core names used before dynamic registry fills. */
 export const CORE_DIRT_SAMPLES: SampleInfo[] = [
@@ -187,6 +173,12 @@ export const COMMUNITY_SAMPLE_BANKS: string[] = [
   'github:QuantumVillage/quantum-music',
   'github:Veikkosuhonen/graffathon25-demo',
   'github:AustinOliverHaskell/ms-teams-sounds-strudel',
+]
+
+/** Melodic + kit sample names for Code autocomplete (prebaked packs + dirt core). */
+export const CURATED_AUTOCOMPLETE_SAMPLES: string[] = [
+  ...CORE_DIRT_SAMPLES.map((s) => s.name),
+  ...EXTRA_AUTOCOMPLETE_SAMPLES,
 ]
 
 // ── Dynamic registry (runtime) ──────────────────────────────
