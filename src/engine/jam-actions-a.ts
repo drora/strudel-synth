@@ -63,10 +63,12 @@ export function applyKit(
   jam.setVibe(kit.vibe)
   jam.setHasPickedKit(true)
   if (opts?.fromPicker) jam.setShowKitPicker(false)
-  jam.setLastPeek(`kit · ${kit.name}`)
   const nextTracks = useSessionStore.getState().tracks
   jam.setMutationDeal(suggestMutations(nextTracks, 3))
   jam.setMissionDeal(suggestMissions(nextTracks, 2))
+  // Always reshuffle so picking the same kit twice yields new riffs (lockKit keeps drum bank).
+  reshuffleUnlocked()
+  jam.setLastPeek(`kit · ${kit.name} · reshuffled`)
   queueLive('kit')
   return {
     ok: true,
