@@ -257,13 +257,26 @@ export async function stop(): Promise<void> {
   }
 }
 
-export async function setBpm(bpm: number): Promise<void> {
-  const cps = bpm / 60 / 4
-  const engine = getEngine()
-  if (engine.evaluateFn) {
-    try { await engine.evaluateFn(`setcps(${cps})`) }
-    catch (e) { console.warn('[Strudel Studio] setcps() failed:', e) }
-  }
+/** Debounce live recompose so ± hold-repeat (~80ms) does not thrash evaluate. */
+const BPM_REEVAL_MS = 120
+let bpmReevalTimer: ReturnType<typeof setTimeout> | null = null
+
+/**
+ * Apply tempo to the live engine.
+ * Callers must update session-store bpm first.
+ * Bare `evaluate(setcps(...))` replaces the running pattern and silences audio —
+ * while playing we recompose the full session. When stopped, this is a no-op
+ * (store already holds the new bpm).
+ */
+export async function setBpm(_bpm: number): Promise<void> {
+  const { useSessionStore } = await import('../store/session-store')
+  if (!useSessionStore.getState().isPlaying) return
+
+  if (bpmReevalTimer) clearTimeout(bpmReevalTimer)
+  bpmReevalTimer = setTimeout(() => {
+    bpmReevalTimer = null
+    void refreshPlayback()
+  }, BPM_REEVAL_MS)
 }
 
 declare global {

@@ -77,7 +77,7 @@ export function registerWebMCPTools() {
 
   mc.registerTool({
     name: 'set_bpm',
-    description: 'Set the global tempo in BPM. Internally converts to setcps(bpm / 60 / 4).',
+    description: 'Set the global tempo in BPM. Updates the session store and, while playing, recomposes the full pattern at the new tempo.',
     inputSchema: {
       type: 'object',
       properties: { bpm: { type: 'number', minimum: 20, maximum: 300, description: 'Beats per minute' } },
