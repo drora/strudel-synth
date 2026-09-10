@@ -1,7 +1,6 @@
 // @ts-nocheck — split module; unused imports OK
 import { ok, fail, okText, kitBanksList, type WebMcpRegister } from './webmcp-helpers'
 import { useSessionStore } from '../store/session-store'
-import { useJamStore } from '../store/jam-store'
 import { evaluateCode, stop, composeTracks, initEngine } from './strudel'
 import { resumeAudioContext } from './audio-context'
 import { STRUDEL_REFERENCE } from './strudel-reference'
@@ -9,10 +8,6 @@ import { drumsBankShortName } from './kit-browser'
 import { isMicRecording } from './mic-sample'
 import { searchStrudelDocs } from './strudel-docs-index'
 import {
-  applyMutation,
-  applyMission,
-  undoJam,
-  redealDeals,
   stashAb,
   punchAb,
   toggleAb,
@@ -106,52 +101,5 @@ export function registerWebMcpToolsB1(register: WebMcpRegister) {
     description: 'Toggle between A/B (stash missing slots, then punch the other).',
     inputSchema: { type: 'object', properties: {} },
     execute: () => ok('toggle_ab', {}, toggleAb()),
-  })
-  register({
-    name: 'list_deals',
-    description: 'Current mutation + mission deal cards.',
-    inputSchema: { type: 'object', properties: {} },
-    annotations: { readOnlyHint: true },
-    execute: () => {
-      const jam = useJamStore.getState()
-      return ok(
-        'list_deals',
-        {},
-        {
-          mutations: jam.mutationDeal,
-          missions: jam.missionDeal,
-          undoDepth: jam.undoStack.length,
-        },
-        'Deals',
-      )
-    },
-  })
-  register({
-    name: 'apply_mutation',
-    description: 'Apply a mutation deal card by id (from list_deals / get_jam_state).',
-    inputSchema: {
-      type: 'object',
-      properties: { cardId: { type: 'string' } },
-      required: ['cardId'],
-    },
-    execute: ({ cardId }: { cardId: string }) => {
-      const r = applyMutation(cardId)
-      if (!r.ok) return fail('apply_mutation', { cardId }, r.error)
-      return ok('apply_mutation', { cardId }, r)
-    },
-  })
-  register({
-    name: 'apply_mission',
-    description: 'Apply a mission deal card by id.',
-    inputSchema: {
-      type: 'object',
-      properties: { cardId: { type: 'string' } },
-      required: ['cardId'],
-    },
-    execute: ({ cardId }: { cardId: string }) => {
-      const r = applyMission(cardId)
-      if (!r.ok) return fail('apply_mission', { cardId }, r.error)
-      return ok('apply_mission', { cardId }, r)
-    },
   })
 }
