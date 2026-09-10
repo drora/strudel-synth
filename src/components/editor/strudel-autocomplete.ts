@@ -90,11 +90,8 @@ export function lookupCompletionInfo(
 }
 
 function chromaticNoteCompletions(): Completion[] {
-  const notes = [
-    'c', 'cs', 'd', 'ds', 'e', 'f', 'fs', 'g', 'gs', 'a', 'as', 'b',
-    'db', 'eb', 'gb', 'ab', 'bb',
-    'c#', 'd#', 'f#', 'g#', 'a#',
-  ]
+  // One spelling per pitch class — match kit-suggest NOTE_NAMES (no cs/db/c# triples).
+  const notes = ['c', 'c#', 'd', 'eb', 'e', 'f', 'f#', 'g', 'ab', 'a', 'bb', 'b']
   const octaves = ['0', '1', '2', '3', '4', '5', '6', '7']
   return notes.flatMap((n) =>
     octaves.map((o) => ({
@@ -110,7 +107,7 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
   const line = context.state.doc.lineAt(context.pos)
   const textBefore = line.text.slice(0, context.pos - line.from)
 
-  // ── Inside .scale("...") — complete scale names (kit scale boosted) ──
+  // ── Inside .scale("..." ) — complete scale names (kit scale boosted) ──
   const scaleMatch = textBefore.match(/\.scale\(["']([^"']*)$/)
   if (scaleMatch) {
     return {
@@ -120,7 +117,7 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
     }
   }
 
-  // ── Inside .chord("...") — complete chord names ──
+  // ── Inside .chord("..." ) — complete chord names ──
   const chordMatch = textBefore.match(/\.chord\(["']([^"']*)$/)
   if (chordMatch) {
     return {
@@ -130,7 +127,7 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
     }
   }
 
-  // ── Inside .bank("...") — complete bank names (kit drumsBank first) ──
+  // ── Inside .bank("..." ) — complete bank names (kit drumsBank first) ──
   const bankMatch = textBefore.match(/\.bank\(["']([^"']*)$/)
   if (bankMatch) {
     return {
@@ -140,7 +137,7 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
     }
   }
 
-  // ── Inside s("...") or sound("...") / .sound("...") ──
+  // ── Inside s("..." ) or sound("..." ) / .sound("..." ) ──
   // Drum roles → hits + groove fragments; melodic → melodicSounds / SOUND_CHOICES.
   const sampleMatch =
     textBefore.match(/(?:^|\b)s\(["']([^"']*)$/) ||
@@ -165,7 +162,7 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
     }
   }
 
-  // ── Inside note("...") — scale-coherent notes ranked above chromatic ──
+  // ── Inside note("..." ) — scale-coherent notes ranked above chromatic ──
   // Dedupe enharmonics (c#/cs/db) to one label per pitch+octave; prefer kit spelling.
   const noteMatch = textBefore.match(/note\(["']([^"']*)$/)
   if (noteMatch) {
