@@ -12,8 +12,6 @@ Guide for coding agents working on [`drora/strudel-synth`](https://github.com/dr
 - **Liveloop** — cycle phase on the BPM ring (`JamPhaseRing`) and a subtle per-track phase tick on chips (`JamTrackChip` / `useLoopPhase` via `liveUpdateEngine`); mic Rec (`JamMicRec` / `engine/mic-sample.ts`); simple A/B punch (`JamABToggle` near Kit). Mute is 1-tap via the **M** on each track chip (Mix tab volume still available).
 - **Learn** — optional (`LearnShell`); “Apply to Jam” adds a track and opens its Code sheet.
 
-Out of scope unless explicitly requested: Hydra, MIDI panels, xfade, clip rack, timeline rewrite, audio-engine rewrite.
-
 ## Architecture map
 
 ```
@@ -48,7 +46,6 @@ src/
 | Spice (FX-only) | `engine/spice.ts` — one-tap `setEffectInCode` nudges (lpf/room/shape/delay/gain). **Spice ≠ Shuffle**; Mission/Mutate deal cards removed |
 | Tracks / BPM / play | `store/session-store.ts` |
 
-
 ## Kits catalog
 
 ~**71** Jam kits: **27** original + **44** cherry-picks (Rank **A** 14 · **B** 19 · usable **C** 11). Data split across `kits-data-{a,b,c,d,e,f}.ts`; `kits.ts` concatenates and owns `SOUND_CHOICES`.
@@ -62,7 +59,6 @@ A **Kit** is **identity + shuffle profile**, not frozen Strudel recipes. Each ki
 - **Heavy packs curated** — `YamahaRM50` / `RolandMC303` profiles use `shuffle.pinN: 0`; do **not** dump all bank files into the Sound sheet.
 - **Non-tidal banks** — dirt / uzu / mridangam / VCSL / piano use stable short `drumsBank` strings (`dirt-amen`, `uzu`, `mridangam`, `vcsl`, …) for tags; reshuffle voices them specially (amen chops, tabla, gretsch, etc.).
 - Existing 27 kits stay unchanged when expanding; skip D-rank and deferred community crates unless explicitly asked.
-
 
 ## WebMCP + agent skills
 
@@ -101,7 +97,7 @@ Deploy: GitHub Actions Pages via `npm run deploy` (workflow on `main`).
 - **Don’t resurrect** deleted Studio shells (`TransportBar` multi-mode chrome, track-picker Studio layout, template modal as home) without an explicit product ask.
 - Prefer reusing `TrackCodePane` / `code-effects` / playback helpers over duplicating editors.
 - **Don’t ship PLACEHOLDER kit stubs** or uncurated mega-banks (RM50/MC303) into UI tiles.
-- Keep liveloop UI tiny (phase ring, one Rec, one A/B chip group) — no clip rack.
+- Keep liveloop UI tiny (phase ring, one Rec, one A/B chip group).
 
 ## License
 
