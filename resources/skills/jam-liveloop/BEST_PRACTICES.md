@@ -59,6 +59,13 @@ stopped                          → store update only (no queue)
 - Soft tags: `tempo:slow|mid|fast`, `bank:909`, `vibe:techno`.
 - `lockKit: true` → shuffle keeps bank **and** profile groove family; `false` → free reshuffle across kits.
 
+## Spice
+
+- UI **Spice** = one FX/timbre nudge on existing code (`engine/spice.ts` via `setEffectInCode`).
+- **Spice ≠ Shuffle** — same tune; **never** pattern rewrite, denser/sparser groove, bank swap, or `shuffle_sounds`.
+- Peek: `Spice · room` / `Spice · darker`. Undo via `undo_jam`.
+- Mission / Mutate deal cards are **removed** (no redeal UI).
+
 ## Undo
 
 - `undo_jam` reverts last sound/FX (or historical) change from the Jam undo stack.
