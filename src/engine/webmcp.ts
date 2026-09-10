@@ -86,7 +86,7 @@ export function registerWebMCPTools() {
     execute: ({ bpm }: { bpm: number }) => {
       useSessionStore.getState().setBpm(bpm)
       setBpm(bpm)
-      logActivity({ timestamp: Date.now(), tool: 'set_bpm', params: { bpm }, result: `BPM set to ${bpm}`, status: 'success' })
+      logActivity({ timestamp: Date.now(), tool: 'set_bpm', params: { bpm }, result: `BPM set to ${bpm}` })
       return toolResult(JSON.stringify({ bpm, cps: bpm / 60 / 4 }))
     },
   })
@@ -160,9 +160,16 @@ export function registerWebMCPTools() {
       required: ['trackId'],
     },
     execute: ({ trackId }: { trackId: string }) => {
+      const before = useSessionStore.getState().tracks.length
+      if (before <= 1) {
+        logActivity({ timestamp: Date.now(), tool: 'remove_track', params: { trackId }, result: 'Need at least one track', status: 'error' })
+        return toolResult(JSON.stringify({ trackId, status: 'blocked', reason: 'Need at least one track' }))
+      }
       useSessionStore.getState().removeTrack(trackId)
-      logActivity({ timestamp: Date.now(), tool: 'remove_track', params: { trackId }, result: 'Track removed', status: 'success' })
-      return toolResult(JSON.stringify({ trackId, status: 'removed' }))
+      const after = useSessionStore.getState().tracks.length
+      const removed = after < before
+      logActivity({ timestamp: Date.now(), tool: 'remove_track', params: { trackId }, result: removed ? 'Track removed' : 'Track not found', status: removed ? 'success' : 'error' })
+      return toolResult(JSON.stringify({ trackId, status: removed ? 'removed' : 'not_found' }))
     },
   })
 
