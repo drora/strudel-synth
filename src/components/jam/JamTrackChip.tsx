@@ -3,7 +3,7 @@ import { liveUpdateEngine } from '../../engine/live-update'
 import { useSessionStore } from '../../store/session-store'
 import { useJamStore } from '../../store/jam-store'
 import type { Track } from '../../engine/types'
-import { queueJam, trackSoundHint } from './jam-shell-utils'
+import { queueJamImmediate, trackSoundHint } from './jam-shell-utils'
 import { useLoopPhaseCallback } from '../../hooks/useLoopPhase'
 
 function openCodeForTrack(trackId: string) {
@@ -46,7 +46,7 @@ export function JamTrackChip({
     const muted = useSessionStore.getState().tracks.find((t) => t.id === current.id)?.muted
     useJamStore.getState().setLastPeek(`${current.name} · ${muted ? 'muted' : 'on'}`)
     liveUpdateEngine.markDirty()
-    queueJam('mute-solo')
+    queueJamImmediate('mute-solo')
   }
 
   return (
