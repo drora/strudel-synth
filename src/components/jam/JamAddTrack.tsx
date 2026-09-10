@@ -50,7 +50,7 @@ export function JamAddTrack() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="shrink-0 h-[2.75rem] min-w-[4.5rem] px-2.5 rounded-lg text-[11px] font-medium border border-dashed border-accent/50 bg-accent/10 text-accent hover:border-accent box-border"
+        className="shrink-0 w-[7.25rem] h-[2.75rem] px-2.5 rounded-lg text-[11px] font-medium border border-dashed border-accent/50 bg-accent/10 text-accent hover:border-accent box-border"
         title="Add track"
         aria-label="Add track"
       >
