@@ -82,6 +82,7 @@ function assignSampleToTrack(sampleName: string): string {
 
   if (targetId && session.tracks.some((t) => t.id === targetId)) {
     session.setCode(targetId, code)
+    jam.touchTrack(targetId)
     jam.setLastPeek(`Mic · ${sampleName} → track`)
     jam.setSoundTrackId(targetId)
     queueLiveIfPlaying()
@@ -100,6 +101,7 @@ function assignSampleToTrack(sampleName: string): string {
     volume: 1,
     error: null,
   })
+  jam.touchTrack(id)
   jam.setLastPeek(`Mic · ${sampleName} → new track`)
   jam.setSoundTrackId(id)
   jam.setCodeTrackId(null)
