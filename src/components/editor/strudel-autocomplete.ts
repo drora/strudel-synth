@@ -14,6 +14,15 @@ import {
   getSampleCompletions,
 } from './autocomplete-data'
 import type { CursorDocsKind } from './cursor-docs'
+import { useJamStore } from '../../store/jam-store'
+import { useSessionStore } from '../../store/session-store'
+import { getKit } from '../../engine/kits'
+import type { Kit } from '../../engine/kits-types'
+import type { TrackRole } from '../../engine/types'
+import {
+  mergeKitSuggestions,
+  suggestFromKitProfile,
+} from '../../engine/kit-suggest'
 
 /**
  * Keep useful docs `info` when present, but never invent a duplicate panel
@@ -33,6 +42,26 @@ function withInfo(options: readonly Completion[]): Completion[] {
     }
     return opt
   })
+}
+
+/** Active jam kit + track role for soft-ranked completions (same profile as reshuffle). */
+function resolveKitSuggestCtx(): { kit: Kit | undefined; role: TrackRole | null } {
+  const jam = useJamStore.getState()
+  const session = useSessionStore.getState()
+  const kit = jam.kitId ? getKit(jam.kitId) : undefined
+  const trackId = jam.codeTrackId ?? session.activeTrackId
+  const track = trackId ? session.tracks.find((t) => t.id === trackId) : undefined
+  return { kit, role: track?.role ?? null }
+}
+
+function kitBiased(
+  base: Completion[],
+  context: import('../../engine/kit-suggest').KitSuggestContext,
+): Completion[] {
+  const { kit, role } = resolveKitSuggestCtx()
+  const kitOnes = suggestFromKitProfile(kit, role, context)
+  if (kitOnes.length === 0) return base
+  return mergeKitSuggestions(base, kitOnes) as Completion[]
 }
 
 /** Lookup used by cursor→docs / SuggestionBanner. */
@@ -59,16 +88,33 @@ export function lookupCompletionInfo(
   return undefined
 }
 
+function chromaticNoteCompletions(): Completion[] {
+  const notes = [
+    'c', 'cs', 'd', 'ds', 'e', 'f', 'fs', 'g', 'gs', 'a', 'as', 'b',
+    'db', 'eb', 'gb', 'ab', 'bb',
+    'c#', 'd#', 'f#', 'g#', 'a#',
+  ]
+  const octaves = ['0', '1', '2', '3', '4', '5', '6', '7']
+  return notes.flatMap((n) =>
+    octaves.map((o) => ({
+      label: `${n}${o}`,
+      type: 'text' as const,
+      info: `Note ${n.toUpperCase()}${o}`,
+      boost: o === '3' || o === '4' ? 2 : 0,
+    })),
+  )
+}
+
 function strudelCompletion(context: CompletionContext): CompletionResult | null {
   const line = context.state.doc.lineAt(context.pos)
   const textBefore = line.text.slice(0, context.pos - line.from)
 
-  // ── Inside .scale("...") — complete scale names ──
+  // ── Inside .scale("...") — complete scale names (kit scale boosted) ──
   const scaleMatch = textBefore.match(/\.scale\(["']([^"']*)$/)
   if (scaleMatch) {
     return {
       from: context.pos - scaleMatch[1].length,
-      options: withInfo(scaleCompletions),
+      options: withInfo(kitBiased(scaleCompletions, 'scale')),
       validFor: /^[\w\s]*$/,
     }
   }
@@ -83,66 +129,58 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
     }
   }
 
-  // ── Inside .bank("...") — complete bank names ──
+  // ── Inside .bank("...") — complete bank names (kit drumsBank first) ──
   const bankMatch = textBefore.match(/\.bank\(["']([^"']*)$/)
   if (bankMatch) {
     return {
       from: context.pos - bankMatch[1].length,
-      options: withInfo(bankCompletions),
+      options: withInfo(kitBiased(bankCompletions, 'bank')),
       validFor: /^[\w]*$/,
     }
   }
 
-  // ── Inside s("...") or sound("...") — complete sample names (dynamic!) ──
+  // ── Inside s("...") or sound("...") / .sound("...") ──
+  // Drum roles → hits + groove fragments; melodic → melodicSounds / SOUND_CHOICES.
   const sampleMatch =
     textBefore.match(/(?:^|\b)s\(["']([^"']*)$/) ||
     textBefore.match(/sound\(["']([^"']*)$/)
   if (sampleMatch) {
     const inner = sampleMatch[1]
     const lastWord = inner.match(/(?:^|[\s~\[\]<>,])(\w*)$/)
+    // When prefix is empty / after separator, also offer pattern fragments (may include spaces).
+    const suggestCtx = textBefore.match(/\.sound\(["']([^"']*)$/) ? 'sound' : 'sample'
+    const options = withInfo(kitBiased(getSampleCompletions(), suggestCtx))
     if (lastWord) {
       return {
         from: context.pos - lastWord[1].length,
-        options: withInfo(getSampleCompletions()),
+        options,
         validFor: /^[\w]*$/,
       }
     }
     return {
       from: context.pos - inner.length,
-      options: withInfo(getSampleCompletions()),
+      options,
       validFor: /^[\w]*$/,
     }
   }
 
-  // ── Inside note("...") — complete note names + mini-notation ──
+  // ── Inside note("...") — scale-coherent notes ranked above chromatic ──
   const noteMatch = textBefore.match(/note\(["']([^"']*)$/)
   if (noteMatch) {
     const inner = noteMatch[1]
     const lastWord = inner.match(/(?:^|[\s~\[\]<>,])(\w*)$/)
-    const notes = [
-      'c', 'cs', 'd', 'ds', 'e', 'f', 'fs', 'g', 'gs', 'a', 'as', 'b',
-      'db', 'eb', 'gb', 'ab', 'bb',
-    ]
-    const octaves = ['0', '1', '2', '3', '4', '5', '6', '7']
-    const noteCompletions: Completion[] = notes.flatMap((n) =>
-      octaves.map((o) => ({
-        label: `${n}${o}`,
-        type: 'text' as const,
-        info: `Note ${n.toUpperCase()}${o}`,
-        boost: o === '3' || o === '4' ? 2 : 0,
-      })),
-    )
+    const noteCompletions = kitBiased(chromaticNoteCompletions(), 'note')
     if (lastWord) {
       return {
         from: context.pos - lastWord[1].length,
         options: withInfo(noteCompletions),
-        validFor: /^[\w]*$/,
+        validFor: /^[\w#]*$/,
       }
     }
     return {
       from: context.pos - inner.length,
       options: withInfo(noteCompletions),
-      validFor: /^[\w]*$/,
+      validFor: /^[\w#]*$/,
     }
   }
 
@@ -152,9 +190,14 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
     const inner = inString[1]
     const lastChar = inner.slice(-1)
     if (['*', '/', '!', '@', '?', '~', '(', '[', '<', ',', ':'].includes(lastChar)) {
+      const { kit, role } = resolveKitSuggestCtx()
+      const patternOnes = suggestFromKitProfile(kit, role, 'pattern')
+      const merged = patternOnes.length
+        ? (mergeKitSuggestions(miniNotationCompletions, patternOnes) as Completion[])
+        : miniNotationCompletions
       return {
         from: context.pos,
-        options: withInfo(miniNotationCompletions),
+        options: withInfo(merged),
         validFor: /^$/,
       }
     }
@@ -187,6 +230,9 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
  * Ghost-text deferred: CM inline completions need extra UX surface and
  * fight mobile keyboards. Phase 1 instead couples SuggestionBanner +
  * DocsPanel to cursor context via cursor-docs.ts.
+ *
+ * Kit-aware: completions soft-rank using the active jam kit shuffle profile
+ * (same pools as apply/shuffle) — neighbor ideas only, not full-line regen.
  */
 export const strudelAutocomplete = autocompletion({
   override: [strudelCompletion],
