@@ -9,6 +9,7 @@ import { ROLE_COLORS, type TrackRole } from './types'
 import {
   applyKit,
   reshuffleUnlocked,
+  reshuffleTrackById,
   setLockKit,
   setVolume,
   setActiveTrack,
@@ -158,9 +159,22 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'shuffle_sounds',
     description:
-      'Reshuffle unlocked tracks from the active kit shuffle profile + drumsBank when kitId is set (else free pools). Respects pinEffects; locked tracks are skipped.',
-    inputSchema: { type: 'object', properties: {} },
-    execute: () => {
+      'Reshuffle unlocked tracks from the active kit shuffle profile + drumsBank when kitId is set (else free pools). Optional trackId reshuffles a single unlocked lane; omit for all unlocked. Respects pinEffects; locked tracks are skipped (single-track returns error if locked/missing).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        trackId: {
+          type: 'string',
+          description: 'Optional track id — reshuffle only this lane (keep sheet open / one-track mode)',
+        },
+      },
+    },
+    execute: ({ trackId }: { trackId?: string } = {}) => {
+      if (trackId) {
+        const r = reshuffleTrackById(trackId)
+        if (!r.ok) return fail('shuffle_sounds', { trackId }, r.error)
+        return ok('shuffle_sounds', { trackId }, r, `Shuffled ${r.name}`)
+      }
       const r = reshuffleUnlocked()
       return ok('shuffle_sounds', {}, r, `Shuffled ${r.shuffled}`)
     },

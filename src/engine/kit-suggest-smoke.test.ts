@@ -5,7 +5,12 @@
  */
 import assert from 'node:assert/strict'
 import { getKit, resolveShuffleProfile } from './kits'
-import { suggestFromKitProfile, mergeKitSuggestions } from './kit-suggest'
+import {
+  suggestFromKitProfile,
+  mergeKitSuggestions,
+  dedupeNotesByPitch,
+  notePitchKey,
+} from './kit-suggest'
 import type { KitSuggestion } from './kit-suggest'
 
 function top(sugs: KitSuggestion[], n = 5): string[] {
@@ -80,6 +85,78 @@ for (const kit of [punch!, dusty!]) {
   assert.ok((saw?.boost ?? 0) >= 80)
   assert.ok(punchProf.melodicSounds.includes(merged[0]!.label))
   console.log(`  merge top: ${merged.slice(0, 3).map((m) => m.label).join(', ')}`)
+}
+
+// Notes: unique pitch+octave after kit suggest + merge (+ dedupe)
+{
+  const CANON = new Set(['c', 'c#', 'd', 'eb', 'e', 'f', 'f#', 'g', 'ab', 'a', 'bb', 'b'])
+  for (const kit of [punch!, dusty!]) {
+    const kitNotes = suggestFromKitProfile(kit, 'bass', 'note')
+    const pitchNotes = kitNotes.filter((n) => notePitchKey(n.label))
+    const kitKeys = pitchNotes.map((n) => notePitchKey(n.label)!)
+    assert.equal(kitKeys.length, new Set(kitKeys).size, `${kit.id} kit notes unique pitch`)
+    for (const n of pitchNotes) {
+      const base = n.label.replace(/\d+$/, '').toLowerCase()
+      assert.ok(CANON.has(base), `${kit.id} canonical ${n.label}`)
+    }
+    const base = [
+      { label: 'c#3', boost: 2 },
+      { label: 'cs3', boost: 2 },
+      { label: 'db3', boost: 2 },
+      { label: 'c3', boost: 2 },
+    ]
+    const merged = dedupeNotesByPitch(mergeKitSuggestions(base, kitNotes))
+    const keys = merged.map((m) => notePitchKey(m.label)).filter(Boolean) as string[]
+    assert.equal(keys.length, new Set(keys).size, `${kit.id} merged notes unique pitch`)
+    const sharp = merged.find((m) => notePitchKey(m.label) === '1|3')
+    assert.ok(sharp, `${kit.id} has pc1 oct3`)
+    assert.equal(sharp!.label, 'c#3', `${kit.id} prefers canonical c#3 over cs/db`)
+    const alias = dedupeNotesByPitch(mergeKitSuggestions(base, kitNotes), { prefix: 'cs' })
+    assert.ok(alias.some((a) => a.label === 'cs3'), `${kit.id} prefix cs → cs3`)
+    console.log(`  notes unique ${kit.id}: kit=${kitKeys.length} merged=${keys.length} c#3 ok`)
+  }
+}
+
+// Scale notes: stable order across calls (not shuffled into chaos)
+{
+  const a = suggestFromKitProfile(punch!, 'bass', 'note')
+    .filter((n) => notePitchKey(n.label))
+    .map((n) => n.label)
+  const b = suggestFromKitProfile(punch!, 'bass', 'note')
+    .filter((n) => notePitchKey(n.label))
+    .map((n) => n.label)
+  assert.deepEqual(a, b, 'scale note labels stable across calls')
+  console.log(`  scale notes stable: ${a.slice(0, 5).join(', ')}…`)
+}
+
+// Pattern / motif neighbors: can vary across two calls (shuffle-sampled)
+{
+  const labels = () =>
+    suggestFromKitProfile(punch!, 'drums', 'pattern').map((x) => x.label).join('|')
+  const melLabels = () =>
+    suggestFromKitProfile(punch!, 'lead', 'pattern').map((x) => x.label).join('|')
+  let drumVary = false
+  let melVary = false
+  const d0 = labels()
+  const m0 = melLabels()
+  for (let i = 0; i < 24; i++) {
+    if (labels() !== d0) drumVary = true
+    if (melLabels() !== m0) melVary = true
+  }
+  assert.ok(drumVary, 'drum groove fragments should resample across opens')
+  assert.ok(melVary, 'melodic motifs should resample across opens')
+  const motifLab = () =>
+    suggestFromKitProfile(punch!, 'lead', 'note')
+      .filter((n) => !notePitchKey(n.label))
+      .map((n) => n.label)
+      .join('|')
+  const mo0 = motifLab()
+  let motifVary = false
+  for (let i = 0; i < 24; i++) {
+    if (motifLab() !== mo0) motifVary = true
+  }
+  assert.ok(motifVary, 'note-context motif neighbors should resample')
+  console.log('  pattern/motif resample: drum+lead+note-neighbors vary')
 }
 
 console.log('ALL CHECKS PASSED')

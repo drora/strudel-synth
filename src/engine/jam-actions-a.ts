@@ -177,6 +177,33 @@ export function reshuffleUnlocked(): {
   return { ok: true, shuffled, lockKit: jam.lockKit }
 }
 
+/** Reshuffle a single unlocked track from the active kit profile (same opts as full Shuffle). */
+export function reshuffleTrackById(
+  trackId: string,
+): { ok: true; trackId: string; name: string } | { ok: false; error: string } {
+  const state = useSessionStore.getState()
+  const track = state.tracks.find((t) => t.id === trackId)
+  if (!track) return { ok: false, error: `Track not found: ${trackId}` }
+  if (track.locked) {
+    useJamStore.getState().setLastPeek(`Locked · ${track.name}`)
+    return { ok: false, error: `Track locked: ${track.name}` }
+  }
+  const pinEffects = useUIStore.getState().pinEffects
+  const jam = useJamStore.getState()
+  const activeKit = jam.kitId ? getKit(jam.kitId) : undefined
+  const next = reshuffleTrack(track.role, track.code, {
+    pinEffects,
+    lockKit: jam.lockKit || !!activeKit,
+    bank: activeKit?.drumsBank,
+    shuffle: activeKit?.shuffle,
+  })
+  state.setCode(track.id, next)
+  jam.setLastPeek(`Shuffle · ${track.name}`)
+  queueLive('reshuffle')
+  redealDeals()
+  return { ok: true, trackId: track.id, name: track.name }
+}
+
 export function stashAb(slot: AbSlot) {
   useJamStore.getState().stashVariant(slot)
   return { ok: true as const, slot, peek: useJamStore.getState().lastPeek }

@@ -12,6 +12,7 @@ export {
   applyMission,
   undoJam,
   reshuffleUnlocked,
+  reshuffleTrackById,
   stashAb,
   resetFreshStartGuard,
   resetFreshStartGuardForTests,

@@ -18,7 +18,7 @@ Kits are **identity + shuffle profile**, not baked Strudel recipes. `apply_kit` 
 - Prefer **`shuffle_sounds`** (or re-`apply_kit`) for variety — do **not** paste a fixed "classic" mini-notation as THE kit.
 - When **`update_track`** hand-edits: stay coherent with `get_kit` profile (`drumsBank`, root/scale, `melodicSounds`). Read jam state first.
 - Deal mutations/missions are **secondary** to profile-coherent tweaks.
-- **Code autocomplete** soft-ranks to the active kit shuffle profile (bank / scale / groove hits / melodicSounds) — prefer those when hand-editing; avoid off-kit genre hops.
+- **Code autocomplete** soft-ranks stable kit-scale notes (deduped) plus shuffle-sampled groove/motif neighbors from the same profile pools — prefer those when hand-editing; avoid off-kit genre hops.
 
 ## First move every turn
 
@@ -33,7 +33,7 @@ Kits are **identity + shuffle profile**, not baked Strudel recipes. `apply_kit` 
 | Read state | `get_session`, `get_jam_state`, `get_phase` |
 | Small code tweak | `update_track` with `quantization`: `"1"` or `"2"` |
 | New kit identity + regenerates from its shuffle profile | `apply_kit` (BPM preserved while playing) |
-| Fresh lines, same kit profile | `shuffle_sounds` (or re-`apply_kit`) |
+| Fresh lines, same kit profile | `shuffle_sounds` (optional `trackId` for one lane) or re-`apply_kit` |
 | Browse kits | `list_kits` → `get_kit` → `apply_kit` |
 | Sound swap | `list_sound_choices` → `apply_sound_choice` |
 | FX / mix nudge | `set_fx`, `set_volume` |
