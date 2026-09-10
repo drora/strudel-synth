@@ -13,6 +13,7 @@ import { JamABToggle } from './JamABToggle'
 import { useJamShell } from './useJamShell'
 import { JamTrackChip } from './JamTrackChip'
 import { drumsBankShortName } from '../../engine/kit-browser'
+import { resolveCodeOpenTrackId } from '../../engine/last-touched'
 
 function openCodeForTrack(trackId: string | null | undefined) {
   if (!trackId) return
@@ -40,11 +41,14 @@ export function JamShell() {
             type="button"
             className="min-h-11 px-3 rounded-lg text-xs font-medium bg-bg-elevated text-text-muted border border-border hover:text-accent"
             onClick={() => {
-              const active =
-                useSessionStore.getState().activeTrackId ?? j.tracks[0]?.id ?? null
-              openCodeForTrack(active)
+              const jam = useJamStore.getState()
+              const id = resolveCodeOpenTrackId(
+                jam.lastTouchedTrackId,
+                j.tracks.map((tr) => tr.id),
+              )
+              openCodeForTrack(id)
             }}
-            title="Edit active track code"
+            title="Edit last-modified track code"
           >
             {'<' + '/>'} Code
           </button>
@@ -119,7 +123,7 @@ export function JamShell() {
         </div>
 
         {(j.lastPeek || j.undoLen > 0) && (
-          <div className="text-[11px] px-3 py-2 rounded-lg bg-accent/10 border border-accent/20 text-accent">
+          <div className="text-[11px] text-accent px-3 py-2 rounded-lg bg-accent/10 border border-accent/20">
             {j.lastPeek}
             {j.undoLen > 0 && (
               <button type="button" className="ml-3 underline" onClick={j.onUndo}>
