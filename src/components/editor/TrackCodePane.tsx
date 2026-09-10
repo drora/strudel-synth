@@ -3,6 +3,8 @@ import { EditorView } from '@codemirror/view'
 import { EditorSelection, EditorState } from '@codemirror/state'
 import { createExtensions } from './extensions'
 import { useSessionStore } from '../../store/session-store'
+import { useJamStore } from '../../store/jam-store'
+import { getKit } from '../../engine/kits'
 import { useUIStore, QUANT_OPTIONS } from '../../store/ui-store'
 import { liveUpdateEngine, type UpdateStatus, type Quantization } from '../../engine/live-update'
 import { startOrQueueUpdate, stopPlayback } from '../../engine/playback'
@@ -84,7 +86,14 @@ export function TrackCodePane({ track, isActive, focusMode = false }: TrackCodeP
 
   const handleReshuffle = useCallback(() => {
     const pinEffects = useUIStore.getState().pinEffects
-    const newCode = reshuffleTrack(track.role, track.code, { pinEffects })
+    const jam = useJamStore.getState()
+    const activeKit = jam.kitId ? getKit(jam.kitId) : undefined
+    const newCode = reshuffleTrack(track.role, track.code, {
+      pinEffects,
+      lockKit: jam.lockKit || !!activeKit,
+      bank: activeKit?.drumsBank,
+      shuffle: activeKit?.shuffle,
+    })
     useSessionStore.getState().setCode(track.id, newCode)
     liveUpdateEngine.markDirty()
     if (useSessionStore.getState().isPlaying) {

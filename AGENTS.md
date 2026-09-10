@@ -36,7 +36,7 @@ src/
 
 | Concern | Location |
 |--------|----------|
-| Kits / vibes / sound choices / kit browser | `engine/kits.ts` + `kits-data-{a..f}.ts`, `kits-types.ts`, `kit-browser.ts` |
+| Kits / vibes / sound choices / kit browser | `engine/kits.ts` + `kits-data-{a..f}.ts`, `kits-types.ts`, `kit-browser.ts`, `reshuffle.ts` (profile pools) |
 | Missions / mutations | `engine/missions.ts`, `engine/mutators.ts` |
 | Sample registry / prebake | `engine/samples.ts`, `engine/strudel.ts` |
 | Mic → sample → track | `engine/mic-sample.ts`, `components/jam/JamMicRec.tsx` |
@@ -52,17 +52,19 @@ src/
 
 ~**71** Jam kits: **27** original + **44** cherry-picks (Rank **A** 14 · **B** 19 · usable **C** 11). Data split across `kits-data-{a,b,c,d,e,f}.ts`; `kits.ts` concatenates and owns `SOUND_CHOICES`.
 
+A **Kit** is **identity + shuffle profile**, not frozen Strudel recipes. Each kit keeps `id` / vibe / name / bpm / `drumsBank`, a track **layout** (name + role only — no baked `code`), and a `shuffle` profile (`groove`, `density`, optional `root` / `scale` / `melodicSounds` / `fxBias` / `pinN`). `kitToTemplate` / `generateKitTracks` / `reshuffleTrack` regenerate in-pattern code on every apply, reload, and Shuffle (same bank + groove + scale family, not identical lines).
+
 - **Kit-first browser** — `kit-browser.ts`: soft tags (tempo / bank / vibe), search, random pick. Every `drumsBank` needs a `BANK_SHORT` entry.
 - **Collision-safe names** — unique `kit.id` + display names with model (LM-2, CR-1000, DR-550, SK-1, etc.); never bare “Linn” / “Casio” / “DR”.
 - **Sound sheet + autocomplete** — melodic roles (lead/pad/arp/bass/vox/custom) have richer `SOUND_CHOICES`; `FEATURED_BANKS` + `CURATED_AUTOCOMPLETE_SAMPLES` keep Code bank/sample completion in sync with kits.
-- **Heavy packs curated** — `YamahaRM50` / `RolandMC303` recipes use `.n(0)` (or small n); do **not** dump all bank files into the Sound sheet.
-- **Non-tidal banks** — dirt / uzu / mridangam / VCSL / piano use stable short `drumsBank` strings (`dirt-amen`, `uzu`, `mridangam`, `vcsl`, …) for tags.
+- **Heavy packs curated** — `YamahaRM50` / `RolandMC303` profiles use `shuffle.pinN: 0`; do **not** dump all bank files into the Sound sheet.
+- **Non-tidal banks** — dirt / uzu / mridangam / VCSL / piano use stable short `drumsBank` strings (`dirt-amen`, `uzu`, `mridangam`, `vcsl`, …) for tags; reshuffle voices them specially (amen chops, tabla, gretsch, etc.).
 - Existing 27 kits stay unchanged when expanding; skip D-rank and deferred community crates unless explicitly asked.
 
 
 ## WebMCP + agent skills
 
-Browser agents talk to the live Jam via **WebMCP** (`src/engine/webmcp.ts` → `navigator.modelContext`). Shared mutators live in `src/engine/jam-actions.ts` (also used by `useJamShell`) so tools are not UI-only. Cold/reload: `freshStartJam()` (once per page + bfcache `pageshow`) — prefer last `kitId`, then reshuffle; `applyKit` (picker / New Kit / WebMCP) always reshuffles patterns (drum bank locked when lockKit).
+Browser agents talk to the live Jam via **WebMCP** (`src/engine/webmcp.ts` → `navigator.modelContext`). Shared mutators live in `src/engine/jam-actions.ts` (also used by `useJamShell`) so tools are not UI-only. Cold/reload: `freshStartJam()` (once per page + bfcache `pageshow`) — prefer last `kitId`, then generate+reshuffle from that kit’s shuffle profile; `applyKit` (picker / New Kit / WebMCP) always regenerates (`kit · Name · shuffled`) and keeps `drumsBank` / groove / scale coherent.
 
 **Core (always):** `get_session`, `set_bpm`, `update_track`, `add_track`, `remove_track`, `mute_track`, `solo_track`, `play`, `stop`, `get_reference`, `get_samples`, `get_scales_and_chords`, `evaluate_code`.
 
