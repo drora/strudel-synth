@@ -20,6 +20,8 @@ import {
   queueJam,
   useMinVisible,
 } from './jam-shell-utils'
+import { liveUpdateEngine } from '../../engine/live-update'
+import { applySpiceToTracks } from '../../engine/spice'
 
 export function useJamShell() {
   const isMobile = useIsMobile()
@@ -95,6 +97,29 @@ export function useJamShell() {
     if (pick) applyKit(pick.id)
   }
 
+
+  const onSpice = () => {
+    const state = useSessionStore.getState()
+    const activeId = state.activeTrackId
+    const result = applySpiceToTracks(state.tracks, activeId)
+    if (!result) {
+      useJamStore.getState().setLastPeek('Spice · (no change)')
+      return
+    }
+    const prev = state.tracks.find((t) => t.id === result.trackId)
+    if (prev) {
+      useJamStore.getState().pushUndo({
+        trackId: prev.id,
+        code: prev.code,
+        label: `Spice · ${result.label}`,
+      })
+    }
+    state.setCode(result.trackId, result.code)
+    useJamStore.getState().setLastPeek(`Spice · ${result.label}`)
+    liveUpdateEngine.markDirty()
+    queueJam('jam')
+  }
+
   const shellStyle = isMobile
     ? { height: vvHeight > 0 ? vvHeight : undefined, minHeight: 0 }
     : undefined
@@ -125,6 +150,7 @@ export function useJamShell() {
     onUndo,
     onShuffle,
     onNewKit,
+    onSpice,
   }
 }
 
