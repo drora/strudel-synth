@@ -41,20 +41,22 @@ type SheetTab = 'sound' | 'fx' | 'mix'
 
 export function JamTrackSheet({ track }: JamTrackSheetProps) {
   const [sheetTab, setSheetTab] = useState<SheetTab>('sound')
-  const live = useSessionStore((s) => s.tracks.find((t) => t.id === track.id)) ?? track
+  // Never fall back to a deleted track prop — mute/remove must match store.
+  const live = useSessionStore((s) => s.tracks.find((t) => t.id === track.id))
   const trackCount = useSessionStore((s) => s.tracks.length)
   const canRemove = trackCount > 1
+
+  if (!live) return null
 
   const close = () => useJamStore.getState().setSoundTrackId(null)
 
   const removeTrack = () => {
     if (!canRemove) return
     const id = live.id
+    const name = live.name
+    // removeTrack clears soundTrackId/codeTrackId + retargets activeTrackId in the store.
     useSessionStore.getState().removeTrack(id)
-    const jam = useJamStore.getState()
-    if (jam.soundTrackId === id) jam.setSoundTrackId(null)
-    if (jam.codeTrackId === id) jam.setCodeTrackId(null)
-    jam.setLastPeek(`Removed · ${live.name}`)
+    useJamStore.getState().setLastPeek(`Removed · ${name}`)
     queueJam('jam')
   }
 
@@ -100,9 +102,12 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
   }
 
   const toggleMute = () => {
-    useSessionStore.getState().toggleMute(live.id)
-    const muted = useSessionStore.getState().tracks.find((t) => t.id === live.id)?.muted
-    useJamStore.getState().setLastPeek(`${live.name} · ${muted ? 'muted' : 'on'}`)
+    const session = useSessionStore.getState()
+    const current = session.tracks.find((t) => t.id === live.id)
+    if (!current) return
+    session.toggleMute(current.id)
+    const muted = useSessionStore.getState().tracks.find((t) => t.id === current.id)?.muted
+    useJamStore.getState().setLastPeek(`${current.name} · ${muted ? 'muted' : 'on'}`)
     liveUpdateEngine.markDirty()
     queueJam('mute-solo')
   }

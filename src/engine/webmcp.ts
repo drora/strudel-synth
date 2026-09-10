@@ -178,6 +178,11 @@ export function registerWebMCPTools() {
     description: 'Toggle mute on a track.',
     inputSchema: { type: 'object', properties: { trackId: { type: 'string' } }, required: ['trackId'] },
     execute: ({ trackId }: { trackId: string }) => {
+      const before = useSessionStore.getState().tracks.find((t) => t.id === trackId)
+      if (!before) {
+        logActivity({ timestamp: Date.now(), tool: 'mute_track', params: { trackId }, result: 'Track not found', status: 'error' })
+        return toolResult(JSON.stringify({ trackId, status: 'not_found' }))
+      }
       useSessionStore.getState().toggleMute(trackId)
       const track = useSessionStore.getState().tracks.find((t) => t.id === trackId)
       logActivity({ timestamp: Date.now(), tool: 'mute_track', params: { trackId }, result: `Muted: ${track?.muted}`, status: 'success' })

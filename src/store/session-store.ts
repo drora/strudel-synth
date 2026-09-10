@@ -7,6 +7,7 @@ import {
   applySectionToTracks,
   buildLearnTrack,
 } from '../engine/session-manager'
+import { useJamStore } from './jam-store'
 
 interface SessionState {
   tracks: Track[]
@@ -55,7 +56,7 @@ function genId(): string {
   return `track-${nextId++}`
 }
 
-export const useSessionStore = create<SessionState>((set) => ({
+export const useSessionStore = create<SessionState>((set, get) => ({
   tracks: [],
   bpm: 128,
   isPlaying: false,
@@ -104,7 +105,7 @@ export const useSessionStore = create<SessionState>((set) => ({
     return track.id
   },
 
-  removeTrack: (trackId) =>
+  removeTrack: (trackId) => {
     set((state) => {
       // Soft floor: always keep ≥1 track
       if (state.tracks.length <= 1) return state
@@ -117,14 +118,24 @@ export const useSessionStore = create<SessionState>((set) => ({
             ? tracks[0]?.id ?? null
             : state.activeTrackId,
       }
-    }),
+    })
+    // Always drop jam overlay ids pointing at a missing track (removed or already stale).
+    if (!get().tracks.some((t) => t.id === trackId)) {
+      const jam = useJamStore.getState()
+      if (jam.soundTrackId === trackId) jam.setSoundTrackId(null)
+      if (jam.codeTrackId === trackId) jam.setCodeTrackId(null)
+    }
+  },
 
-  toggleMute: (trackId) =>
+  toggleMute: (trackId) => {
+    // Sanity: never mute a non-existent id (no-op; avoids fighting UI after delete).
+    if (!get().tracks.some((t) => t.id === trackId)) return
     set((state) => ({
       tracks: state.tracks.map((t) =>
         t.id === trackId ? { ...t, muted: !t.muted } : t
       ),
-    })),
+    }))
+  },
 
   toggleSolo: (trackId) =>
     set((state) => ({
@@ -183,10 +194,12 @@ export const useSessionStore = create<SessionState>((set) => ({
       }
     }),
 
-  setMuted: (trackId, muted) =>
+  setMuted: (trackId, muted) => {
+    if (!get().tracks.some((t) => t.id === trackId)) return
     set((state) => ({
       tracks: state.tracks.map((t) =>
         t.id === trackId ? { ...t, muted } : t
       ),
-    })),
+    }))
+  },
 }))
