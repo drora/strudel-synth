@@ -6,7 +6,7 @@ Guide for coding agents working on [`drora/strudel-synth`](https://github.com/dr
 
 **One home: Jam.** Browser music app wrapping [Strudel](https://strudel.cc). Kits, missions, mutations, Sound|FX sheets, and a **Code sheet** (CodeMirror / `TrackCodePane`) overlay the active track — not a separate Studio app mode.
 
-- **Jam** (`JamShell`) — default UI; `freshStartJam()` on mount (random kit when empty + `reshuffleUnlocked`).
+- **Jam** (`JamShell`) — default and primary UI.
 - **Code** — sheet/overlay inside Jam (`JamCodeSheet` → `TrackCodePane`).
 - **+ Track** — under Sounds/FX chips; pick role → `ROLE_PRESETS` default → Sound|FX sheet (no kit switch).
 - **Liveloop** — cycle phase on the BPM ring (`JamPhaseRing`) and a subtle per-track phase tick on chips (`JamTrackChip` / `useLoopPhase` via `liveUpdateEngine`); mic Rec (`JamMicRec` / `engine/mic-sample.ts`); simple A/B punch (`JamABToggle` near Kit). Mute is 1-tap via the **M** on each track chip (Mix tab volume still available).
@@ -26,8 +26,8 @@ src/
     learning/             → LearnShell + challenge-data
     transport/            → PlayButton, SampleLoadingIndicator
     layout/               → AppShell only (no Studio chrome)
-  engine/                 → strudel init, playback, live-update, kits*, jam-actions, missions,
-                            mutators, code-effects, samples, mic-sample, session-*, webmcp
+  engine/                 → strudel init, playback, live-update, kits*, missions,
+                            mutators, jam-actions, code-effects, samples, mic-sample, session-*, webmcp, strudel-docs-index
   hooks/                  → useLoopPhase, useIsMobile, useVisualViewport
   store/                  → jam-store (A/B variants), session-store, ui-store (appMode: jam|learn)
 ```
@@ -45,7 +45,6 @@ src/
 | FX in code | `engine/code-effects.ts` |
 | Session encode / autosave helpers | `engine/session-codec.ts`, `engine/session-manager.ts` |
 | Jam UI state | `store/jam-store.ts` (`soundTrackId`, `codeTrackId`, deals, A/B) |
-| Fresh start / shared Jam actions | `engine/jam-actions.ts` (`freshStartJam`, `applyKit`, `reshuffleUnlocked`) |
 | Tracks / BPM / play | `store/session-store.ts` |
 
 
@@ -55,9 +54,21 @@ src/
 
 - **Kit-first browser** — `kit-browser.ts`: soft tags (tempo / bank / vibe), search, random pick. Every `drumsBank` needs a `BANK_SHORT` entry.
 - **Collision-safe names** — unique `kit.id` + display names with model (LM-2, CR-1000, DR-550, SK-1, etc.); never bare “Linn” / “Casio” / “DR”.
+- **Sound sheet + autocomplete** — melodic roles (lead/pad/arp/bass/vox/custom) have richer `SOUND_CHOICES`; `FEATURED_BANKS` + `CURATED_AUTOCOMPLETE_SAMPLES` keep Code bank/sample completion in sync with kits.
 - **Heavy packs curated** — `YamahaRM50` / `RolandMC303` recipes use `.n(0)` (or small n); do **not** dump all bank files into the Sound sheet.
 - **Non-tidal banks** — dirt / uzu / mridangam / VCSL / piano use stable short `drumsBank` strings (`dirt-amen`, `uzu`, `mridangam`, `vcsl`, …) for tags.
 - Existing 27 kits stay unchanged when expanding; skip D-rank and deferred community crates unless explicitly asked.
+
+
+## WebMCP + agent skills
+
+Browser agents talk to the live Jam via **WebMCP** (`src/engine/webmcp.ts` → `navigator.modelContext`). Shared mutators live in `src/engine/jam-actions.ts` (also used by `useJamShell`) so tools are not UI-only. Cold load: `freshStartJam()` (once per page) — random kit when empty + reshuffle; picker/`applyKit` leave the recipe as chosen.
+
+**Core (always):** `get_session`, `set_bpm`, `update_track`, `add_track`, `remove_track`, `mute_track`, `solo_track`, `play`, `stop`, `get_reference`, `get_samples`, `get_scales_and_chords`, `evaluate_code`.
+
+**Jam parity:** `get_jam_state`, `get_phase`, `list_kits`, `get_kit`, `apply_kit`, `set_lock_kit`, `shuffle_sounds`, `set_volume`, `set_active_track`, `list_sound_choices`, `apply_sound_choice`, `set_fx`, `open_code_sheet`, `close_code_sheet`, `stash_ab` / `punch_ab` / `toggle_ab`, `list_deals`, `apply_mutation`, `apply_mission`, `undo_jam`, `redeal`, `search_strudel_docs`, `mic_status` (Rec is user-gesture only).
+
+**Skill (in-repo):** `resources/skills/jam-liveloop/` — copy/symlink into Cursor skills (see that folder’s `README.md`). Recipe: get_session first; one change/turn; prefer `update_track` quant 1/2; never hush/stop/remove without ask.
 
 ## Commands
 
