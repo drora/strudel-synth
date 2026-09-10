@@ -36,7 +36,7 @@ src/
 
 | Concern | Location |
 |--------|----------|
-| Kits / vibes / sound choices | `engine/kits.ts` + `kits-data-*.ts`, `kits-types.ts` |
+| Kits / vibes / sound choices / kit browser | `engine/kits.ts` + `kits-data-{a..f}.ts`, `kits-types.ts`, `kit-browser.ts` |
 | Missions / mutations | `engine/missions.ts`, `engine/mutators.ts` |
 | Sample registry / prebake | `engine/samples.ts`, `engine/strudel.ts` |
 | Mic → sample → track | `engine/mic-sample.ts`, `components/jam/JamMicRec.tsx` |
@@ -46,6 +46,17 @@ src/
 | Session encode / autosave helpers | `engine/session-codec.ts`, `engine/session-manager.ts` |
 | Jam UI state | `store/jam-store.ts` (`soundTrackId`, `codeTrackId`, deals, A/B) |
 | Tracks / BPM / play | `store/session-store.ts` |
+
+
+## Kits catalog
+
+~**71** Jam kits: **27** original + **44** cherry-picks (Rank **A** 14 · **B** 19 · usable **C** 11). Data split across `kits-data-{a,b,c,d,e,f}.ts`; `kits.ts` concatenates and owns `SOUND_CHOICES`.
+
+- **Kit-first browser** — `kit-browser.ts`: soft tags (tempo / bank / vibe), search, random pick. Every `drumsBank` needs a `BANK_SHORT` entry.
+- **Collision-safe names** — unique `kit.id` + display names with model (LM-2, CR-1000, DR-550, SK-1, etc.); never bare “Linn” / “Casio” / “DR”.
+- **Heavy packs curated** — `YamahaRM50` / `RolandMC303` recipes use `.n(0)` (or small n); do **not** dump all bank files into the Sound sheet.
+- **Non-tidal banks** — dirt / uzu / mridangam / VCSL / piano use stable short `drumsBank` strings (`dirt-amen`, `uzu`, `mridangam`, `vcsl`, …) for tags.
+- Existing 27 kits stay unchanged when expanding; skip D-rank and deferred community crates unless explicitly asked.
 
 ## Commands
 
@@ -73,6 +84,7 @@ Deploy: GitHub Actions Pages via `npm run deploy` (workflow on `main`).
 - **No cloud-agent-only assumptions** — keep Auto-review / safety checks on; don’t bypass with encoded commands or credential scraping.
 - **Don’t resurrect** deleted Studio shells (`TransportBar` multi-mode chrome, track-picker Studio layout, template modal as home) without an explicit product ask.
 - Prefer reusing `TrackCodePane` / `code-effects` / playback helpers over duplicating editors.
+- **Don’t ship PLACEHOLDER kit stubs** or uncurated mega-banks (RM50/MC303) into UI tiles.
 - Keep liveloop UI tiny (phase ring, one Rec, one A/B chip group) — no clip rack.
 
 ## License
