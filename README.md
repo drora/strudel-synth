@@ -67,7 +67,3 @@ src/
 ```
 
 Retired: separate Studio app mode / track-picker chrome. Shared guts (editor, `code-effects`, session helpers, playback) remain under Jam or `engine/`.
-
-## Out of scope (for now)
-
-Hydra visuals, MIDI panel chrome, clip rack, timeline rewrite — not part of the Jam-first / liveloop cut.
