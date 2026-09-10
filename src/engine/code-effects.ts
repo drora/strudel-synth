@@ -78,6 +78,11 @@ export function setBankInCode(code: string, bank: string): string {
 }
 
 export function setSoundInCode(code: string, sound: string): string {
+  if (/\.sound\(/.test(code)) return setMethodString(code, 'sound', sound)
+  // Wavetable / sample+note lines often use s("name").note(...)
+  if (/\bnote\(/.test(code) && /^s\(\s*["'][^"']+["']\s*\)/.test(code.trimStart())) {
+    return code.replace(/s\(\s*["'][^"']+["']\s*\)/, `s("${sound}")`)
+  }
   return setMethodString(code, 'sound', sound)
 }
 
