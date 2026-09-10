@@ -94,12 +94,15 @@ export function JamTrackChip({
           }}
           onPointerDown={(e) => {
             if (e.button !== 0 && e.pointerType === 'mouse') return
+            // Touch: block browser callout/context dialog so hold can open Code.
+            if (e.pointerType === 'touch') e.preventDefault()
             longPressFired.current = false
             startPos.current = { x: e.clientX, y: e.clientY }
             clearHold()
             holdTimer.current = setTimeout(() => {
               holdTimer.current = null
               longPressFired.current = true
+              try { (e.target as HTMLElement).releasePointerCapture?.(e.pointerId) } catch { /* ignore */ }
               openCodeForTrack(track.id)
               useJamStore.getState().setLastPeek(`${track.name} · Code`)
             }, LONG_PRESS_MS)
@@ -115,7 +118,7 @@ export function JamTrackChip({
           onPointerLeave={clearHold}
           onPointerCancel={clearHold}
           className="flex-1 min-w-0 h-full px-2 py-1 text-[10px] text-left leading-tight flex flex-col justify-center touch-manipulation select-none"
-          style={{ color: track.color }}
+          style={{ color: track.color, WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
           title="Sound / FX — long-press for Code"
         >
           <div className="font-medium truncate">{track.name}</div>
