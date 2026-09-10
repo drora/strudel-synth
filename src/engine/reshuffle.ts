@@ -144,14 +144,104 @@ function generateBassLine(profile: ResolvedShuffleProfile): string {
   return noteExpr(pat, synth, `.lpf(${lpf})${lpq}.gain(${gain})${fx}`)
 }
 
+/** Build a lead note-pattern body (quoted) with multiple rhythmic families. */
+function leadPatternQuoted(notes: string[], density: Density): string {
+  type Fam =
+    | 'held'
+    | 'syncopated'
+    | 'call_response'
+    | 'euclidean'
+    | 'motif'
+    | 'plain'
+    | 'classic'
+  const weights: Fam[] =
+    density === 'low'
+      ? ['held', 'held', 'syncopated', 'motif', 'plain', 'held', 'classic']
+      : density === 'high'
+        ? ['euclidean', 'call_response', 'syncopated', 'motif', 'classic', 'euclidean', 'plain', 'call_response']
+        : ['held', 'syncopated', 'call_response', 'euclidean', 'motif', 'plain', 'classic', 'syncopated']
+  const fam = pick(weights)
+  const take = (n: number) => pickN(notes, Math.min(n, notes.length))
+
+  switch (fam) {
+    case 'held': {
+      const few = take(pick([2, 2, 3]))
+      const body = pick([
+        few.join(' ~ '),
+        `${few[0]} ~ ~ ${few[1] ?? few[0]}`,
+        `<${few.join(' ~ ')}>`,
+        `<${few.join(' ')}>`,
+      ])
+      const mul = pick(['', '', '', '*0.5'])
+      return `"${body}${body.startsWith('<') ? mul : ''}"`
+    }
+    case 'syncopated': {
+      const ns = take(pick([3, 4]))
+      const body = pick([
+        `~ ${ns.join(' ~ ')}`,
+        `<~ ${ns.join(' ')}>`,
+        `${ns[0]} ~ ${ns.slice(1).join(' ~ ')} ~`,
+        `<${ns[0]} ~ ${ns.slice(1).join(' ~ ')}>`,
+      ])
+      const mul = density === 'high' ? pick(['', '*2', '']) : pick(['', '', '*2'])
+      return `"${body}${body.startsWith('<') ? mul : ''}"`
+    }
+    case 'call_response': {
+      const ns = take(pick([5, 6, 7, 8]))
+      const mid = Math.ceil(ns.length / 2)
+      const body = pick([
+        `<${ns.join(' ')}>`,
+        `${ns.join(' ')}`,
+        `<${ns.slice(0, mid).join(' ')} ~ ${ns.slice(mid).join(' ')}>`,
+        `${ns.slice(0, mid).join(' ')} ~ ${ns.slice(mid).join(' ')}`,
+      ])
+      const mul = density === 'high' ? pick(['', '*2', '']) : pick(['', ''])
+      return `"${body}${body.startsWith('<') ? mul : ''}"`
+    }
+    case 'euclidean': {
+      const ns = take(pick([2, 3, 4]))
+      const rate = density === 'high' ? pick(['*3', '*4', '*2', '*3']) : density === 'low' ? pick(['*1', '*2', '*1']) : pick(['*2', '*3', '*1', '*4'])
+      return `"<${ns.join(' ')}>${rate}"`
+    }
+    case 'motif': {
+      const [a, b, c] = take(3)
+      const aa = a!
+      const bb = b ?? a!
+      const cc = c ?? b ?? a!
+      const body = pick([
+        `<${aa} ~ ${aa} ${bb}>`,
+        `<${aa} ${bb} ${aa} ~>`,
+        `<${aa} ${bb} ~ ${aa}>`,
+        `${aa} ~ ${aa} ${bb}`,
+        `<${aa} ~ ${bb} ${aa} ${cc}>`,
+      ])
+      const mul = density === 'high' ? pick(['', '*2']) : pick(['', ''])
+      return `"${body}${body.startsWith('<') ? mul : ''}"`
+    }
+    case 'plain': {
+      const ns = take(density === 'high' ? pick([4, 5, 6]) : pick([3, 4]))
+      return `"${ns.join(' ')}"`
+    }
+    case 'classic':
+    default: {
+      const ns = take(pick([3, 4, 5]))
+      const mul =
+        density === 'high' ? pick(['*2', '*4', '*2', '*3'])
+        : density === 'low' ? pick(['', '', '*2'])
+        : pick(['*2', '', '*2', '*3'])
+      return `"<${ns.join(' ')}>${mul}"`
+    }
+  }
+}
+
 function generateLeadLine(profile: ResolvedShuffleProfile): string {
   const { root, scale, melodicSounds, fxBias, density } = profile
-  const notes = pickN(scaleNotes(root, scale, 4, 8), pick([3, 4, 5]))
-  const mul = density === 'high' ? pick(['*2', '*4', '*2']) : density === 'low' ? pick(['', '', '*2']) : pick(['*2', '', '*2'])
+  const pool = scaleNotes(root, scale, 4, 8)
+  const notes = pickN(pool, Math.min(pool.length, pick([4, 5, 6, 7, 8])))
   const synth = melodicSound(melodicSounds)
   const fx = fxSnippet(fxBias === 'dry' ? 'delay' : fxBias, 'lead')
   const gain = densityGain(density, 'lead')
-  return noteExpr(`"<${notes.join(' ')}>${mul}"`, synth, `${fx}.gain(${gain})`)
+  return noteExpr(leadPatternQuoted(notes, density), synth, `${fx}.gain(${gain})`)
 }
 
 function generatePadChord(profile: ResolvedShuffleProfile): string {
@@ -175,7 +265,23 @@ function generateArp(profile: ResolvedShuffleProfile): string {
     ? pick(['.delay(0.5).delaytime(0.125)', '.delay(0.35).delaytime(0.0625)', '.room(0.4)'])
     : pick(['.delay(0.25).delaytime(0.125)', '.room(0.3)', ''])
   const gain = densityGain(density, 'arp')
-  return noteExpr(`"<${notes.join(' ')}>*${rate}"`, synth, `${fx}.gain(${gain})`)
+  // Light variety: sparse rests / slower / syncopated start — still in-scale
+  const fam =
+    density === 'low' ? pick(['classic', 'sparse', 'sparse', 'sync'])
+    : density === 'high' ? pick(['classic', 'classic', 'busy', 'sync'])
+    : pick(['classic', 'sparse', 'sync', 'classic'])
+  let pat: string
+  if (fam === 'sparse') {
+    const few = notes.slice(0, pick([3, 4]))
+    pat = `"<${few.join(' ~ ')}>*${pick([2, 4, rate])}"`
+  } else if (fam === 'sync') {
+    pat = `"<~ ${notes.slice(0, 4).join(' ')}>*${rate}"`
+  } else if (fam === 'busy') {
+    pat = `"<${notes.join(' ')}>*${pick([8, 6, 3])}"`
+  } else {
+    pat = `"<${notes.join(' ')}>*${rate}"`
+  }
+  return noteExpr(pat, synth, `${fx}.gain(${gain})`)
 }
 
 function generateVox(profile: ResolvedShuffleProfile): string {
