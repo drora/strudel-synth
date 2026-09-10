@@ -36,9 +36,10 @@ export async function startPlayback(): Promise<StartPlaybackResult> {
 
     const latest = useSessionStore.getState()
     latest.setPlaying(true)
-    liveUpdateEngine.markPlayStarted()
     const code = composeTracks(latest.tracks, latest.bpm)
     await evaluateCode(code)
+    // Epoch after evaluate so wall/audio clocks align with audible start
+    liveUpdateEngine.markPlayStarted()
     maybeLoadCommunityBanks()
     return { ok: true }
   } catch (err) {
