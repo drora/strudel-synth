@@ -106,6 +106,9 @@ export const useSessionStore = create<SessionState>((set) => ({
 
   removeTrack: (trackId) =>
     set((state) => {
+      // Soft floor: always keep ≥1 track
+      if (state.tracks.length <= 1) return state
+      if (!state.tracks.some((t) => t.id === trackId)) return state
       const tracks = state.tracks.filter((t) => t.id !== trackId)
       return {
         tracks,
