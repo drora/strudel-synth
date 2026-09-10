@@ -22,7 +22,7 @@ src/
   components/
     jam/                  → JamShell, JamTrackChip, JamCodeSheet, JamTrackSheet, kits UI, deals,
                             JamPhaseRing, JamMicRec, JamABToggle
-    editor/               → TrackCodePane, CodeMirror extensions, autocomplete
+    editor/               → TrackCodePane, CodeMirror extensions, kit-aware autocomplete
     learning/             → LearnShell + challenge-data
     transport/            → PlayButton, SampleLoadingIndicator
     layout/               → AppShell only (no Studio chrome)
@@ -37,6 +37,7 @@ src/
 | Concern | Location |
 |--------|----------|
 | Kits / vibes / sound choices / kit browser | `engine/kits.ts` + `kits-data-{a..f}.ts`, `kits-types.ts`, `kit-browser.ts`, `reshuffle.ts` (profile pools) |
+| Kit-aware Code autocomplete | `engine/kit-suggest.ts` → `components/editor/strudel-autocomplete.ts` (active `kitId` + track role) |
 | Missions / mutations | `engine/missions.ts`, `engine/mutators.ts` |
 | Sample registry / prebake | `engine/samples.ts`, `engine/strudel.ts` |
 | Mic → sample → track | `engine/mic-sample.ts`, `components/jam/JamMicRec.tsx` |
@@ -56,7 +57,7 @@ A **Kit** is **identity + shuffle profile**, not frozen Strudel recipes. Each ki
 
 - **Kit-first browser** — `kit-browser.ts`: soft tags (tempo / bank / vibe), search, random pick. Every `drumsBank` needs a `BANK_SHORT` entry.
 - **Collision-safe names** — unique `kit.id` + display names with model (LM-2, CR-1000, DR-550, SK-1, etc.); never bare “Linn” / “Casio” / “DR”.
-- **Sound sheet + autocomplete** — melodic roles (lead/pad/arp/bass/vox/custom) have richer `SOUND_CHOICES`; `FEATURED_BANKS` + `CURATED_AUTOCOMPLETE_SAMPLES` keep Code bank/sample completion in sync with kits.
+- **Sound sheet + autocomplete** — melodic roles (lead/pad/arp/bass/vox/custom) have richer `SOUND_CHOICES`; `FEATURED_BANKS` + `CURATED_AUTOCOMPLETE_SAMPLES` keep Code bank/sample completion in sync with kits. **Code autocomplete** soft-ranks using the active kit `shuffle` profile + `drumsBank` (same pools as apply/reshuffle): in-scale notes, groove hits/fragments, kit bank, `melodicSounds` first — global/curated still available lower; never full-line regen on keystroke (`engine/kit-suggest.ts`).
 - **Heavy packs curated** — `YamahaRM50` / `RolandMC303` profiles use `shuffle.pinN: 0`; do **not** dump all bank files into the Sound sheet.
 - **Non-tidal banks** — dirt / uzu / mridangam / VCSL / piano use stable short `drumsBank` strings (`dirt-amen`, `uzu`, `mridangam`, `vcsl`, …) for tags; reshuffle voices them specially (amen chops, tabla, gretsch, etc.).
 - Existing 27 kits stay unchanged when expanding; skip D-rank and deferred community crates unless explicitly asked.
