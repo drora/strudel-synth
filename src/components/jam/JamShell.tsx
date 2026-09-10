@@ -153,7 +153,7 @@ export function JamShell() {
             onClick={j.onShuffle}
             className="min-h-11 flex-1 rounded-xl text-xs font-medium bg-bg-elevated border border-border"
           >
-            Shuffle{j.lockKit ? '' : ' ✶'}
+            Shuffle
           </button>
           <button
             type="button"
@@ -169,14 +169,6 @@ export function JamShell() {
             title="FX/timbre nudge — same tune, spiced up"
           >
             Spice
-          </button>
-          <button
-            type="button"
-            onClick={() => useJamStore.getState().setLockKit(!j.lockKit)}
-            className="min-h-11 px-2 rounded-xl text-[10px] border border-border text-text-muted"
-            title="Lock kit on Shuffle"
-          >
-            {j.lockKit ? '🔒' : '🔓'}
           </button>
         </div>
       </div>
