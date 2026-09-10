@@ -158,7 +158,7 @@ function suggestNotes(profile: ResolvedShuffleProfile, role: TrackRole | null | 
       out.push({
         label,
         type: 'text',
-        detail: `${profile.root} ${profile.scale}`,
+        // No detail — CM shows label+detail inline and "c3" + "c dorian" reads as smashed notes.
         info: `In-kit scale · ${profile.root} ${profile.scale}`,
         boost: Math.max(40, boost),
       })
@@ -289,24 +289,6 @@ function suggestPatternFragments(
   }))
 }
 
-/**
- * Rotating “try this” motif neighbors for note("...") — below stable scale notes.
- * Re-sampled each completion open; never replaces the ranked scale set.
- */
-function suggestSampledMotifNeighbors(
-  profile: ResolvedShuffleProfile,
-  role: TrackRole | null | undefined,
-): KitSuggestion[] {
-  const motifs = sampleN(melodicMotifPool(profile, role), 3)
-  return motifs.map((p, i) => ({
-    label: p,
-    type: 'text' as const,
-    detail: 'try this',
-    info: `Shuffle neighbor · ${profile.root} ${profile.scale} · ${profile.density}`,
-    boost: 28 - i,
-  }))
-}
-
 function suggestMelodicSounds(profile: ResolvedShuffleProfile, role: TrackRole | null | undefined): KitSuggestion[] {
   const out: KitSuggestion[] = []
   const seen = new Set<string>()
@@ -383,8 +365,8 @@ export function suggestFromKitProfile(
 
   switch (context) {
     case 'note':
-      // Stable ranked scale notes + lightly sampled motif neighbors (not full-line regen)
-      return [...suggestNotes(profile, role), ...suggestSampledMotifNeighbors(profile, role)]
+      // Single-pitch labels only — multi-token motifs belong in pattern / s( sample contexts
+      return suggestNotes(profile, role)
     case 'sample': {
       if (!role || DRUM_ROLES.includes(role)) {
         return [
@@ -392,7 +374,11 @@ export function suggestFromKitProfile(
           ...suggestPatternFragments(profile, role),
         ]
       }
-      return suggestMelodicSounds(profile, role)
+      // Melodic s("…"): sounds first, plus sampled motif neighbors (not for note())
+      return [
+        ...suggestMelodicSounds(profile, role),
+        ...suggestMelodicPatternFragments(profile, role),
+      ]
     }
     case 'sound':
       return suggestMelodicSounds(profile, role)

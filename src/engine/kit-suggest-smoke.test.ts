@@ -145,18 +145,18 @@ for (const kit of [punch!, dusty!]) {
   }
   assert.ok(drumVary, 'drum groove fragments should resample across opens')
   assert.ok(melVary, 'melodic motifs should resample across opens')
-  const motifLab = () =>
-    suggestFromKitProfile(punch!, 'lead', 'note')
-      .filter((n) => !notePitchKey(n.label))
-      .map((n) => n.label)
-      .join('|')
-  const mo0 = motifLab()
-  let motifVary = false
-  for (let i = 0; i < 24; i++) {
-    if (motifLab() !== mo0) motifVary = true
-  }
-  assert.ok(motifVary, 'note-context motif neighbors should resample')
-  console.log('  pattern/motif resample: drum+lead+note-neighbors vary')
+  // note() context: single-pitch labels only (no multi-token motifs)
+  const noteOnly = suggestFromKitProfile(punch!, 'lead', 'note')
+  assert.ok(noteOnly.length > 0)
+  assert.ok(
+    noteOnly.every((n) => notePitchKey(n.label)),
+    'note context must be single pitches only',
+  )
+  assert.ok(
+    noteOnly.every((n) => !n.detail || n.detail === 'scale'),
+    'note completions should not glue scale name into detail',
+  )
+  console.log('  pattern/motif resample: drum+lead vary; note() pitches-only')
 }
 
 console.log('ALL CHECKS PASSED')
