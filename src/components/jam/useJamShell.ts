@@ -1,13 +1,14 @@
-import { useEffect, useCallback, useMemo } from 'react'
+import { useEffect, useCallback, useMemo, useState } from 'react'
 import { useSessionStore } from '../../store/session-store'
 import { useUIStore } from '../../store/ui-store'
 import { useJamStore } from '../../store/jam-store'
 import {
+  KITS,
   getKitsForVibe,
   getKit,
   kitToTemplate,
-  type VibeId,
 } from '../../engine/kits'
+import { filterKits, pickRandomKit } from '../../engine/kit-browser'
 import { suggestMutations, applyMutationToTracks, type MutationCard } from '../../engine/mutators'
 import { suggestMissions, applyMissionToTracks, type MissionCard } from '../../engine/missions'
 import { reshuffleTrack } from '../../engine/reshuffle'
@@ -19,6 +20,7 @@ import {
   queueJam,
   useMinVisible,
 } from './jam-shell-utils'
+
 export function useJamShell() {
   const isMobile = useIsMobile()
   const vvHeight = useVisualViewportHeight()
@@ -39,7 +41,17 @@ export function useJamShell() {
   const lastPeek = useJamStore((s) => s.lastPeek)
   const soundTrackId = useJamStore((s) => s.soundTrackId)
   const undoLen = useJamStore((s) => s.undoStack.length)
-  const kits = useMemo(() => getKitsForVibe(vibe), [vibe])
+
+  /** Soft-tag / search filters for kit browser (+ New Kit). */
+  const [kitFilterSearch, setKitFilterSearch] = useState('')
+  // Soft tags start empty (kit-first). Persisted `vibe` still updates on applyKit.
+  const [kitFilterTags, setKitFilterTags] = useState<string[]>([])
+
+  const kits = KITS
+  const filteredKits = useMemo(
+    () => filterKits(kits, { search: kitFilterSearch, tags: kitFilterTags }),
+    [kits, kitFilterSearch, kitFilterTags],
+  )
   const activeKit = kitId ? getKit(kitId) : undefined
   const soundTrack = tracks.find((t) => t.id === soundTrackId)
 
@@ -54,7 +66,10 @@ export function useJamShell() {
     const kit = getKit(id)
     if (!kit) return
     const template = kitToTemplate(kit)
-    useSessionStore.getState().loadTemplate(template)
+    const session = useSessionStore.getState()
+    // When playing: swap tracks/patterns only — keep user's current BPM.
+    // When not playing (incl. first load): adopt kit default BPM.
+    session.loadTemplate(template, { preserveBpm: session.isPlaying })
     const jam = useJamStore.getState()
     jam.setKitId(kit.id)
     jam.setVibe(kit.vibe)
@@ -69,8 +84,12 @@ export function useJamShell() {
 
   useEffect(() => {
     if (tracks.length === 0) {
-      const first = getKitsForVibe(vibe)[0]
-      if (first) applyKit(first.id)
+      const jam = useJamStore.getState()
+      const preferred =
+        (jam.kitId ? getKit(jam.kitId) : undefined) ??
+        getKitsForVibe(jam.vibe)[0] ??
+        KITS[0]
+      if (preferred) applyKit(preferred.id)
     } else if (mutationDeal.length === 0 || missionDeal.length === 0) {
       redeal()
     }
@@ -79,13 +98,6 @@ export function useJamShell() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const onVibe = (v: VibeId) => {
-    useJamStore.getState().setVibe(v)
-    const list = getKitsForVibe(v)
-    const preferred = list.find((k) => k.id === kitId) ?? list[0]
-    if (preferred) applyKit(preferred.id)
-  }
 
   const onMutation = (card: MutationCard) => {
     const state = useSessionStore.getState()
@@ -160,11 +172,10 @@ export function useJamShell() {
   }
 
   const onNewKit = () => {
-    const list = getKitsForVibe(vibe)
-    if (list.length === 0) return
-    const others = list.filter((k) => k.id !== kitId)
-    const pick = others[Math.floor(Math.random() * Math.max(others.length, 1))] ?? list[0]
-    applyKit(pick.id)
+    // Prefer filtered list; fall back to all kits when filter is empty / no matches.
+    const pool = filteredKits.length > 0 ? filteredKits : kits
+    const pick = pickRandomKit(pool, kitId)
+    if (pick) applyKit(pick.id)
   }
 
   const onSpice = () => {
@@ -193,12 +204,16 @@ export function useJamShell() {
     lastPeek,
     undoLen,
     kits,
+    filteredKits,
+    kitFilterSearch,
+    setKitFilterSearch,
+    kitFilterTags,
+    setKitFilterTags,
     activeKit,
     soundTrack,
     shellStyle,
     redeal,
     applyKit,
-    onVibe,
     onMutation,
     onMission,
     onUndo,
