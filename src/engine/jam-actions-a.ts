@@ -66,9 +66,9 @@ export function applyKit(
   const nextTracks = useSessionStore.getState().tracks
   jam.setMutationDeal(suggestMutations(nextTracks, 3))
   jam.setMissionDeal(suggestMissions(nextTracks, 2))
-  // Always reshuffle so picking the same kit twice yields new riffs (lockKit keeps drum bank).
+  // Always reshuffle so picking the same kit twice yields new in-profile riffs.
   reshuffleUnlocked()
-  jam.setLastPeek(`kit · ${kit.name} · reshuffled`)
+  jam.setLastPeek(`kit · ${kit.name} · shuffled`)
   queueLive('kit')
   return {
     ok: true,
@@ -164,13 +164,14 @@ export function reshuffleUnlocked(): {
     if (t.locked) continue
     const next = reshuffleTrack(t.role, t.code, {
       pinEffects,
-      lockKit: jam.lockKit,
-      bank: jam.lockKit ? activeKit?.drumsBank : undefined,
+      lockKit: jam.lockKit || !!activeKit,
+      bank: activeKit?.drumsBank,
+      shuffle: activeKit?.shuffle,
     })
     state.setCode(t.id, next)
     shuffled++
   }
-  jam.setLastPeek(jam.lockKit ? 'Shuffle · same kit' : 'Shuffle · free')
+  jam.setLastPeek(activeKit ? `Shuffle · ${activeKit.name}` : jam.lockKit ? 'Shuffle · same kit' : 'Shuffle · free')
   queueLive('reshuffle')
   redealDeals()
   return { ok: true, shuffled, lockKit: jam.lockKit }
@@ -194,7 +195,7 @@ export type FreshStartResult = {
 /**
  * Once per page load (or after bfcache pageshow resets the guard):
  * if no tracks, prefer persisted jam.kitId then pickRandomKit / KITS[0],
- * then always reshuffleUnlocked so reload yields new riffs on the same kit.
+ * then always reshuffleUnlocked so reload regenerates from the kit shuffle profile.
  * Still opens the kit picker when the user has never picked a kit.
  */
 export function freshStartJam(): FreshStartResult {
@@ -236,7 +237,7 @@ export function freshStartJam(): FreshStartResult {
   // Always reshuffle after kit apply (or when tracks already present).
   const { shuffled } = reshuffleUnlocked()
 
-  const peek = kitName ? `${kitName} · reshuffled` : 'fresh · reshuffled'
+  const peek = kitName ? `${kitName} · shuffled` : 'fresh · shuffled'
   useJamStore.getState().setLastPeek(peek)
 
   if (shouldOpenPicker) {
