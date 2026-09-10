@@ -20,43 +20,52 @@ Mobile: Jam is the default landing; touch targets and sheets are thumb-friendly.
 About **71** kits in the Jam catalog (**27** originals + **44** Rank A/B/usable-C cherry-picks across classic drum machines, dirt breaks, uzu, mridangam, VCSL, piano).
 
 - **Kit browser** — soft tags (tempo / bank / vibe) + search; bank short labels from `BANK_SHORT` in `kit-browser.ts`.
-- **Collision-safe names** — display names include model (LM-2, CR-1000, …); unique ids.
-- Ranking notes: `docs/kit-candidates-ranked.md`.
+- **Naming** — collision-safe ids and display names (model in the title: LM-2 Pocket, CR-1000 Disco, MC-303 Groove, …).
+- **Curated heavies** — RM-50 / MC-303 use `n(0)` slots only — not every sample in the UI.
 - Data: `engine/kits-data-{a..f}.ts` → `kits.ts` (`SOUND_CHOICES` for featured banks).
 
 ## Stack
 
-React 18 · Vite · TypeScript · Zustand · CodeMirror 6 · Strudel (`@strudel/web`, `@strudel/desktop-bridge`) · optional WebMCP for agent control.
+- React 19 + Vite + Tailwind 4 + Zustand
+- CodeMirror 6 (Strudel-aware extensions)
+- `@strudel/web` (+ core / mini / tonal)
+- Static hosting only (no backend) · **AGPL-3.0-or-later**
 
-## WebMCP
+
+## WebMCP + liveloop skill
 
 With a WebMCP-capable browser, agents can drive Jam (kits, A/B, FX, deals, phase, docs search) through tools registered in `src/engine/webmcp.ts`. Shared logic: `src/engine/jam-actions.ts`.
 
-## Scripts
+**Agent skill:** [`resources/skills/jam-liveloop/`](./resources/skills/jam-liveloop/) — install notes in that folder’s README (`SKILL.md` + best practices). Point Cursor at it via copy/symlink into `~/.cursor/skills` or `.cursor/skills`.
+
+## Develop
 
 ```bash
 npm install
 npm run dev
-npm run build
-npm run lint
-npm run preview
+npm run build   # required before merge
 ```
 
-## Repo map
+See **[AGENTS.md](./AGENTS.md)** for architecture map, ship rules, and don’ts (for humans and coding agents).
+
+## Layout (after Jam-first)
 
 ```
 src/
-  App.tsx               Jam-first shell
   components/jam/       JamShell, JamTrackChip, JamCodeSheet, JamTrackSheet, kit/deal UI,
                         JamPhaseRing, JamMicRec, JamABToggle
-  components/editor/    CodeMirror (used by Code sheet)
+  components/editor/    TrackCodePane + CodeMirror guts
   components/learning/  LearnShell + challenges
-  components/transport/ TransportBar
+  components/transport/ PlayButton, sample loading
+  components/layout/    AppShell (jam | learn router only)
   engine/               Strudel, playback, kits (a–f data + kit-browser), missions, mutators,
-                        reshuffle, mic-sample, webmcp, …
-  store/                session-store, jam-store, ui-store, …
-resources/skills/       Agent skills (jam-liveloop)
-docs/                   Kit ranking and notes
+                        FX helpers, jam-actions, webmcp, mic-sample (Rec → samples)
+  hooks/                useLoopPhase, mobile / visual viewport
+  store/                jam-store (incl. A/B), session-store, ui-store
 ```
 
-MIT-ish / see repo for license details. Strudel is separate upstream.
+Retired: separate Studio app mode / track-picker chrome. Shared guts (editor, `code-effects`, session helpers, playback) remain under Jam or `engine/`.
+
+## Out of scope (for now)
+
+Hydra visuals, MIDI panel chrome, clip rack, timeline rewrite — not part of the Jam-first / liveloop cut.
