@@ -86,7 +86,7 @@ export function registerWebMCPTools() {
     execute: ({ bpm }: { bpm: number }) => {
       useSessionStore.getState().setBpm(bpm)
       setBpm(bpm)
-      logActivity({ timestamp: Date.now(), tool: 'set_bpm', params: { bpm }, result: `BPM set to ${bpm}` })
+      logActivity({ timestamp: Date.now(), tool: 'set_bpm', params: { bpm }, result: `BPM set to ${bpm}`, status: 'success' })
       return toolResult(JSON.stringify({ bpm, cps: bpm / 60 / 4 }))
     },
   })
