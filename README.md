@@ -6,7 +6,7 @@
 
 ## Use it
 
-1. **Jam** — choosing a kit (or cold reload) always regenerates from that kit’s **shuffle profile** (`kit · name · shuffled`; same bank / groove / scale family, fresh lines); bfcache restore re-runs fresh start; open the kit browser (search / soft tags), Play, Shuffle / New kit.
+1. **Jam** — choosing a kit (or cold reload) always regenerates from that kit’s **shuffle profile** (`kit · name · shuffled`; same bank / groove / scale family, fresh lines); bfcache restore re-runs fresh start; open the kit browser (search / soft tags), Play, Shuffle / New kit / Spice (FX-only — same tune; Spice ≠ Shuffle). Mission/Mutate deal cards removed.
 2. **Tap a track** — Sound|FX sheet (chips write real Strudel code; sheet stays open while browsing). **M** on the chip mutes. **+ Track** adds a role with preset code without switching kits.
 3. **Edit in Code** / header **Code** — CodeMirror sheet for that track (Update / Lock / quantize). Completions soft-bias to the active kit shuffle profile (in-scale notes with scale detail; already-used pitches demoted in `note()`, kit bank/hits, melodicSounds). Stays in Jam; no mode bounce.
 4. **Liveloop** — BPM ring + per-track phase ticks while playing; **Rec** (red) records mic → sample → track; Stop is neutral (not Rec-red); **A/B** near Kit stashes and punches arrangement variants.
