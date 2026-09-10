@@ -15,7 +15,7 @@ const ids = ['a', 'b', 'c']
 assert.equal(resolveCodeOpenTrackId('b', ids), 'b')
 assert.equal(resolveCodeOpenTrackId('gone', ids), 'a')
 assert.equal(resolveCodeOpenTrackId(null, ids), 'a')
-assert.exact(resolveCodeOpenTrackId(null, []), null)
+assert.equal(resolveCodeOpenTrackId(null, []), null)
 
 assert.equal(keepOrFallbackLastTouched('b', ids, ['a', 'c']), 'b')
 assert.equal(keepOrFallbackLastTouched('gone', ids, ['c']), 'c')
