@@ -167,19 +167,7 @@ export function getJamStateSnapshot() {
       activeVariant: jam.activeVariant,
     },
     lastPeek: jam.lastPeek,
-    deals: {
-      mutations: jam.mutationDeal.map((c) => ({
-        id: c.id,
-        label: c.label,
-        kind: c.kind,
-      })),
-      missions: jam.missionDeal.map((c) => ({
-        id: c.id,
-        label: c.label,
-        goal: c.goal,
-      })),
-      undoDepth: jam.undoStack.length,
-    },
+    undoDepth: jam.undoStack.length,
     soundTrackId: jam.soundTrackId,
     codeTrackId: jam.codeTrackId,
     bpm: session.bpm,
