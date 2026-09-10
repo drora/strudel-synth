@@ -55,7 +55,9 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
     const id = live.id
     const name = live.name
     useSessionStore.getState().removeTrack(id)
-    useJamStore.getState().setLastPeek(`Removed · ${name}`)
+    const jam = useJamStore.getState()
+    jam.clearLastTouchedIfRemoved(id)
+    jam.setLastPeek(`Removed · ${name}`)
     queueJamImmediate('jam')
   }
 
@@ -68,6 +70,7 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
     })
     const next = applySoundChoiceToCode(live.code, choice)
     useSessionStore.getState().setCode(live.id, next)
+    jam.touchTrack(live.id)
     jam.setLastPeek(`Sound · ${choice.label}`)
     queueJam('kit')
   }
@@ -89,6 +92,7 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
       ? removeEffectFromCode(live.code, key)
       : setEffectInCode(live.code, key, value)
     useSessionStore.getState().setCode(live.id, next)
+    jam.touchTrack(live.id)
     jam.setLastPeek(
       removing
         ? `FX · ${live.name} · ${key} off`
@@ -111,7 +115,9 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
 
   const setVolume = (v: number) => {
     useSessionStore.getState().setVolume(live.id, v)
-    useJamStore.getState().setLastPeek(`${live.name} · vol ${v}`)
+    const jam = useJamStore.getState()
+    jam.touchTrack(live.id)
+    jam.setLastPeek(`${live.name} · vol ${v}`)
     liveUpdateEngine.markDirty()
     queueJamImmediate('mute-solo')
   }

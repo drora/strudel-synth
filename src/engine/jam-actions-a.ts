@@ -72,7 +72,9 @@ export function undoJam(): { ok: true; label: string } | { ok: false; error: str
   const entry = useJamStore.getState().popUndo()
   if (!entry) return { ok: false, error: 'Nothing to undo' }
   useSessionStore.getState().setCode(entry.trackId, entry.code)
-  useJamStore.getState().setLastPeek(`Undo · ${entry.label}`)
+  const jam = useJamStore.getState()
+  jam.touchTrack(entry.trackId)
+  jam.setLastPeek(`Undo · ${entry.label}`)
   queueLive('jam')
   return { ok: true, label: entry.label }
 }
@@ -98,6 +100,7 @@ export function reshuffleUnlocked(): {
     state.setCode(t.id, next)
     shuffled++
   }
+  jam.reconcileLastTouchedAfterSongReshuffle()
   jam.setLastPeek(activeKit ? `Shuffle · ${activeKit.name}` : jam.lockKit ? 'Shuffle · same kit' : 'Shuffle · free')
   queueLive('reshuffle')
   return { ok: true, shuffled, lockKit: jam.lockKit }
@@ -124,6 +127,7 @@ export function reshuffleTrackById(
     shuffle: activeKit?.shuffle,
   })
   state.setCode(track.id, next)
+  jam.touchTrack(track.id)
   jam.setLastPeek(`Shuffle · ${track.name}`)
   queueLive('reshuffle')
   return { ok: true, trackId: track.id, name: track.name }

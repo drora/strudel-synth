@@ -82,7 +82,9 @@ export function useJamShell() {
     const entry = useJamStore.getState().popUndo()
     if (!entry) return
     useSessionStore.getState().setCode(entry.trackId, entry.code)
-    useJamStore.getState().setLastPeek(`Undo · ${entry.label}`)
+    const jam = useJamStore.getState()
+    jam.touchTrack(entry.trackId)
+    jam.setLastPeek(`Undo · ${entry.label}`)
     queueJam('jam')
   }
 
@@ -115,7 +117,9 @@ export function useJamShell() {
       })
     }
     state.setCode(result.trackId, result.code)
-    useJamStore.getState().setLastPeek(`Spice · ${result.label}`)
+    const jam = useJamStore.getState()
+    jam.touchTrack(result.trackId)
+    jam.setLastPeek(`Spice · ${result.label}`)
     liveUpdateEngine.markDirty()
     queueJam('jam')
   }

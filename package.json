@@ -13,7 +13,8 @@
     "test:kit-suggest": "npx --yes tsx src/engine/kit-suggest-smoke.test.ts",
     "test:kit-shuffle": "npx --yes tsx src/engine/kit-shuffle-smoke.test.ts",
     "test:code-effects": "npx --yes tsx src/engine/code-effects.test.ts",
-    "test:spice": "npx --yes tsx src/engine/spice-smoke.test.ts"
+    "test:spice": "npx --yes tsx src/engine/spice-smoke.test.ts",
+    "test:last-touched": "npx --yes tsx src/engine/last-touched-smoke.test.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.0",

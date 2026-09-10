@@ -5,6 +5,10 @@ import type { SectionSnap } from '../engine/session-manager'
 import { useSessionStore } from './session-store'
 import { liveUpdateEngine } from '../engine/live-update'
 import { useUIStore } from './ui-store'
+import {
+  keepOrFallbackLastTouched,
+  afterTrackRemoved,
+} from '../engine/last-touched'
 
 export interface JamUndoEntry {
   trackId: string
@@ -25,6 +29,11 @@ interface JamState {
   soundTrackId: string | null
   /** Track id for the Jam Code sheet overlay (null = closed). */
   codeTrackId: string | null
+  /**
+   * Last *content-modified* track (Sound/FX/gain, Code edits, Shuffle this, Spice).
+   * Separate from codeTrackId / activeTrackId so header Code ignores mere peek/open.
+   */
+  lastTouchedTrackId: string | null
   /** Simple A/B arrangement slots (session-local, not persisted). */
   variantA: SectionSnap | null
   variantB: SectionSnap | null
@@ -40,6 +49,13 @@ interface JamState {
   setLastPeek: (peek: string | null) => void
   setSoundTrackId: (id: string | null) => void
   setCodeTrackId: (id: string | null) => void
+  setLastTouchedTrackId: (id: string | null) => void
+  /** Mark a track as last content-touched (no-op if falsy). */
+  touchTrack: (id: string | null | undefined) => void
+  /** Song Shuffle / New kit: keep mark if still present, else first unlocked. */
+  reconcileLastTouchedAfterSongReshuffle: () => void
+  /** Clear mark if it pointed at a removed track. */
+  clearLastTouchedIfRemoved: (removedId: string) => void
   /** Capture current track codes+mute (+bpm) into A or B. */
   stashVariant: (slot: AbSlot) => void
   /** Apply A or B (no-op if empty). */
@@ -76,6 +92,7 @@ export const useJamStore = create<JamState>()(
       lastPeek: null,
       soundTrackId: null,
       codeTrackId: null,
+      lastTouchedTrackId: null,
       variantA: null,
       variantB: null,
       activeVariant: null,
@@ -97,6 +114,28 @@ export const useJamStore = create<JamState>()(
       setLastPeek: (lastPeek) => set({ lastPeek }),
       setSoundTrackId: (soundTrackId) => set({ soundTrackId }),
       setCodeTrackId: (codeTrackId) => set({ codeTrackId }),
+      setLastTouchedTrackId: (lastTouchedTrackId) => set({ lastTouchedTrackId }),
+      touchTrack: (id) => {
+        if (!id) return
+        set({ lastTouchedTrackId: id })
+      },
+      reconcileLastTouchedAfterSongReshuffle: () => {
+        const tracks = useSessionStore.getState().tracks
+        const trackIds = tracks.map((t) => t.id)
+        const unlockedIds = tracks.filter((t) => !t.locked).map((t) => t.id)
+        set({
+          lastTouchedTrackId: keepOrFallbackLastTouched(
+            get().lastTouchedTrackId,
+            trackIds,
+            unlockedIds,
+          ),
+        })
+      },
+      clearLastTouchedIfRemoved: (removedId) => {
+        set({
+          lastTouchedTrackId: afterTrackRemoved(get().lastTouchedTrackId, removedId),
+        })
+      },
 
       stashVariant: (slot) => {
         const snap = snapshotSection()

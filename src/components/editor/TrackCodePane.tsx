@@ -70,6 +70,7 @@ export function TrackCodePane({ track, isActive, focusMode = false }: TrackCodeP
       codeRef.current = code
       const state = useSessionStore.getState()
       state.setCode(track.id, code)
+      useJamStore.getState().touchTrack(track.id)
       liveUpdateEngine.markDirty()
 
       const currentTrack = state.tracks.find((t) => t.id === track.id)
@@ -95,6 +96,7 @@ export function TrackCodePane({ track, isActive, focusMode = false }: TrackCodeP
       shuffle: activeKit?.shuffle,
     })
     useSessionStore.getState().setCode(track.id, newCode)
+    useJamStore.getState().touchTrack(track.id)
     liveUpdateEngine.markDirty()
     if (useSessionStore.getState().isPlaying) {
       const q = useUIStore.getState().getEffectiveQuantization(track.id)

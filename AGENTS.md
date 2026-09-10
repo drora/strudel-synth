@@ -7,7 +7,7 @@ Guide for coding agents working on [`drora/strudel-synth`](https://github.com/dr
 **One home: Jam.** Browser music app wrapping [Strudel](https://strudel.cc). Kits, Sound|FX sheets, and a **Code sheet** (CodeMirror / `TrackCodePane`) overlay the active track — not a separate Studio app mode.
 
 - **Jam** (`JamShell`) — default UI; `freshStartJam()` on mount / bfcache `pageshow` (prefer last `kitId`, then `reshuffleUnlocked`).
-- **Code** — sheet/overlay inside Jam (`JamCodeSheet` → `TrackCodePane`).
+- **Code** — sheet/overlay inside Jam (`JamCodeSheet` → `TrackCodePane`). Header `</> Code` opens `lastTouchedTrackId` (content-modified), not mere peek/`activeTrackId`. Last-touched chip: thin accent ring + tiny purple dot (`JamTrackChip`).
 - **+ Track** — under Sounds/FX chips; pick role → `ROLE_PRESETS` default → Sound|FX sheet (no kit switch).
 - **Liveloop** — cycle phase on the BPM ring (`JamPhaseRing`) and a subtle per-track phase tick on chips (`JamTrackChip` / `useLoopPhase` via `liveUpdateEngine`); mic Rec (`JamMicRec` / `engine/mic-sample.ts`); simple A/B punch (`JamABToggle` near Kit). Mute is 1-tap via the **M** on each track chip (Mix tab volume still available).
 - **Learn** — optional (`LearnShell`); “Apply to Jam” adds a track and opens its Code sheet.
@@ -25,9 +25,9 @@ src/
     transport/            → PlayButton, SampleLoadingIndicator
     layout/               → AppShell only (no Studio chrome)
   engine/                 → strudel init, playback, live-update, kits*, jam-actions,
-                            code-effects, samples, mic-sample, session-*, webmcp, strudel-docs-index
+                            last-touched, code-effects, samples, mic-sample, session-*, webmcp
   hooks/                  → useLoopPhase, useIsMobile, useVisualViewport
-  store/                  → jam-store (A/B variants), session-store, ui-store (appMode: jam|learn)
+  store/                  → jam-store (A/B, lastTouchedTrackId), session-store, ui-store (appMode: jam|learn)
 ```
 
 **Where things live**
@@ -42,8 +42,9 @@ src/
 | A/B arrangement punch | `store/jam-store.ts` (`stashVariant` / `punchVariant` / `toggleAb`), `JamABToggle` |
 | FX in code | `engine/code-effects.ts` |
 | Session encode / autosave helpers | `engine/session-codec.ts`, `engine/session-manager.ts` |
-| Jam UI state | `store/jam-store.ts` (`soundTrackId`, `codeTrackId`, A/B, undo) |
+| Jam UI state | `store/jam-store.ts` (`soundTrackId`, `codeTrackId`, `lastTouchedTrackId`, A/B, undo) |
 | Spice (FX-only) | `engine/spice.ts` — one-tap `setEffectInCode` nudges (lpf/room/shape/delay/gain). **Spice ≠ Shuffle**; Mission/Mutate deal cards removed |
+| Last-touched track | `engine/last-touched.ts` + `jam-store.lastTouchedTrackId` — header Code + chip ring/dot; mute/peek do not update |
 | Tracks / BPM / play | `store/session-store.ts` |
 
 ## Kits catalog
