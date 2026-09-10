@@ -12,10 +12,12 @@ function track(id: string, code: string, role: Track['role'] = 'lead'): Track {
     name: id,
     role,
     code,
+    color: '#fff',
     muted: false,
-    solo: false,
-    volume: 1,
+    soloed: false,
     locked: false,
+    volume: 1,
+    error: null,
   }
 }
 
