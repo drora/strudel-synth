@@ -17,8 +17,7 @@ Kits are **identity + shuffle profile**, not baked Strudel recipes. `apply_kit` 
 
 - Prefer **`shuffle_sounds`** (or re-`apply_kit`) for variety — do **not** paste a fixed "classic" mini-notation as THE kit.
 - When **`update_track`** hand-edits: stay coherent with `get_kit` profile (`drumsBank`, root/scale, `melodicSounds`). Read jam state first.
-- Deal mutations/missions are **secondary** to profile-coherent tweaks.
-- **Code autocomplete** soft-ranks stable single-pitch kit-scale notes in `note()` (deduped); shuffle-sampled groove/motif neighbors in pattern / `s(` contexts — prefer those when hand-editing; avoid off-kit genre hops.
+- **Code autocomplete** soft-ranks stable single-pitch kit-scale notes in `note()` (deduped; scale detail; already-used pitches demoted); shuffle-sampled groove/motif neighbors in pattern / `s(` contexts — prefer those when hand-editing; avoid off-kit genre hops.
 
 ## First move every turn
 
@@ -34,10 +33,10 @@ Kits are **identity + shuffle profile**, not baked Strudel recipes. `apply_kit` 
 | Small code tweak | `update_track` with `quantization`: `"1"` or `"2"` |
 | New kit identity + regenerates from its shuffle profile | `apply_kit` (BPM preserved while playing) |
 | Fresh lines, same kit profile | `shuffle_sounds` (optional `trackId` for one lane) or re-`apply_kit` |
+| Same tune, FX/timbre only | UI **Spice** (`engine/spice.ts`) — **Spice ≠ Shuffle**; Mission/Mutate deals removed |
 | Browse kits | `list_kits` → `get_kit` → `apply_kit` |
 | Sound swap | `list_sound_choices` → `apply_sound_choice` |
 | FX / mix nudge | `set_fx`, `set_volume` |
-| Groove spice | `list_deals` → `apply_mutation` / `apply_mission` (suggestions) |
 | Arrangement | `stash_ab` / `punch_ab` / `toggle_ab` |
 | API / docs | `get_reference`, `search_strudel_docs` |
 | Banks | `get_samples` (kit banks + tidal list) |
@@ -60,14 +59,13 @@ When the user asks for something familiar (dusty boom-bap, punchy 909 techno, et
 - **Never** `stop` / hush / `remove_track` / mass-mute without explicit user ask.
 - Prefer **`update_track`** over `evaluate_code` (keeps multi-track compose + quant).
 - Match the current kit **`drumsBank`** and shuffle profile when rewriting drums/hats (see `get_jam_state` / `get_kit`).
-- One change per turn: one track code, OR one FX, OR one kit, OR one deal — not all at once.
-- Deal cards are **suggestions** — say what they do before applying if the user is unsure.
+- One change per turn: one track code, OR one FX, OR one kit — not all at once.
 - Mic: `mic_status` only. Rec **must** be user-tapped in the UI (gesture). Do not pretend you started recording.
 
 ## A/B workflow
 
 1. When the groove is good: `stash_ab({ slot: "a" })`.
-2. Experiment (kit / mutation / track edits).
+2. Experiment (kit / track edits).
 3. `stash_ab({ slot: "b" })` when alternate is ready.
 4. `toggle_ab` or `punch_ab` to flip live.
 

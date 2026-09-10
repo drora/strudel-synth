@@ -145,7 +145,7 @@ for (const kit of [punch!, dusty!]) {
   }
   assert.ok(drumVary, 'drum groove fragments should resample across opens')
   assert.ok(melVary, 'melodic motifs should resample across opens')
-  // note() context: single-pitch labels only (no multi-token motifs)
+  // note() context: single-pitch labels only (no multi-token motifs) + rich detail
   const noteOnly = suggestFromKitProfile(punch!, 'lead', 'note')
   assert.ok(noteOnly.length > 0)
   assert.ok(
@@ -153,10 +153,33 @@ for (const kit of [punch!, dusty!]) {
     'note context must be single pitches only',
   )
   assert.ok(
-    noteOnly.every((n) => !n.detail || n.detail === 'scale'),
-    'note completions should not glue scale name into detail',
+    noteOnly.every((n) => typeof n.detail === 'string' && n.detail.includes(punchProf.root)),
+    'note completions should show scale detail (e.g. root + scale)',
   )
-  console.log('  pattern/motif resample: drum+lead vary; note() pitches-only')
+  console.log('  pattern/motif resample: drum+lead vary; note() pitches+detail')
+}
+
+// Used-note demotion: pitches already in note("…") rank below unused
+{
+  const kitNotes = suggestFromKitProfile(punch!, 'bass', 'note')
+  const labels = kitNotes.map((n) => n.label)
+  assert.ok(labels.includes('c3'), 'expected c3 in bass notes')
+  const used = dedupeNotesByPitch(kitNotes, { usedInner: 'c3 c3 c3 ' })
+  const unusedTop = used.filter((u) => notePitchKey(u.label))
+  assert.ok(unusedTop.length > 1)
+  assert.notEqual(unusedTop[0]!.label, 'c3', 'used c3 should not be top when unused exist')
+  const c3 = unusedTop.find((u) => u.label === 'c3')
+  assert.ok(c3, 'c3 still present (demoted, not removed)')
+  assert.ok(
+    (c3!.boost ?? 0) < (unusedTop[0]!.boost ?? 0),
+    'used c3 boost below unused top',
+  )
+  // Only-match prefix: keep usable boost when every match is already used
+  const only = dedupeNotesByPitch(kitNotes, { prefix: 'c3', usedInner: 'c3 c3 ' })
+  assert.ok(only.some((o) => o.label === 'c3'))
+  const onlyC3 = only.find((o) => o.label === 'c3')!
+  assert.ok((onlyC3.boost ?? 0) >= 40, 'sole prefix match keeps kit boost')
+  console.log('  used-note demotion: c3 demoted; sole prefix match kept')
 }
 
 console.log('ALL CHECKS PASSED')

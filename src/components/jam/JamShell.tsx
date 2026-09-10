@@ -5,7 +5,6 @@ import { PlayButton } from '../transport/PlayButton'
 import { SampleLoadingIndicator } from '../transport/SampleLoadingIndicator'
 import { JamTrackSheet } from './JamTrackSheet'
 import { JamCodeSheet } from './JamCodeSheet'
-import { JamDealStrip } from './JamDealStrip'
 import { JamKitPicker } from './JamKitPicker'
 import { JamAddTrack } from './JamAddTrack'
 import { JamPhaseRing } from './JamPhaseRing'
@@ -47,7 +46,7 @@ export function JamShell() {
             }}
             title="Edit active track code"
           >
-            {'</>'} Code
+            {'<' + '/>'} Code
           </button>
           <button
             type="button"
@@ -119,16 +118,16 @@ export function JamShell() {
           </div>
         </div>
 
-        <JamDealStrip
-          missionDeal={j.missionDeal}
-          mutationDeal={j.mutationDeal}
-          lastPeek={j.lastPeek}
-          undoLen={j.undoLen}
-          onMission={j.onMission}
-          onMutation={j.onMutation}
-          onUndo={j.onUndo}
-          onRedeal={j.redeal}
-        />
+        {(j.lastPeek || j.undoLen > 0) && (
+          <div className="text-[11px] px-3 py-2 rounded-lg bg-accent/10 border border-accent/20 text-accent">
+            {j.lastPeek}
+            {j.undoLen > 0 && (
+              <button type="button" className="ml-3 underline" onClick={j.onUndo}>
+                Undo
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="shrink-0 border-t border-border px-3 py-2 flex flex-col gap-1.5 safe-pb">
@@ -163,6 +162,7 @@ export function JamShell() {
             type="button"
             onClick={j.onSpice}
             className="min-h-11 px-3 rounded-xl text-xs font-medium bg-accent/20 text-accent border border-accent/30"
+            title="FX/timbre nudge — same tune, spiced up"
           >
             Spice
           </button>

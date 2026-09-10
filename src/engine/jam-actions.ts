@@ -1,15 +1,12 @@
 /**
  * Shared Jam actions used by useJamShell and WebMCP.
- * Split across jam-actions-a (kit/deal/AB/fresh-start) and jam-actions-b (mix/FX/snapshots).
+ * Split across jam-actions-a (kit/AB/fresh-start) and jam-actions-b (mix/FX/snapshots).
  */
 export {
   type JamQueueReason,
   queueLive,
   queueLiveImmediate,
-  redealDeals,
   applyKit,
-  applyMutation,
-  applyMission,
   undoJam,
   reshuffleUnlocked,
   reshuffleTrackById,
