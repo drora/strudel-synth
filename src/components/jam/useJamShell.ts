@@ -4,15 +4,17 @@ import { useUIStore } from '../../store/ui-store'
 import { useJamStore } from '../../store/jam-store'
 import {
   KITS,
-  getKitsForVibe,
   getKit,
-  kitToTemplate,
 } from '../../engine/kits'
 import { filterKits, pickRandomKit } from '../../engine/kit-browser'
 import { suggestMutations, applyMutationToTracks, type MutationCard } from '../../engine/mutators'
 import { suggestMissions, applyMissionToTracks, type MissionCard } from '../../engine/missions'
-import { reshuffleTrack } from '../../engine/reshuffle'
 import { liveUpdateEngine } from '../../engine/live-update'
+import {
+  applyKit as applyKitAction,
+  freshStartJam,
+  reshuffleUnlocked,
+} from '../../engine/jam-actions'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useVisualViewportHeight } from '../../hooks/useVisualViewport'
 import {
@@ -35,7 +37,6 @@ export function useJamShell() {
   const kitId = useJamStore((s) => s.kitId)
   const lockKit = useJamStore((s) => s.lockKit)
   const showKitPicker = useJamStore((s) => s.showKitPicker)
-  const hasPickedKit = useJamStore((s) => s.hasPickedKit)
   const mutationDeal = useJamStore((s) => s.mutationDeal)
   const missionDeal = useJamStore((s) => s.missionDeal)
   const lastPeek = useJamStore((s) => s.lastPeek)
@@ -63,39 +64,13 @@ export function useJamShell() {
   }, [])
 
   const applyKit = useCallback((id: string, fromPicker = false) => {
-    const kit = getKit(id)
-    if (!kit) return
-    const template = kitToTemplate(kit)
-    const session = useSessionStore.getState()
-    // When playing: swap tracks/patterns only — keep user's current BPM.
-    // When not playing (incl. first load): adopt kit default BPM.
-    session.loadTemplate(template, { preserveBpm: session.isPlaying })
-    const jam = useJamStore.getState()
-    jam.setKitId(kit.id)
-    jam.setVibe(kit.vibe)
-    jam.setHasPickedKit(true)
-    if (fromPicker) jam.setShowKitPicker(false)
-    jam.setLastPeek(`kit · ${kit.name}`)
-    const nextTracks = useSessionStore.getState().tracks
-    jam.setMutationDeal(suggestMutations(nextTracks, 3))
-    jam.setMissionDeal(suggestMissions(nextTracks, 2))
-    queueJam('kit')
+    // Picker / New Kit: leave recipe as-is (no auto-reshuffle).
+    applyKitAction(id, { fromPicker })
   }, [])
 
+  // Once per page load (module guard inside freshStartJam) — random kit when empty + reshuffle.
   useEffect(() => {
-    if (tracks.length === 0) {
-      const jam = useJamStore.getState()
-      const preferred =
-        (jam.kitId ? getKit(jam.kitId) : undefined) ??
-        getKitsForVibe(jam.vibe)[0] ??
-        KITS[0]
-      if (preferred) applyKit(preferred.id)
-    } else if (mutationDeal.length === 0 || missionDeal.length === 0) {
-      redeal()
-    }
-    if (!hasPickedKit) {
-      useJamStore.getState().setShowKitPicker(true)
-    }
+    freshStartJam()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -154,21 +129,7 @@ export function useJamShell() {
   }
 
   const onShuffle = () => {
-    const state = useSessionStore.getState()
-    const pinEffects = useUIStore.getState().pinEffects
-    const jam = useJamStore.getState()
-    for (const t of state.tracks) {
-      if (t.locked) continue
-      const next = reshuffleTrack(t.role, t.code, {
-        pinEffects,
-        lockKit: jam.lockKit,
-        bank: jam.lockKit ? activeKit?.drumsBank : undefined,
-      })
-      state.setCode(t.id, next)
-    }
-    jam.setLastPeek(jam.lockKit ? 'Shuffle · same kit' : 'Shuffle · free')
-    queueJam('reshuffle')
-    redeal()
+    reshuffleUnlocked()
   }
 
   const onNewKit = () => {

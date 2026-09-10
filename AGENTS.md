@@ -6,7 +6,7 @@ Guide for coding agents working on [`drora/strudel-synth`](https://github.com/dr
 
 **One home: Jam.** Browser music app wrapping [Strudel](https://strudel.cc). Kits, missions, mutations, Sound|FX sheets, and a **Code sheet** (CodeMirror / `TrackCodePane`) overlay the active track — not a separate Studio app mode.
 
-- **Jam** (`JamShell`) — default and primary UI.
+- **Jam** (`JamShell`) — default UI; `freshStartJam()` on mount (random kit when empty + `reshuffleUnlocked`).
 - **Code** — sheet/overlay inside Jam (`JamCodeSheet` → `TrackCodePane`).
 - **+ Track** — under Sounds/FX chips; pick role → `ROLE_PRESETS` default → Sound|FX sheet (no kit switch).
 - **Liveloop** — cycle phase on the BPM ring (`JamPhaseRing`) and a subtle per-track phase tick on chips (`JamTrackChip` / `useLoopPhase` via `liveUpdateEngine`); mic Rec (`JamMicRec` / `engine/mic-sample.ts`); simple A/B punch (`JamABToggle` near Kit). Mute is 1-tap via the **M** on each track chip (Mix tab volume still available).
@@ -26,7 +26,7 @@ src/
     learning/             → LearnShell + challenge-data
     transport/            → PlayButton, SampleLoadingIndicator
     layout/               → AppShell only (no Studio chrome)
-  engine/                 → strudel init, playback, live-update, kits*, missions,
+  engine/                 → strudel init, playback, live-update, kits*, jam-actions, missions,
                             mutators, code-effects, samples, mic-sample, session-*, webmcp
   hooks/                  → useLoopPhase, useIsMobile, useVisualViewport
   store/                  → jam-store (A/B variants), session-store, ui-store (appMode: jam|learn)
@@ -45,6 +45,7 @@ src/
 | FX in code | `engine/code-effects.ts` |
 | Session encode / autosave helpers | `engine/session-codec.ts`, `engine/session-manager.ts` |
 | Jam UI state | `store/jam-store.ts` (`soundTrackId`, `codeTrackId`, deals, A/B) |
+| Fresh start / shared Jam actions | `engine/jam-actions.ts` (`freshStartJam`, `applyKit`, `reshuffleUnlocked`) |
 | Tracks / BPM / play | `store/session-store.ts` |
 
 
