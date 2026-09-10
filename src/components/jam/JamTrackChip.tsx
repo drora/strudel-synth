@@ -15,7 +15,9 @@ const MOVE_CANCEL_PX = 10
 
 function openCodeForTrack(trackId: string) {
   useSessionStore.getState().setActiveTrack(trackId)
-  useJamStore.getState().setCodeTrackId(trackId)
+  const jam = useJamStore.getState()
+  jam.touchTrack(trackId)
+  jam.setCodeTrackId(trackId)
 }
 
 /**
@@ -97,7 +99,9 @@ export function JamTrackChip({
               longPressFired.current = false
               return
             }
-            useJamStore.getState().setSoundTrackId(track.id)
+            const jam = useJamStore.getState()
+            jam.touchTrack(track.id)
+            jam.setSoundTrackId(track.id)
           }}
           onContextMenu={(e) => {
             e.preventDefault()

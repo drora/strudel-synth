@@ -1,5 +1,5 @@
 /**
- * Rules for Jam `lastTouchedTrackId` — content edits, not mere Code peek/open.
+ * Rules for Jam `lastTouchedTrackId` — chip tap / Code open / content edits; not mute.
  *
  * Updates when the user changes a specific track via:
  * - Code sheet apply/edit (setCode from editor), not open/peek alone
