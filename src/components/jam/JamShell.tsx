@@ -101,12 +101,12 @@ export function JamShell() {
               Loading kit samples…
             </div>
           )}
-          <div className="mt-3 w-full max-w-sm">
+          <div className="mt-3 w-full max-w-sm mx-auto">
             <div className="text-[10px] uppercase tracking-wider text-text-muted text-center mb-1.5">
               Sounds / FX · tap · M mute · long-press Code
             </div>
-            {/* Single-row scroll: fixed chip widths keep orientation on mute/add/remove */}
-            <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scroll-smooth">
+            {/* Vertical stack: fixed chip widths (PR #19) — no sideways reflow; page scrolls */}
+            <div className="flex flex-col items-center gap-1.5">
               {j.tracks.map((t) => (
                 <JamTrackChip
                   key={t.id}
