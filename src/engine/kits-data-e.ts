@@ -2,7 +2,7 @@ import type { Kit } from './kits-types'
 
 export const KITS_E: Kit[] = [
 
-  // —— Rank B ——
+  // —— Lo-fi ——
   {
     id: 'lofi-linn9000',
     vibe: 'lofi',
@@ -11,13 +11,23 @@ export const KITS_E: Kit[] = [
     bpm: 86,
     drumsBank: 'Linn9000',
     tracks: [
-      { name: 'Kick', role: 'drums', code: 's("bd ~ ~ bd ~ ~ bd ~").bank("Linn9000").gain(0.95)' },
-      { name: 'Snare', role: 'fx', code: 's("~ sd ~ ~ ~ sd ~ ~").bank("Linn9000").gain(0.72)' },
-      { name: 'Hats', role: 'hihats', code: 's("hh*8").bank("Linn9000").gain(0.28).lpf(4400)' },
-      { name: 'Keys', role: 'pad', code: 'note("<[c3,eb3,g3] [f3,ab3,c4]>").sound("triangle").room(0.45).lpf(1300).gain(0.28)' },
-      { name: 'Bass', role: 'bass', code: 'note("<c2 ~ f2 ~>").sound("sine").lpf(280).gain(0.55)' },
+      { name: 'Kick', role: 'drums' },
+      { name: 'Snare', role: 'fx' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Keys', role: 'pad' },
+      { name: 'Bass', role: 'bass' },
     ],
+    shuffle: {
+      groove: 'halftime',
+      density: 'low',
+      root: 'c',
+      scale: 'minor',
+      melodicSounds: ['triangle', 'sine'],
+      fxBias: 'roomy',
+    },
   },
+
+  // —— Techno ——
   {
     id: 'techno-ry30',
     vibe: 'techno',
@@ -26,12 +36,21 @@ export const KITS_E: Kit[] = [
     bpm: 128,
     drumsBank: 'YamahaRY30',
     tracks: [
-      { name: 'Kick', role: 'drums', code: 's("bd*4").bank("YamahaRY30").n(0).gain(1.18)' },
-      { name: 'Hats', role: 'hihats', code: 's("hh*8").bank("YamahaRY30").n(0).gain(0.38)' },
-      { name: 'Clap', role: 'fx', code: 's("~ cp ~ cp").bank("YamahaRY30").gain(0.82)' },
-      { name: 'Bass', role: 'bass', code: 'note("<c2 eb2 f2 g2>").sound("sawtooth").lpf(600).gain(0.7)' },
-      { name: 'Lead', role: 'lead', code: 'note("<c4 ~ eb4 g4>*2").sound("square").delay(0.2).gain(0.22)' },
+      { name: 'Kick', role: 'drums' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Clap', role: 'fx' },
+      { name: 'Bass', role: 'bass' },
+      { name: 'Lead', role: 'lead' },
     ],
+    shuffle: {
+      groove: 'four_on_floor',
+      density: 'mid',
+      root: 'c',
+      scale: 'minor',
+      melodicSounds: ['sawtooth', 'square'],
+      fxBias: 'filtered',
+      pinN: 0,
+    },
   },
   {
     id: 'techno-jd990',
@@ -41,13 +60,24 @@ export const KITS_E: Kit[] = [
     bpm: 128,
     drumsBank: 'RolandJD990',
     tracks: [
-      { name: 'Kick', role: 'drums', code: 's("bd*4").bank("RolandJD990").n(0).gain(1.16)' },
-      { name: 'Hats', role: 'hihats', code: 's("hh*8").bank("RolandJD990").n(0).gain(0.36)' },
-      { name: 'Clap', role: 'fx', code: 's("~ cp ~ cp").bank("RolandJD990").gain(0.8)' },
-      { name: 'Bass', role: 'bass', code: 'note("<c2 c2 eb2 g1>").sound("sawtooth").lpf(700).lpq(8).gain(0.7)' },
-      { name: 'Pad', role: 'pad', code: 'note("[c3,eb3,g3]").sound("triangle").lpf(650).room(0.4).gain(0.24)' },
+      { name: 'Kick', role: 'drums' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Clap', role: 'fx' },
+      { name: 'Bass', role: 'bass' },
+      { name: 'Pad', role: 'pad' },
     ],
+    shuffle: {
+      groove: 'four_on_floor',
+      density: 'mid',
+      root: 'c',
+      scale: 'minor',
+      melodicSounds: ['sawtooth', 'triangle'],
+      fxBias: 'filtered',
+      pinN: 0,
+    },
   },
+
+  // —— House ——
   {
     id: 'house-dpm48',
     vibe: 'house',
@@ -56,13 +86,24 @@ export const KITS_E: Kit[] = [
     bpm: 120,
     drumsBank: 'SakataDPM48',
     tracks: [
-      { name: 'Kick', role: 'drums', code: 's("bd*4").bank("SakataDPM48").n(0).gain(1.12)' },
-      { name: 'Hats', role: 'hihats', code: 's("hh*8").bank("SakataDPM48").gain(0.4)' },
-      { name: 'Clap', role: 'fx', code: 's("~ cp ~ cp").bank("SakataDPM48").gain(0.78)' },
-      { name: 'Bass', role: 'bass', code: 'note("<c2 c2 g1 g1>").sound("sawtooth").lpf(480).gain(0.66)' },
-      { name: 'Pad', role: 'pad', code: 'note("[c3,e3,g3]").sound("sine").room(0.35).gain(0.22)' },
+      { name: 'Kick', role: 'drums' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Clap', role: 'fx' },
+      { name: 'Bass', role: 'bass' },
+      { name: 'Pad', role: 'pad' },
     ],
+    shuffle: {
+      groove: 'four_on_floor',
+      density: 'mid',
+      root: 'c',
+      scale: 'major',
+      melodicSounds: ['sawtooth', 'sine'],
+      fxBias: 'dry',
+      pinN: 0,
+    },
   },
+
+  // —— Techno ——
   {
     id: 'techno-mfb512',
     vibe: 'techno',
@@ -71,13 +112,23 @@ export const KITS_E: Kit[] = [
     bpm: 128,
     drumsBank: 'MFB512',
     tracks: [
-      { name: 'Kick', role: 'drums', code: 's("bd*4").bank("MFB512").gain(1.2)' },
-      { name: 'Hats', role: 'hihats', code: 's("hh*8").bank("MFB512").gain(0.35).hpf(5000)' },
-      { name: 'Clap', role: 'fx', code: 's("~ cp ~ cp").bank("MFB512").gain(0.8)' },
-      { name: 'Bass', role: 'bass', code: 'note("<c2 ~ eb2 ~>").sound("square").lpf(450).gain(0.7)' },
-      { name: 'Lead', role: 'lead', code: 'note("<c5 ~ g4 ~>").sound("triangle").delay(0.25).gain(0.2)' },
+      { name: 'Kick', role: 'drums' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Clap', role: 'fx' },
+      { name: 'Bass', role: 'bass' },
+      { name: 'Lead', role: 'lead' },
     ],
+    shuffle: {
+      groove: 'four_on_floor',
+      density: 'mid',
+      root: 'c',
+      scale: 'minor',
+      melodicSounds: ['square', 'triangle'],
+      fxBias: 'filtered',
+    },
   },
+
+  // —— Lo-fi ——
   {
     id: 'lofi-hr16',
     vibe: 'lofi',
@@ -86,13 +137,23 @@ export const KITS_E: Kit[] = [
     bpm: 88,
     drumsBank: 'AlesisHR16',
     tracks: [
-      { name: 'Kick', role: 'drums', code: 's("bd ~ ~ bd ~ ~ bd ~").bank("AlesisHR16").gain(0.92)' },
-      { name: 'Snare', role: 'fx', code: 's("~ sd ~ ~ ~ sd ~ ~").bank("AlesisHR16").gain(0.7)' },
-      { name: 'Hats', role: 'hihats', code: 's("hh*8").bank("AlesisHR16").gain(0.26).lpf(4000)' },
-      { name: 'Pad', role: 'pad', code: 'note("<[c3,e3,g3] [a2,c3,e3]>").sound("sine").room(0.55).gain(0.28)' },
-      { name: 'Bass', role: 'bass', code: 'note("c2 ~ g1 ~ eb2 ~ f2 ~").sound("triangle").lpf(300).gain(0.5)' },
+      { name: 'Kick', role: 'drums' },
+      { name: 'Snare', role: 'fx' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Pad', role: 'pad' },
+      { name: 'Bass', role: 'bass' },
     ],
+    shuffle: {
+      groove: 'halftime',
+      density: 'low',
+      root: 'c',
+      scale: 'minor',
+      melodicSounds: ['sine', 'triangle'],
+      fxBias: 'roomy',
+    },
   },
+
+  // —— Ambient ——
   {
     id: 'ambient-dr220',
     vibe: 'ambient',
@@ -101,13 +162,23 @@ export const KITS_E: Kit[] = [
     bpm: 68,
     drumsBank: 'BossDR220',
     tracks: [
-      { name: 'Kick', role: 'drums', code: 's("bd ~ ~ ~").bank("BossDR220").gain(0.42).lpf(700)' },
-      { name: 'Hats', role: 'hihats', code: 's("~ hh ~ ~").bank("BossDR220").gain(0.16).room(0.6)' },
-      { name: 'Ride', role: 'fx', code: 's("~ ~ rd ~").bank("BossDR220").room(0.7).gain(0.22)' },
-      { name: 'Pad', role: 'pad', code: 'note("<[c3,eb3,g3] [f3,ab3,c4]>").sound("sine").room(0.9).attack(0.7).gain(0.3)' },
-      { name: 'Bass', role: 'bass', code: 'note("<c2 ~ ~ ~>").sound("sine").lpf(180).attack(0.4).gain(0.38)' },
+      { name: 'Kick', role: 'drums' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Ride', role: 'fx' },
+      { name: 'Pad', role: 'pad' },
+      { name: 'Bass', role: 'bass' },
     ],
+    shuffle: {
+      groove: 'sparse',
+      density: 'low',
+      root: 'c',
+      scale: 'dorian',
+      melodicSounds: ['sine'],
+      fxBias: 'roomy',
+    },
   },
+
+  // —— House ——
   {
     id: 'house-cr1000',
     vibe: 'house',
@@ -116,13 +187,23 @@ export const KITS_E: Kit[] = [
     bpm: 116,
     drumsBank: 'RolandCompurhythm1000',
     tracks: [
-      { name: 'Kick', role: 'drums', code: 's("bd*4").bank("RolandCompurhythm1000").gain(1.05)' },
-      { name: 'Hats', role: 'hihats', code: 's("hh hh oh hh").bank("RolandCompurhythm1000").gain(0.42)' },
-      { name: 'Clap', role: 'fx', code: 's("~ cp ~ cp").bank("RolandCompurhythm1000").gain(0.7)' },
-      { name: 'Bass', role: 'bass', code: 'note("<c2 ~ f2 ~ g2 ~ eb2 ~>").sound("triangle").lpf(520).gain(0.6)' },
-      { name: 'Keys', role: 'lead', code: 'note("<c4 e4 g4 a4>").sound("square").lpf(2000).room(0.25).gain(0.2)' },
+      { name: 'Kick', role: 'drums' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Clap', role: 'fx' },
+      { name: 'Bass', role: 'bass' },
+      { name: 'Keys', role: 'lead' },
     ],
+    shuffle: {
+      groove: 'four_on_floor',
+      density: 'mid',
+      root: 'c',
+      scale: 'major',
+      melodicSounds: ['triangle', 'square'],
+      fxBias: 'dry',
+    },
   },
+
+  // —— Lo-fi ——
   {
     id: 'lofi-cr8000',
     vibe: 'lofi',
@@ -131,13 +212,23 @@ export const KITS_E: Kit[] = [
     bpm: 82,
     drumsBank: 'RolandCompurhythm8000',
     tracks: [
-      { name: 'Kick', role: 'drums', code: 's("bd ~ bd ~").bank("RolandCompurhythm8000").gain(0.9)' },
-      { name: 'Hats', role: 'hihats', code: 's("~ hh ~ hh").bank("RolandCompurhythm8000").gain(0.34).lpf(3500)' },
-      { name: 'Clap', role: 'fx', code: 's("~ ~ cp ~").bank("RolandCompurhythm8000").room(0.4).gain(0.5)' },
-      { name: 'Pad', role: 'pad', code: 'note("<[c3,eb3,g3,bb3] [f3,ab3,c4]>").sound("sine").room(0.8).attack(0.3).gain(0.25)' },
-      { name: 'Bass', role: 'bass', code: 'note("<c2 ~ eb2 ~>").sound("sine").lpf(250).gain(0.58)' },
+      { name: 'Kick', role: 'drums' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Clap', role: 'fx' },
+      { name: 'Pad', role: 'pad' },
+      { name: 'Bass', role: 'bass' },
     ],
+    shuffle: {
+      groove: 'halftime',
+      density: 'low',
+      root: 'c',
+      scale: 'minor',
+      melodicSounds: ['sine'],
+      fxBias: 'roomy',
+    },
   },
+
+  // —— Techno ——
   {
     id: 'techno-space-drum',
     vibe: 'techno',
@@ -146,13 +237,24 @@ export const KITS_E: Kit[] = [
     bpm: 128,
     drumsBank: 'ViscoSpaceDrum',
     tracks: [
-      { name: 'Kick', role: 'drums', code: 's("bd*4").bank("ViscoSpaceDrum").n(0).gain(1.15)' },
-      { name: 'Hats', role: 'hihats', code: 's("hh*8").bank("ViscoSpaceDrum").n(0).gain(0.35)' },
-      { name: 'Tom', role: 'fx', code: 's("~ ht ~ mt").bank("ViscoSpaceDrum").room(0.3).gain(0.65)' },
-      { name: 'Bass', role: 'bass', code: 'note("<c2 eb2 f2 g2>").sound("sawtooth").lpf(550).gain(0.7)' },
-      { name: 'Lead', role: 'lead', code: 'note("<c5 ~ g4 ~>").sound("square").delay(0.3).gain(0.2)' },
+      { name: 'Kick', role: 'drums' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Tom', role: 'fx' },
+      { name: 'Bass', role: 'bass' },
+      { name: 'Lead', role: 'lead' },
     ],
+    shuffle: {
+      groove: 'four_on_floor',
+      density: 'mid',
+      root: 'c',
+      scale: 'minor',
+      melodicSounds: ['sawtooth', 'square'],
+      fxBias: 'filtered',
+      pinN: 0,
+    },
   },
+
+  // —— House ——
   {
     id: 'house-m1-drums',
     vibe: 'house',
@@ -161,13 +263,24 @@ export const KITS_E: Kit[] = [
     bpm: 120,
     drumsBank: 'KorgM1',
     tracks: [
-      { name: 'Kick', role: 'drums', code: 's("bd*4").bank("KorgM1").n(0).gain(1.12)' },
-      { name: 'Hats', role: 'hihats', code: 's("hh*8").bank("KorgM1").gain(0.4)' },
-      { name: 'Clap', role: 'fx', code: 's("~ cp ~ cp").bank("KorgM1").gain(0.78)' },
-      { name: 'Bass', role: 'bass', code: 'note("<c2 ~ eb2 ~ f2 ~ g2 ~>").sound("sawtooth").lpf(500).gain(0.66)' },
-      { name: 'Pad', role: 'pad', code: 'note("[c3,e3,g3]").sound("triangle").room(0.35).gain(0.22)' },
+      { name: 'Kick', role: 'drums' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Clap', role: 'fx' },
+      { name: 'Bass', role: 'bass' },
+      { name: 'Pad', role: 'pad' },
     ],
+    shuffle: {
+      groove: 'four_on_floor',
+      density: 'mid',
+      root: 'c',
+      scale: 'major',
+      melodicSounds: ['sawtooth', 'triangle'],
+      fxBias: 'dry',
+      pinN: 0,
+    },
   },
+
+  // —— Lo-fi ——
   {
     id: 'lofi-rx5',
     vibe: 'lofi',
@@ -176,13 +289,24 @@ export const KITS_E: Kit[] = [
     bpm: 90,
     drumsBank: 'YamahaRX5',
     tracks: [
-      { name: 'Kick', role: 'drums', code: 's("bd ~ bd ~ ~ bd ~ ~").bank("YamahaRX5").n(0).gain(0.95)' },
-      { name: 'Rim', role: 'fx', code: 's("~ rim ~ ~ rim ~ ~ ~").bank("YamahaRX5").gain(0.5)' },
-      { name: 'Hats', role: 'hihats', code: 's("hh*8").bank("YamahaRX5").gain(0.26).lpf(4200)' },
-      { name: 'Pad', role: 'pad', code: 'note("<[c3,e3,g3] [a2,c3,e3]>").sound("triangle").room(0.55).lpf(1300).gain(0.28)' },
-      { name: 'Bass', role: 'bass', code: 'note("c2 ~ g1 ~ eb2 ~ f2 ~").sound("sawtooth").lpf(360).gain(0.5)' },
+      { name: 'Kick', role: 'drums' },
+      { name: 'Rim', role: 'fx' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Pad', role: 'pad' },
+      { name: 'Bass', role: 'bass' },
     ],
+    shuffle: {
+      groove: 'breakbeat',
+      density: 'low',
+      root: 'c',
+      scale: 'minor',
+      melodicSounds: ['triangle', 'sawtooth'],
+      fxBias: 'roomy',
+      pinN: 0,
+    },
   },
+
+  // —— Ambient ——
   {
     id: 'ambient-rx21',
     vibe: 'ambient',
@@ -191,13 +315,23 @@ export const KITS_E: Kit[] = [
     bpm: 66,
     drumsBank: 'YamahaRX21',
     tracks: [
-      { name: 'Kick', role: 'drums', code: 's("bd ~ ~ ~").bank("YamahaRX21").gain(0.4).lpf(700)' },
-      { name: 'Hats', role: 'hihats', code: 's("~ hh ~ ~").bank("YamahaRX21").gain(0.16).room(0.55)' },
-      { name: 'Clap', role: 'fx', code: 's("~ ~ cp ~").bank("YamahaRX21").room(0.7).gain(0.22)' },
-      { name: 'Pad', role: 'pad', code: 'note("<[c3,e3,g3] [d3,f3,a3]>").sound("sine").room(0.9).attack(0.6).gain(0.3)' },
-      { name: 'Bass', role: 'bass', code: 'note("c2").sound("sine").lpf(180).gain(0.35)' },
+      { name: 'Kick', role: 'drums' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Clap', role: 'fx' },
+      { name: 'Pad', role: 'pad' },
+      { name: 'Bass', role: 'bass' },
     ],
+    shuffle: {
+      groove: 'sparse',
+      density: 'low',
+      root: 'c',
+      scale: 'dorian',
+      melodicSounds: ['sine'],
+      fxBias: 'roomy',
+    },
   },
+
+  // —— House ——
   {
     id: 'house-mt32',
     vibe: 'house',
@@ -206,12 +340,20 @@ export const KITS_E: Kit[] = [
     bpm: 120,
     drumsBank: 'RolandMT32',
     tracks: [
-      { name: 'Kick', role: 'drums', code: 's("bd*4").bank("RolandMT32").gain(1.1)' },
-      { name: 'Hats', role: 'hihats', code: 's("hh*8").bank("RolandMT32").gain(0.38)' },
-      { name: 'Clap', role: 'fx', code: 's("~ cp ~ cp").bank("RolandMT32").gain(0.78)' },
-      { name: 'Bass', role: 'bass', code: 'note("<c2 c2 g1 g1>").sound("sawtooth").lpf(480).gain(0.66)' },
-      { name: 'Pad', role: 'pad', code: 'note("[c3,e3,g3]").sound("sine").room(0.35).gain(0.22)' },
+      { name: 'Kick', role: 'drums' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Clap', role: 'fx' },
+      { name: 'Bass', role: 'bass' },
+      { name: 'Pad', role: 'pad' },
     ],
+    shuffle: {
+      groove: 'four_on_floor',
+      density: 'mid',
+      root: 'c',
+      scale: 'major',
+      melodicSounds: ['sawtooth', 'sine'],
+      fxBias: 'dry',
+    },
   },
   {
     id: 'house-gretsch',
@@ -221,13 +363,23 @@ export const KITS_E: Kit[] = [
     bpm: 118,
     drumsBank: 'dirt-gretsch',
     tracks: [
-      { name: 'Kick', role: 'drums', code: 's("gretsch:0*4").gain(1.05)' },
-      { name: 'Hats', role: 'hihats', code: 's("gretsch:2*8").gain(0.35)' },
-      { name: 'Snare', role: 'fx', code: 's("~ gretsch:1 ~ gretsch:1").gain(0.75)' },
-      { name: 'Bass', role: 'bass', code: 'note("<c2 ~ eb2 ~ f2 ~ g2 ~>").sound("sawtooth").lpf(500).gain(0.66)' },
-      { name: 'Pad', role: 'pad', code: 'note("[c3,e3,g3]").sound("triangle").room(0.35).gain(0.22)' },
+      { name: 'Kick', role: 'drums' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Snare', role: 'fx' },
+      { name: 'Bass', role: 'bass' },
+      { name: 'Pad', role: 'pad' },
     ],
+    shuffle: {
+      groove: 'four_on_floor',
+      density: 'mid',
+      root: 'c',
+      scale: 'major',
+      melodicSounds: ['sawtooth', 'triangle'],
+      fxBias: 'dry',
+    },
   },
+
+  // —— Techno ——
   {
     id: 'techno-dirt-electro',
     vibe: 'techno',
@@ -236,13 +388,23 @@ export const KITS_E: Kit[] = [
     bpm: 128,
     drumsBank: 'dirt-electro',
     tracks: [
-      { name: 'Kick', role: 'drums', code: 's("electro1:0*4").gain(1.15)' },
-      { name: 'Hats', role: 'hihats', code: 's("electro1:2*8").gain(0.35).hpf(5000)' },
-      { name: 'Snare', role: 'fx', code: 's("~ electro1:1 ~ electro1:1").gain(0.8)' },
-      { name: 'Bass', role: 'bass', code: 'note("<c2 eb2 f2 g2>").sound("square").lpf(500).gain(0.7)' },
-      { name: 'Lead', role: 'lead', code: 'note("<c5 ~ g4 ~>").sound("sawtooth").lpf(1800).delay(0.25).gain(0.2)' },
+      { name: 'Kick', role: 'drums' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Snare', role: 'fx' },
+      { name: 'Bass', role: 'bass' },
+      { name: 'Lead', role: 'lead' },
     ],
+    shuffle: {
+      groove: 'four_on_floor',
+      density: 'mid',
+      root: 'c',
+      scale: 'minor',
+      melodicSounds: ['square', 'sawtooth'],
+      fxBias: 'filtered',
+    },
   },
+
+  // —— Lo-fi ——
   {
     id: 'lofi-vcsl-kit',
     vibe: 'lofi',
@@ -251,13 +413,23 @@ export const KITS_E: Kit[] = [
     bpm: 86,
     drumsBank: 'vcsl',
     tracks: [
-      { name: 'Kick', role: 'drums', code: 's("bassdrum1 ~ ~ bassdrum2 ~ ~ bassdrum1 ~").gain(0.9)' },
-      { name: 'Snare', role: 'fx', code: 's("~ snare_modern ~ ~ ~ snare_low ~ ~").gain(0.7)' },
-      { name: 'Hats', role: 'hihats', code: 's("hihat*8").gain(0.28).lpf(5000)' },
-      { name: 'Keys', role: 'pad', code: 'note("<[c3,eb3,g3] [f3,ab3,c4]>").sound("kalimba").room(0.5).gain(0.26)' },
-      { name: 'Bass', role: 'bass', code: 'note("<c2 ~ f2 ~>").sound("sine").lpf(280).gain(0.55)' },
+      { name: 'Kick', role: 'drums' },
+      { name: 'Snare', role: 'fx' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Keys', role: 'pad' },
+      { name: 'Bass', role: 'bass' },
     ],
+    shuffle: {
+      groove: 'halftime',
+      density: 'low',
+      root: 'c',
+      scale: 'minor',
+      melodicSounds: ['kalimba', 'sine', 'triangle'],
+      fxBias: 'roomy',
+    },
   },
+
+  // —— Ambient ——
   {
     id: 'ambient-piano-room',
     vibe: 'ambient',
@@ -266,13 +438,23 @@ export const KITS_E: Kit[] = [
     bpm: 70,
     drumsBank: 'piano',
     tracks: [
-      { name: 'Pulse', role: 'drums', code: 's("bd ~ ~ ~").gain(0.35).lpf(600)' },
-      { name: 'Shimmer', role: 'hihats', code: 's("~ hh ~ ~").gain(0.12).room(0.7)' },
-      { name: 'Piano', role: 'pad', code: 'note("<[c3,e3,g3] [d3,f3,a3]>").sound("piano").room(0.9).attack(0.4).gain(0.32)' },
-      { name: 'Lead', role: 'lead', code: 'note("<c5 ~ e5 ~ g5 ~>").sound("piano").room(0.7).gain(0.16)' },
-      { name: 'Bass', role: 'bass', code: 'note("<c2 ~ ~ ~>").sound("sine").lpf(180).attack(0.4).gain(0.38)' },
+      { name: 'Pulse', role: 'drums' },
+      { name: 'Shimmer', role: 'hihats' },
+      { name: 'Piano', role: 'pad' },
+      { name: 'Lead', role: 'lead' },
+      { name: 'Bass', role: 'bass' },
     ],
+    shuffle: {
+      groove: 'sparse',
+      density: 'low',
+      root: 'c',
+      scale: 'major',
+      melodicSounds: ['piano', 'sine'],
+      fxBias: 'roomy',
+    },
   },
+
+  // —— Techno ——
   {
     id: 'techno-clean-breaks',
     vibe: 'techno',
@@ -281,11 +463,19 @@ export const KITS_E: Kit[] = [
     bpm: 165,
     drumsBank: 'clean-breaks',
     tracks: [
-      { name: 'Break', role: 'drums', code: 's("breaks165:0 breaks165:1 breaks165:2 breaks165:3").gain(0.92)' },
-      { name: 'Hats', role: 'hihats', code: 's("hh*16").gain(0.2).hpf(6000)' },
-      { name: 'Chop', role: 'fx', code: 's("~ breaks157:2 ~ breaks157:4").room(0.15).gain(0.65)' },
-      { name: 'Bass', role: 'bass', code: 'note("<c2 ~ eb2 ~ g1 ~>").sound("sawtooth").lpf(400).gain(0.72)' },
-      { name: 'Stab', role: 'lead', code: 'note("<c4 ~ g4 ~>").sound("square").lpf(1700).delay(0.15).gain(0.2)' },
+      { name: 'Break', role: 'drums' },
+      { name: 'Hats', role: 'hihats' },
+      { name: 'Chop', role: 'fx' },
+      { name: 'Bass', role: 'bass' },
+      { name: 'Stab', role: 'lead' },
     ],
+    shuffle: {
+      groove: 'breakbeat',
+      density: 'high',
+      root: 'c',
+      scale: 'minor',
+      melodicSounds: ['sawtooth', 'square'],
+      fxBias: 'filtered',
+    },
   },
 ]
