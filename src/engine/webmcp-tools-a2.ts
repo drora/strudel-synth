@@ -39,6 +39,7 @@ export function registerWebMcpToolsA2(register: WebMcpRegister) {
         const track = useSessionStore.getState().tracks.find((t) => t.id === trackId)
         if (!track) return fail('update_track', { trackId }, 'Track not found')
         useSessionStore.getState().setCode(trackId, code)
+        useJamStore.getState().touchTrack(trackId)
         if (useSessionStore.getState().isPlaying) {
           liveUpdateEngine.queueUpdate(quantization as any)
         }
