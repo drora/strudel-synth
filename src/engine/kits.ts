@@ -70,7 +70,7 @@ export const SOUND_CHOICES: Record<TrackRole, SoundChoice[]> = {
     { id: '505', label: '505 hats', bank: 'RolandTR505' },
     { id: 'mpc60', label: 'MPC60 hats', bank: 'AkaiMPC60' },
     { id: 'sp12', label: 'SP-12 hats', bank: 'EmuSP12' },
-    { id: 'linn', label: 'Linn hats', bank: 'LinnLM1' },
+    { id: 'linn', label: 'Linn hats', bank: 'LinnDrum' },
     { id: 'lm1', label: 'LM-1 hats', bank: 'LinnLM1' },
     { id: 'cr78', label: 'CR78 hats', bank: 'RolandCompurhythm78' },
   ],
