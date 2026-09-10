@@ -18,7 +18,7 @@ Kits are **identity + shuffle profile**, not baked Strudel recipes. `apply_kit` 
 - Prefer **`shuffle_sounds`** (or re-`apply_kit`) for variety — do **not** paste a fixed "classic" mini-notation as THE kit.
 - When **`update_track`** hand-edits: stay coherent with `get_kit` profile (`drumsBank`, root/scale, `melodicSounds`). Read jam state first.
 - Deal mutations/missions are **secondary** to profile-coherent tweaks.
-- **Code autocomplete** soft-ranks stable kit-scale notes (deduped) plus shuffle-sampled groove/motif neighbors from the same profile pools — prefer those when hand-editing; avoid off-kit genre hops.
+- **Code autocomplete** soft-ranks stable single-pitch kit-scale notes in `note()` (deduped); shuffle-sampled groove/motif neighbors in pattern / `s(` contexts — prefer those when hand-editing; avoid off-kit genre hops.
 
 ## First move every turn
 
