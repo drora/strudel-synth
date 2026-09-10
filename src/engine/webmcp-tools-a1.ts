@@ -66,7 +66,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'get_jam_state',
     description:
-      'Jam-only snapshot: kitId, vibe, lockKit, A/B slots, activeVariant, lastPeek, deals summary, soundTrackId/codeTrackId.',
+      'Jam-only snapshot: kitId, vibe, lockKit, A/B slots, activeVariant, lastPeek, undoDepth, soundTrackId/codeTrackId.',
     inputSchema: { type: 'object', properties: {} },
     annotations: { readOnlyHint: true },
     execute: () => ok('get_jam_state', {}, getJamStateSnapshot(), 'Jam state'),
@@ -131,7 +131,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'apply_kit',
     description:
-      'Apply a kit (same as Jam picker): regenerates tracks from the kit shuffle profile, then reshuffles. Peek `kit · Name · shuffled`. While playing, preserves current BPM; when stopped, adopts kit BPM. Redeals mutations/missions.',
+      'Apply a kit (same as Jam picker): regenerates tracks from the kit shuffle profile, then reshuffles. Peek `kit · Name · shuffled`. While playing, preserves current BPM; when stopped, adopts kit BPM.',
     inputSchema: {
       type: 'object',
       properties: {
