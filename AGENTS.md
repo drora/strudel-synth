@@ -45,6 +45,7 @@ src/
 | FX in code | `engine/code-effects.ts` |
 | Session encode / autosave helpers | `engine/session-codec.ts`, `engine/session-manager.ts` |
 | Jam UI state | `store/jam-store.ts` (`soundTrackId`, `codeTrackId`, A/B, undo) |
+| Spice (FX-only) | `engine/spice.ts` — one-tap `setEffectInCode` nudges (lpf/room/shape/delay/gain). **Spice ≠ Shuffle**; Mission/Mutate deal cards removed |
 | Tracks / BPM / play | `store/session-store.ts` |
 
 
