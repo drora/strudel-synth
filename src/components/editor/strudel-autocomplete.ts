@@ -20,6 +20,7 @@ import { getKit } from '../../engine/kits'
 import type { Kit } from '../../engine/kits-types'
 import type { TrackRole } from '../../engine/types'
 import {
+  dedupeNotesByPitch,
   mergeKitSuggestions,
   suggestFromKitProfile,
 } from '../../engine/kit-suggest'
@@ -165,11 +166,18 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
   }
 
   // ── Inside note("...") — scale-coherent notes ranked above chromatic ──
+  // Dedupe enharmonics (c#/cs/db) to one label per pitch+octave; prefer kit spelling.
   const noteMatch = textBefore.match(/note\(["']([^"']*)$/)
   if (noteMatch) {
     const inner = noteMatch[1]
-    const lastWord = inner.match(/(?:^|[\s~\[\]<>,])(\w*)$/)
-    const noteCompletions = kitBiased(chromaticNoteCompletions(), 'note')
+    const lastWord = inner.match(/(?:^|[\s~\[\]<>,])([\w#]*)$/)
+    const prefix = lastWord?.[1] ?? ''
+    const { kit, role } = resolveKitSuggestCtx()
+    const kitOnes = suggestFromKitProfile(kit, role, 'note')
+    const noteCompletions = dedupeNotesByPitch(
+      mergeKitSuggestions(chromaticNoteCompletions(), kitOnes),
+      { prefix },
+    ) as Completion[]
     if (lastWord) {
       return {
         from: context.pos - lastWord[1].length,
