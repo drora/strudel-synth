@@ -14,7 +14,6 @@ import { JamMicRec } from './JamMicRec'
 import { JamABToggle } from './JamABToggle'
 import { useJamShell } from './useJamShell'
 import { JamTrackChip } from './JamTrackChip'
-import { usePlayingLoopPhase } from '../../hooks/useLoopPhase'
 
 function openCodeForTrack(trackId: string | null | undefined) {
   if (!trackId) return
@@ -24,7 +23,6 @@ function openCodeForTrack(trackId: string | null | undefined) {
 
 export function JamShell() {
   const j = useJamShell()
-  const { phase } = usePlayingLoopPhase()
   const codeTrackId = useJamStore((s) => s.codeTrackId)
   const codeTrack = j.tracks.find((t) => t.id === codeTrackId)
 
@@ -122,7 +120,6 @@ export function JamShell() {
                 <JamTrackChip
                   key={t.id}
                   track={t}
-                  phase={phase}
                   isPlaying={j.isPlaying}
                 />
               ))}
