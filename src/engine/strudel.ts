@@ -1,6 +1,6 @@
 import { useUIStore } from '../store/ui-store'
 import { registerDynamicSamples } from '../components/editor/autocomplete-data'
-import { COMMUNITY_SAMPLE_BANKS } from './samples'
+import { COMMUNITY_SAMPLE_BANKS, CURATED_AUTOCOMPLETE_SAMPLES } from './samples'
 import { syncToStrudelAudioContext, unlockAudio } from './audio-context'
 export { composeTracks } from './compose-tracks'
 
@@ -94,23 +94,21 @@ function registerLoadedSamples(): void {
   try {
     type GetSoundFn = (name: string) => { onTrigger?: unknown } | undefined
     const getSound = (globalThis as Record<string, unknown>).getSound as GetSoundFn | undefined
-    if (typeof getSound !== 'function') return
-    const candidates = [
-      'bd','sd','hh','oh','cp','rim','cr','ride','bass','pluck','arpy','juno','pad',
-      'perc','metal','noise','stab','house','techno','sine','sawtooth','square','triangle',
-      'amen','kick','snare','hihat','clap','tom',
-    ]
-    const found: string[] = []
-    const seen = new Set<string>()
-    for (const name of candidates) {
-      if (seen.has(name)) continue
-      seen.add(name)
-      try {
-        const s = getSound(name)
-        if (s && s.onTrigger) found.push(name)
-      } catch { /* skip */ }
+    const found = new Set<string>()
+    // Always register curated prebake / dirt names so Code autocomplete is rich
+    // even when getSound is unavailable or a name has not been probed yet.
+    for (const name of CURATED_AUTOCOMPLETE_SAMPLES) {
+      if (name) found.add(name)
     }
-    if (found.length > 0) registerDynamicSamples(found)
+    if (typeof getSound === 'function') {
+      for (const name of CURATED_AUTOCOMPLETE_SAMPLES) {
+        try {
+          const s = getSound(name)
+          if (s && s.onTrigger) found.add(name)
+        } catch { /* skip */ }
+      }
+    }
+    if (found.size > 0) registerDynamicSamples([...found])
   } catch (err) {
     console.warn('[Strudel Studio] Failed to probe sample registry:', err)
   }
@@ -211,6 +209,7 @@ export async function initEngine(): Promise<void> {
       // Always mark prebake done so Jam can clear "Loading kit samples…".
       // Desktop then begins a fresh community phase via loadCommunityBanks().
       ui.setSampleLoadingDone()
+      registerLoadedSamples()
     },
   })
   engine.evaluateFn = res.evaluate
