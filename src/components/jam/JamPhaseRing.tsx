@@ -10,13 +10,11 @@ function clampBpm(n: number): number {
   return Math.max(BPM_MIN, Math.min(BPM_MAX, Math.round(n)))
 }
 
-/** Store + live engine setcps when playing. */
+/** Store immediately; engine recomposes full session while playing (debounced in setBpm). */
 function applyBpm(next: number) {
   const bpm = clampBpm(next)
   useSessionStore.getState().setBpm(bpm)
-  if (useSessionStore.getState().isPlaying) {
-    void engineSetBpm(bpm)
-  }
+  void engineSetBpm(bpm)
 }
 
 /**
