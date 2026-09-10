@@ -6,7 +6,7 @@
 
 ## Use it
 
-1. **Jam** — open the kit browser (search / soft tags: tempo · bank · vibe), pick a kit, hit Play, Shuffle / Spice / deal cards.
+1. **Jam** — cold load picks a random kit and reshuffles unlocked riffs (`fresh · reshuffled`); open the kit browser (search / soft tags), Play, Shuffle / Spice / deals.
 2. **Tap a track** — Sound|FX sheet (chips write real Strudel code; sheet stays open while browsing). **M** on the chip mutes. **+ Track** adds a role with preset code without switching kits.
 3. **Edit in Code** / header **`</> Code`** — CodeMirror sheet for that track (Update / Lock / quantize). Stays in Jam; no mode bounce.
 4. **Liveloop** — BPM ring + per-track phase ticks while playing; **Rec** (red) records mic → sample → track; Stop is neutral (not Rec-red); **A/B** near Kit stashes and punches arrangement variants.
