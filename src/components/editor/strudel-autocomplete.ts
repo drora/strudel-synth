@@ -164,6 +164,7 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
 
   // ── Inside note("..." ) — scale-coherent notes ranked above chromatic ──
   // Dedupe enharmonics (c#/cs/db) to one label per pitch+octave; prefer kit spelling.
+  // Demote pitches already present in the inner note string (unused in-scale first).
   const noteMatch = textBefore.match(/note\(["']([^"']*)$/)
   if (noteMatch) {
     const inner = noteMatch[1]
@@ -173,7 +174,7 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
     const kitOnes = suggestFromKitProfile(kit, role, 'note')
     const noteCompletions = dedupeNotesByPitch(
       mergeKitSuggestions(chromaticNoteCompletions(), kitOnes),
-      { prefix },
+      { prefix, usedInner: inner },
     ) as Completion[]
     if (lastWord) {
       return {
