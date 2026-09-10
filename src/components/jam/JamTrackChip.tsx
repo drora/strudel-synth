@@ -1,9 +1,10 @@
-import type { MouseEvent, PointerEvent } from 'react'
+import { useRef, type MouseEvent, type PointerEvent } from 'react'
 import { liveUpdateEngine } from '../../engine/live-update'
 import { useSessionStore } from '../../store/session-store'
 import { useJamStore } from '../../store/jam-store'
 import type { Track } from '../../engine/types'
 import { queueJam, trackSoundHint } from './jam-shell-utils'
+import { useLoopPhaseCallback } from '../../hooks/useLoopPhase'
 
 function openCodeForTrack(trackId: string) {
   useSessionStore.getState().setActiveTrack(trackId)
@@ -12,19 +13,27 @@ function openCodeForTrack(trackId: string) {
 
 /**
  * Jam home track chip: tap → Sound|FX sheet, M → mute, long-press/context → Code.
- * Subtle conic phase tick on the border while playing (shared cycle fraction).
+ * Subtle conic phase tick on the border while playing (shared cycle; DOM-painted).
  */
 export function JamTrackChip({
   track,
-  phase,
   isPlaying,
 }: {
   track: Track
-  phase: number
   isPlaying: boolean
 }) {
   const hint = trackSoundHint(track.code)
-  const progress = isPlaying ? phase : 0
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  useLoopPhaseCallback(isPlaying, (phase) => {
+    const el = wrapRef.current
+    if (!el) return
+    if (!isPlaying) {
+      el.style.background = 'transparent'
+      return
+    }
+    el.style.background = `conic-gradient(from -90deg, ${track.color} ${phase * 360}deg, rgba(255,255,255,0.08) 0)`
+  })
 
   const onMute = (e: MouseEvent | PointerEvent) => {
     e.preventDefault()
@@ -38,14 +47,11 @@ export function JamTrackChip({
 
   return (
     <div
+      ref={wrapRef}
       className={`relative rounded-lg p-[1.5px] transition-[opacity] ${
         track.muted ? 'opacity-45' : ''
       }`}
-      style={{
-        background: isPlaying
-          ? `conic-gradient(from -90deg, ${track.color} ${progress * 360}deg, rgba(255,255,255,0.08) 0)`
-          : 'transparent',
-      }}
+      style={{ background: 'transparent' }}
     >
       <div
         className="flex items-stretch rounded-[6.5px] border bg-bg-elevated overflow-hidden min-h-10"
