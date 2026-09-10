@@ -4,6 +4,7 @@ import { useUIStore } from '../../store/ui-store'
 import {
   getBankFromCode,
   getSoundFromCode,
+  getNFromCode,
 } from '../../engine/code-effects'
 import { liveUpdateEngine } from '../../engine/live-update'
 
@@ -20,7 +21,21 @@ export function queueJam(reason: 'kit' | 'jam' | 'reshuffle' | 'mute-solo' = 'ja
 }
 
 export function trackSoundHint(code: string): string | null {
-  return getBankFromCode(code) ?? getSoundFromCode(code)
+  const bank = getBankFromCode(code)
+  const sound = getSoundFromCode(code)
+  const n = getNFromCode(code)
+  if (bank) {
+    const short = bank
+      .replace(/^RolandTR/, '')
+      .replace(/^Roland/, '')
+      .replace(/^Akai/, '')
+      .replace(/^Emu/, '')
+      .replace(/^Boss/, '')
+      .replace(/^Oberheim/, '')
+      .replace(/^Linn/, 'Linn')
+    return n != null && n > 0 ? `${short}·n${n}` : short
+  }
+  return sound
 }
 
 /** Hold a boolean true for at least `minMs` after it first becomes true. */

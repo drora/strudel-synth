@@ -1,6 +1,6 @@
 import type { TrackRole, Template } from './types'
 import { ROLE_COLORS } from './types'
-import { setBankInCode, setSoundInCode, setNInCode, getBankFromCode } from './code-effects'
+import { setBankInCode, setSoundInCode, setNInCode, getBankFromCode, getSoundFromCode, getNFromCode } from './code-effects'
 import { KITS_A } from './kits-data-a'
 import { KITS_B } from './kits-data-b'
 import { KITS_C } from './kits-data-c'
@@ -119,6 +119,25 @@ export const SOUND_CHOICES: Record<TrackRole, SoundChoice[]> = {
     { id: 'saw', label: 'Saw', sound: 'sawtooth' },
     { id: 'sine', label: 'Sine', sound: 'sine' },
   ],
+}
+
+
+/** True when code currently reflects this Sound sheet choice (bank/sound/n). */
+export function matchSoundChoice(code: string, choice: SoundChoice): boolean {
+  const bank = getBankFromCode(code)
+  const sound = getSoundFromCode(code)
+  const n = getNFromCode(code)
+
+  if (choice.bank) {
+    if (bank !== choice.bank) return false
+    if (choice.n != null) return n === choice.n
+    // Base bank tile: selected when n is unset or 0 (default hit)
+    return n == null || n === 0
+  }
+  if (choice.sound) {
+    return sound === choice.sound
+  }
+  return false
 }
 
 export function applySoundChoiceToCode(code: string, choice: SoundChoice): string {

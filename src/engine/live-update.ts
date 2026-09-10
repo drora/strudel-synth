@@ -1,5 +1,6 @@
 import { useSessionStore } from '../store/session-store'
-import { evaluateCode, composeTracks } from './strudel'
+import { evaluateCode, composeTracks, getSchedulerCycle } from './strudel'
+import { getAudioContext } from './audio-context'
 
 export type Quantization = 'immediate' | '1' | '2' | '4'
 export type UpdateStatus = 'idle' | 'dirty' | 'queued' | 'applied' | 'error'
@@ -43,15 +44,24 @@ class LiveUpdateEngine {
   private animFrameId: number | null = null
   private lastCycleInt = -1
   private playEpochSec: number | null = null
+  /** AudioContext.currentTime at play start — preferred wall/audio fallback epoch. */
+  private playEpochAudio: number | null = null
   private status: UpdateStatus = 'idle'
   private listeners = new Set<StatusListener>()
   private appliedFlashTimer: ReturnType<typeof setTimeout> | null = null
 
-  /** Call when playback starts so wall-clock fallback is relative to play, not page load. */
+  /**
+   * Call when playback is audibly starting (after evaluate).
+   * Wall/audio epochs align to hearing; scheduler.now() is preferred when available.
+   */
   markPlayStarted() {
     this.playEpochSec = performance.now() / 1000
+    try {
+      this.playEpochAudio = getAudioContext().currentTime
+    } catch {
+      this.playEpochAudio = null
+    }
     this.lastCycleInt = -1
-    // Prefer aligning to Strudel's clock if already running
     const now = this.readSchedulerCycle()
     if (now != null) {
       this.lastCycleInt = Math.floor(now)
@@ -61,6 +71,7 @@ class LiveUpdateEngine {
   markPlayStopped() {
     this.cancel()
     this.playEpochSec = null
+    this.playEpochAudio = null
     this.setStatus('idle')
   }
 
@@ -216,16 +227,21 @@ class LiveUpdateEngine {
     this.animFrameId = requestAnimationFrame(tick)
   }
 
+  /**
+   * Musical cycle from Strudel scheduler.now() when available.
+   * Do NOT use raw getTime() — that is AudioContext seconds, not cycles.
+   */
   private readSchedulerCycle(): number | null {
+    const fromEngine = getSchedulerCycle()
+    if (fromEngine != null) return fromEngine
     const g = globalThis as typeof globalThis & {
-      getTime?: () => number
-      // some Strudel builds expose scheduler clock differently
       strudelMirror?: { scheduler?: { now?: () => number } }
     }
-    if (typeof g.getTime === 'function') {
+    const nowFn = g.strudelMirror?.scheduler?.now
+    if (typeof nowFn === 'function') {
       try {
-        const t = g.getTime()
-        if (typeof t === 'number' && Number.isFinite(t)) return t
+        const n = nowFn()
+        if (typeof n === 'number' && Number.isFinite(n)) return n
       } catch {
         /* fall through */
       }
@@ -233,24 +249,35 @@ class LiveUpdateEngine {
     return null
   }
 
+  /**
+   * Cycle for UI + quant. Prefers scheduler; else audio/performance * cps.
+   * Adds a small lead so ticks meet the audible downbeat (cyclist latency ~0.1s + paint).
+   */
   private estimateCycle(): number {
-    const fromScheduler = this.readSchedulerCycle()
-    if (fromScheduler != null) return fromScheduler
-
     const bpm = useSessionStore.getState().bpm
-    const cps = bpm / 60 / 4
-    const epoch = this.playEpochSec
-    if (epoch == null) {
-      // Not playing / unknown — return 0 so we don't spuriously fire
-      return 0
+    const cps = Math.max(1e-6, bpm / 60 / 4)
+    // Default cyclist latency 0.1s + ~1 frame paint ≈ slight lead OK, lag not
+    const leadCycles = 0.1 * cps + 1 / 60
+
+    const fromScheduler = this.readSchedulerCycle()
+    if (fromScheduler != null) {
+      return Math.max(0, fromScheduler + leadCycles)
     }
-    const elapsed = performance.now() / 1000 - epoch
-    return Math.max(0, elapsed * cps)
+
+    let elapsedSec: number | null = null
+    if (this.playEpochAudio != null) {
+      try {
+        elapsedSec = getAudioContext().currentTime - this.playEpochAudio
+      } catch {
+        elapsedSec = null
+      }
+    }
+    if (elapsedSec == null && this.playEpochSec != null) {
+      elapsedSec = performance.now() / 1000 - this.playEpochSec
+    }
+    if (elapsedSec == null) return 0
+    return Math.max(0, elapsedSec * cps + leadCycles)
   }
 }
 
 export const liveUpdateEngine = new LiveUpdateEngine()
-
-declare global {
-  function getTime(): number
-}

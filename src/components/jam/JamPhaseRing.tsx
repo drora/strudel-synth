@@ -1,8 +1,9 @@
-import { usePlayingLoopPhase } from '../../hooks/useLoopPhase'
+import { useRef } from 'react'
+import { useLoopPhaseCallback, usePlayingLoopPhase } from '../../hooks/useLoopPhase'
 
 /**
  * Soft cycle-phase progress around the BPM readout.
- * Uses Strudel scheduler time when available (via liveUpdateEngine).
+ * Arc painted via shared RAF (no per-frame React commits for the stroke).
  */
 export function JamPhaseRing({
   bpm,
@@ -12,13 +13,21 @@ export function JamPhaseRing({
   isPlaying: boolean
 }) {
   const { phase } = usePlayingLoopPhase()
+  const arcRef = useRef<SVGCircleElement>(null)
   const size = 112
   const stroke = 3.5
   const r = (size - stroke) / 2
   const c = 2 * Math.PI * r
+
+  useLoopPhaseCallback(isPlaying, (p) => {
+    const el = arcRef.current
+    if (!el) return
+    const progress = isPlaying ? p : 0
+    const dash = c * progress
+    el.setAttribute('stroke-dasharray', `${dash} ${c - dash}`)
+  })
+
   const progress = isPlaying ? phase : 0
-  const dash = c * progress
-  const gap = c - dash
 
   return (
     <div
@@ -41,6 +50,7 @@ export function JamPhaseRing({
           strokeWidth={stroke}
         />
         <circle
+          ref={arcRef}
           cx={size / 2}
           cy={size / 2}
           r={r}
@@ -48,7 +58,7 @@ export function JamPhaseRing({
           stroke="rgba(167,139,250,0.85)"
           strokeWidth={stroke}
           strokeLinecap="round"
-          strokeDasharray={`${dash} ${gap}`}
+          strokeDasharray={`0 ${c}`}
           style={{
             transition: isPlaying ? 'none' : 'stroke-dasharray 200ms ease',
             filter: isPlaying

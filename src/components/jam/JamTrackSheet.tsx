@@ -4,6 +4,7 @@ import { useJamStore } from '../../store/jam-store'
 import {
   SOUND_CHOICES,
   applySoundChoiceToCode,
+  matchSoundChoice,
   type SoundChoice,
 } from '../../engine/kits'
 import {
@@ -41,8 +42,21 @@ type SheetTab = 'sound' | 'fx' | 'mix'
 export function JamTrackSheet({ track }: JamTrackSheetProps) {
   const [sheetTab, setSheetTab] = useState<SheetTab>('sound')
   const live = useSessionStore((s) => s.tracks.find((t) => t.id === track.id)) ?? track
+  const trackCount = useSessionStore((s) => s.tracks.length)
+  const canRemove = trackCount > 1
 
   const close = () => useJamStore.getState().setSoundTrackId(null)
+
+  const removeTrack = () => {
+    if (!canRemove) return
+    const id = live.id
+    useSessionStore.getState().removeTrack(id)
+    const jam = useJamStore.getState()
+    if (jam.soundTrackId === id) jam.setSoundTrackId(null)
+    if (jam.codeTrackId === id) jam.setCodeTrackId(null)
+    jam.setLastPeek(`Removed · ${live.name}`)
+    queueJam('jam')
+  }
 
   const applySound = (choice: SoundChoice) => {
     const jam = useJamStore.getState()
@@ -160,16 +174,24 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
 
         {sheetTab === 'sound' && (
           <div className="grid grid-cols-2 gap-2">
-            {(SOUND_CHOICES[live.role] ?? SOUND_CHOICES.custom).map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => applySound(c)}
-                className="min-h-12 px-3 rounded-xl border border-border text-xs text-left hover:border-accent"
-              >
-                {c.label}
-              </button>
-            ))}
+            {(SOUND_CHOICES[live.role] ?? SOUND_CHOICES.custom).map((c) => {
+              const active = matchSoundChoice(live.code, c)
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => applySound(c)}
+                  aria-pressed={active}
+                  className={`min-h-12 px-3 rounded-xl border text-xs text-left ${
+                    active
+                      ? 'border-accent bg-accent/20 text-accent'
+                      : 'border-border hover:border-accent'
+                  }`}
+                >
+                  {c.label}
+                </button>
+              )
+            })}
           </div>
         )}
 
@@ -269,20 +291,32 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
           </div>
         )}
 
-        <div className="flex gap-2 pt-1">
+        <div className="flex flex-col gap-2 pt-1">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="flex-1 min-h-11 text-xs text-accent border border-accent/30 rounded-xl"
+              onClick={editSoundInCode}
+            >
+              Edit in Code
+            </button>
+            <button
+              type="button"
+              className="flex-1 min-h-11 text-xs text-text-muted border border-border rounded-xl"
+              onClick={close}
+            >
+              Done
+            </button>
+          </div>
           <button
             type="button"
-            className="flex-1 min-h-11 text-xs text-accent border border-accent/30 rounded-xl"
-            onClick={editSoundInCode}
+            disabled={!canRemove}
+            onClick={removeTrack}
+            title={canRemove ? 'Remove this track' : 'Need at least one track'}
+            aria-label={canRemove ? `Remove ${live.name}` : 'Need at least one track'}
+            className="w-full min-h-11 text-xs rounded-xl border border-error/40 text-error disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-error/10"
           >
-            Edit in Code
-          </button>
-          <button
-            type="button"
-            className="flex-1 min-h-11 text-xs text-text-muted border border-border rounded-xl"
-            onClick={close}
-          >
-            Done
+            {canRemove ? 'Remove' : 'Remove · Need at least one track'}
           </button>
         </div>
       </div>

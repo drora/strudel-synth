@@ -9,6 +9,8 @@ declare global {
   var __strudelEngine: {
     initialized: boolean
     evaluateFn: ((code: string) => Promise<unknown>) | null
+    /** Strudel scheduler — `.now()` returns musical cycle when playing. */
+    scheduler: { now: () => number } | null
     communityBanksLoaded: boolean
   } | undefined
 }
@@ -18,10 +20,23 @@ function getEngine() {
     globalThis.__strudelEngine = {
       initialized: false,
       evaluateFn: null,
+      scheduler: null,
       communityBanksLoaded: false,
     }
   }
   return globalThis.__strudelEngine
+}
+
+/** Musical cycle from Strudel scheduler, or null if not ready. */
+export function getSchedulerCycle(): number | null {
+  const sched = getEngine().scheduler
+  if (!sched || typeof sched.now !== 'function') return null
+  try {
+    const n = sched.now()
+    return typeof n === 'number' && Number.isFinite(n) ? n : null
+  } catch {
+    return null
+  }
 }
 
 function isMobileLike(): boolean {
@@ -199,6 +214,8 @@ export async function initEngine(): Promise<void> {
     },
   })
   engine.evaluateFn = res.evaluate
+  const sched = (res as { scheduler?: { now: () => number } }).scheduler
+  engine.scheduler = sched && typeof sched.now === 'function' ? sched : null
   engine.initialized = true
 
   const unlock = await syncToStrudelAudioContext()
