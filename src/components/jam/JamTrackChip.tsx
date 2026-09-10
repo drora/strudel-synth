@@ -38,9 +38,13 @@ export function JamTrackChip({
   const onMute = (e: MouseEvent | PointerEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    useSessionStore.getState().toggleMute(track.id)
-    const muted = useSessionStore.getState().tracks.find((t) => t.id === track.id)?.muted
-    useJamStore.getState().setLastPeek(`${track.name} · ${muted ? 'muted' : 'on'}`)
+    // Resolve from current store snapshot — ignore stale/deleted ids after remove.
+    const session = useSessionStore.getState()
+    const current = session.tracks.find((t) => t.id === track.id)
+    if (!current) return
+    session.toggleMute(current.id)
+    const muted = useSessionStore.getState().tracks.find((t) => t.id === current.id)?.muted
+    useJamStore.getState().setLastPeek(`${current.name} · ${muted ? 'muted' : 'on'}`)
     liveUpdateEngine.markDirty()
     queueJam('mute-solo')
   }
@@ -76,6 +80,10 @@ export function JamTrackChip({
         <button
           type="button"
           onClick={onMute}
+          onPointerDown={(e) => {
+            // Keep M from also opening the Sound|FX sheet via parent/sibling gesture bleed.
+            e.stopPropagation()
+          }}
           className={`shrink-0 min-w-9 min-h-10 px-1.5 text-[10px] font-bold border-l ${
             track.muted
               ? 'bg-error/20 text-error border-error/30'
