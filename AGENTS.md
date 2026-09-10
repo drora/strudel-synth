@@ -4,7 +4,7 @@ Guide for coding agents working on [`drora/strudel-synth`](https://github.com/dr
 
 ## Product
 
-**One home: Jam.** Browser music app wrapping [Strudel](https://strudel.cc). Kits, missions, mutations, Sound|FX sheets, and a **Code sheet** (CodeMirror / `TrackCodePane`) overlay the active track — not a separate Studio app mode.
+**One home: Jam.** Browser music app wrapping [Strudel](https://strudel.cc). Kits, Sound|FX sheets, and a **Code sheet** (CodeMirror / `TrackCodePane`) overlay the active track — not a separate Studio app mode.
 
 - **Jam** (`JamShell`) — default UI; `freshStartJam()` on mount / bfcache `pageshow` (prefer last `kitId`, then `reshuffleUnlocked`).
 - **Code** — sheet/overlay inside Jam (`JamCodeSheet` → `TrackCodePane`).
@@ -20,14 +20,14 @@ Out of scope unless explicitly requested: Hydra, MIDI panels, xfade, clip rack, 
 src/
   App.tsx                 → AppShell (thin jam | learn router)
   components/
-    jam/                  → JamShell, JamTrackChip, JamCodeSheet, JamTrackSheet, kits UI, deals,
+    jam/                  → JamShell, JamTrackChip, JamCodeSheet, JamTrackSheet, kits UI,
                             JamPhaseRing, JamMicRec, JamABToggle
     editor/               → TrackCodePane, CodeMirror extensions, kit-aware autocomplete
     learning/             → LearnShell + challenge-data
     transport/            → PlayButton, SampleLoadingIndicator
     layout/               → AppShell only (no Studio chrome)
-  engine/                 → strudel init, playback, live-update, kits*, missions,
-                            mutators, jam-actions, code-effects, samples, mic-sample, session-*, webmcp, strudel-docs-index
+  engine/                 → strudel init, playback, live-update, kits*, jam-actions,
+                            code-effects, samples, mic-sample, session-*, webmcp, strudel-docs-index
   hooks/                  → useLoopPhase, useIsMobile, useVisualViewport
   store/                  → jam-store (A/B variants), session-store, ui-store (appMode: jam|learn)
 ```
@@ -38,14 +38,13 @@ src/
 |--------|----------|
 | Kits / vibes / sound choices / kit browser | `engine/kits.ts` + `kits-data-{a..f}.ts`, `kits-types.ts`, `kit-browser.ts`, `reshuffle.ts` (profile pools) |
 | Kit-aware Code autocomplete | `engine/kit-suggest.ts` → `components/editor/strudel-autocomplete.ts` (active `kitId` + track role) |
-| Missions / mutations | `engine/missions.ts`, `engine/mutators.ts` |
 | Sample registry / prebake | `engine/samples.ts`, `engine/strudel.ts` |
 | Mic → sample → track | `engine/mic-sample.ts`, `components/jam/JamMicRec.tsx` |
 | Loop phase (BPM ring + chip ticks) | `hooks/useLoopPhase.ts`, `JamPhaseRing`, `JamTrackChip`, `liveUpdateEngine` |
 | A/B arrangement punch | `store/jam-store.ts` (`stashVariant` / `punchVariant` / `toggleAb`), `JamABToggle` |
 | FX in code | `engine/code-effects.ts` |
 | Session encode / autosave helpers | `engine/session-codec.ts`, `engine/session-manager.ts` |
-| Jam UI state | `store/jam-store.ts` (`soundTrackId`, `codeTrackId`, deals, A/B) |
+| Jam UI state | `store/jam-store.ts` (`soundTrackId`, `codeTrackId`, A/B, undo) |
 | Tracks / BPM / play | `store/session-store.ts` |
 
 
@@ -58,7 +57,7 @@ A **Kit** is **identity + shuffle profile**, not frozen Strudel recipes. Each ki
 - **Kit-first browser** — `kit-browser.ts`: soft tags (tempo / bank / vibe), search, random pick. Every `drumsBank` needs a `BANK_SHORT` entry.
 - **Collision-safe names** — unique `kit.id` + display names with model (LM-2, CR-1000, DR-550, SK-1, etc.); never bare “Linn” / “Casio” / “DR”.
 - **Track sheet Shuffle** — per-lane reshuffle (`reshuffleTrackById` / `shuffle_sounds` optional `trackId`); lead pools use multiple pattern families (held, syncopated, call-response, euclidean-ish, motifs, plain).
-- **Sound sheet + autocomplete** — melodic roles (lead/pad/arp/bass/vox/custom) have richer `SOUND_CHOICES`; `FEATURED_BANKS` + `CURATED_AUTOCOMPLETE_SAMPLES` keep Code bank/sample completion in sync with kits. **Code autocomplete** soft-ranks using the active kit `shuffle` profile + `drumsBank` (same pools as apply/reshuffle): stable single-pitch in-scale notes in `note()` (enharmonics deduped; no multi-token motifs); shuffle-sampled groove/motif neighbors in pattern / `s(` contexts; kit bank / `melodicSounds` first — never full-line regen on keystroke (`engine/kit-suggest.ts`).
+- **Sound sheet + autocomplete** — melodic roles (lead/pad/arp/bass/vox/custom) have richer `SOUND_CHOICES`; `FEATURED_BANKS` + `CURATED_AUTOCOMPLETE_SAMPLES` keep Code bank/sample completion in sync with kits. **Code autocomplete** soft-ranks using the active kit `shuffle` profile + `drumsBank` (same pools as apply/reshuffle): stable single-pitch in-scale notes in `note()` with scale `detail` (enharmonics deduped; already-used pitches demoted); shuffle-sampled groove/motif neighbors in pattern / `s(` contexts; kit bank / `melodicSounds` first — never full-line regen on keystroke (`engine/kit-suggest.ts`).
 - **Heavy packs curated** — `YamahaRM50` / `RolandMC303` profiles use `shuffle.pinN: 0`; do **not** dump all bank files into the Sound sheet.
 - **Non-tidal banks** — dirt / uzu / mridangam / VCSL / piano use stable short `drumsBank` strings (`dirt-amen`, `uzu`, `mridangam`, `vcsl`, …) for tags; reshuffle voices them specially (amen chops, tabla, gretsch, etc.).
 - Existing 27 kits stay unchanged when expanding; skip D-rank and deferred community crates unless explicitly asked.
@@ -66,11 +65,11 @@ A **Kit** is **identity + shuffle profile**, not frozen Strudel recipes. Each ki
 
 ## WebMCP + agent skills
 
-Browser agents talk to the live Jam via **WebMCP** (`src/engine/webmcp.ts` → `navigator.modelContext`). Shared mutators live in `src/engine/jam-actions.ts` (also used by `useJamShell`) so tools are not UI-only. Cold/reload: `freshStartJam()` (once per page + bfcache `pageshow`) — prefer last `kitId`, then generate+reshuffle from that kit’s shuffle profile; `applyKit` (picker / New Kit / WebMCP) always regenerates (`kit · Name · shuffled`) and keeps `drumsBank` / groove / scale coherent.
+Browser agents talk to the live Jam via **WebMCP** (`src/engine/webmcp.ts` → `navigator.modelContext`). Shared actions live in `src/engine/jam-actions.ts` (also used by `useJamShell`) so tools are not UI-only. Cold/reload: `freshStartJam()` (once per page + bfcache `pageshow`) — prefer last `kitId`, then generate+reshuffle from that kit’s shuffle profile; `applyKit` (picker / New Kit / WebMCP) always regenerates (`kit · Name · shuffled`) and keeps `drumsBank` / groove / scale coherent.
 
 **Core (always):** `get_session`, `set_bpm`, `update_track`, `add_track`, `remove_track`, `mute_track`, `solo_track`, `play`, `stop`, `get_reference`, `get_samples`, `get_scales_and_chords`, `evaluate_code`.
 
-**Jam parity:** `get_jam_state`, `get_phase`, `list_kits`, `get_kit`, `apply_kit`, `set_lock_kit`, `shuffle_sounds`, `set_volume`, `set_active_track`, `list_sound_choices`, `apply_sound_choice`, `set_fx`, `open_code_sheet`, `close_code_sheet`, `stash_ab` / `punch_ab` / `toggle_ab`, `list_deals`, `apply_mutation`, `apply_mission`, `undo_jam`, `redeal`, `search_strudel_docs`, `mic_status` (Rec is user-gesture only).
+**Jam parity:** `get_jam_state`, `get_phase`, `list_kits`, `get_kit`, `apply_kit`, `set_lock_kit`, `shuffle_sounds`, `set_volume`, `set_active_track`, `list_sound_choices`, `apply_sound_choice`, `set_fx`, `open_code_sheet`, `close_code_sheet`, `stash_ab` / `punch_ab` / `toggle_ab`, `undo_jam`, `search_strudel_docs`, `mic_status` (Rec is user-gesture only).
 
 **Skill (in-repo):** `resources/skills/jam-liveloop/` — copy/symlink into Cursor skills (see that folder’s `README.md`). Recipe: get_session first; one change/turn; prefer `update_track` quant 1/2; never hush/stop/remove without ask.
 
