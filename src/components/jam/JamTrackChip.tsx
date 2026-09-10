@@ -1,4 +1,4 @@
-import { useRef, type MouseEvent, type PointerEvent } from 'react'
+import { useRef, type MouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { liveUpdateEngine } from '../../engine/live-update'
 import { useSessionStore } from '../../store/session-store'
 import { useJamStore } from '../../store/jam-store'
@@ -9,6 +9,9 @@ import { useLoopPhaseCallback } from '../../hooks/useLoopPhase'
 /** Fixed outer size so mute / phase / hint never reflow the row. */
 export const CHIP_OUTER_CLASS =
   'relative shrink-0 w-[7.25rem] h-[2.75rem] rounded-lg p-[1.5px] box-border'
+
+const LONG_PRESS_MS = 450
+const MOVE_CANCEL_PX = 10
 
 function openCodeForTrack(trackId: string) {
   useSessionStore.getState().setActiveTrack(trackId)
@@ -29,6 +32,9 @@ export function JamTrackChip({
 }) {
   const hint = trackSoundHint(track.code)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const startPos = useRef<{ x: number; y: number } | null>(null)
+  const longPressFired = useRef(false)
 
   useLoopPhaseCallback(isPlaying, (phase) => {
     const el = wrapRef.current
@@ -40,7 +46,15 @@ export function JamTrackChip({
     el.style.background = `conic-gradient(from -90deg, ${track.color} ${phase * 360}deg, rgba(255,255,255,0.08) 0)`
   })
 
-  const onMute = (e: MouseEvent | PointerEvent) => {
+  const clearHold = () => {
+    if (holdTimer.current) {
+      clearTimeout(holdTimer.current)
+      holdTimer.current = null
+    }
+    startPos.current = null
+  }
+
+  const onMute = (e: MouseEvent | ReactPointerEvent) => {
     e.preventDefault()
     e.stopPropagation()
     // Resolve from current store snapshot — ignore stale/deleted ids after remove.
@@ -66,14 +80,46 @@ export function JamTrackChip({
       >
         <button
           type="button"
-          onClick={() => useJamStore.getState().setSoundTrackId(track.id)}
+          onClick={() => {
+            if (longPressFired.current) {
+              longPressFired.current = false
+              return
+            }
+            useJamStore.getState().setSoundTrackId(track.id)
+          }}
           onContextMenu={(e) => {
             e.preventDefault()
+            clearHold()
             openCodeForTrack(track.id)
           }}
-          className="flex-1 min-w-0 h-full px-2 py-1 text-[10px] text-left leading-tight flex flex-col justify-center"
-          style={{ color: track.color }}
-          title="Sound / FX — right-click for Code"
+          onPointerDown={(e) => {
+            if (e.button !== 0 && e.pointerType === 'mouse') return
+            // Touch: block browser callout/context dialog so hold can open Code.
+            if (e.pointerType === 'touch') e.preventDefault()
+            longPressFired.current = false
+            startPos.current = { x: e.clientX, y: e.clientY }
+            clearHold()
+            holdTimer.current = setTimeout(() => {
+              holdTimer.current = null
+              longPressFired.current = true
+              try { (e.target as HTMLElement).releasePointerCapture?.(e.pointerId) } catch { /* ignore */ }
+              openCodeForTrack(track.id)
+              useJamStore.getState().setLastPeek(`${track.name} · Code`)
+            }, LONG_PRESS_MS)
+          }}
+          onPointerMove={(e) => {
+            const start = startPos.current
+            if (!start || !holdTimer.current) return
+            const dx = e.clientX - start.x
+            const dy = e.clientY - start.y
+            if (dx * dx + dy * dy > MOVE_CANCEL_PX * MOVE_CANCEL_PX) clearHold()
+          }}
+          onPointerUp={clearHold}
+          onPointerLeave={clearHold}
+          onPointerCancel={clearHold}
+          className="flex-1 min-w-0 h-full px-2 py-1 text-[10px] text-left leading-tight flex flex-col justify-center touch-manipulation select-none"
+          style={{ color: track.color, WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+          title="Sound / FX — long-press for Code"
         >
           <div className="font-medium truncate">{track.name}</div>
           {/* Always reserve second line so hint presence never changes chip height */}
