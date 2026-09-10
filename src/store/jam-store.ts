@@ -30,8 +30,8 @@ interface JamState {
   /** Track id for the Jam Code sheet overlay (null = closed). */
   codeTrackId: string | null
   /**
-   * Last *content-modified* track (Sound/FX/gain, Code edits, Shuffle this, Spice).
-   * Separate from codeTrackId / activeTrackId so header Code ignores mere peek/open.
+   * Last-touched track for header Code + chip mark: chip tap / open Code / content edits.
+   * Mute/solo do not update. Separate from activeTrackId.
    */
   lastTouchedTrackId: string | null
   /** Simple A/B arrangement slots (session-local, not persisted). */
@@ -50,7 +50,7 @@ interface JamState {
   setSoundTrackId: (id: string | null) => void
   setCodeTrackId: (id: string | null) => void
   setLastTouchedTrackId: (id: string | null) => void
-  /** Mark a track as last content-touched (no-op if falsy). */
+  /** Mark a track as last-touched (no-op if falsy). Mute must not call this. */
   touchTrack: (id: string | null | undefined) => void
   /** Song Shuffle / New kit: keep mark if still present, else first unlocked. */
   reconcileLastTouchedAfterSongReshuffle: () => void
@@ -112,8 +112,18 @@ export const useJamStore = create<JamState>()(
         return entry
       },
       setLastPeek: (lastPeek) => set({ lastPeek }),
-      setSoundTrackId: (soundTrackId) => set({ soundTrackId }),
-      setCodeTrackId: (codeTrackId) => set({ codeTrackId }),
+      setSoundTrackId: (soundTrackId) =>
+        set(
+          soundTrackId
+            ? { soundTrackId, lastTouchedTrackId: soundTrackId }
+            : { soundTrackId },
+        ),
+      setCodeTrackId: (codeTrackId) =>
+        set(
+          codeTrackId
+            ? { codeTrackId, lastTouchedTrackId: codeTrackId }
+            : { codeTrackId },
+        ),
       setLastTouchedTrackId: (lastTouchedTrackId) => set({ lastTouchedTrackId }),
       touchTrack: (id) => {
         if (!id) return
