@@ -13,12 +13,16 @@ import { liveUpdateEngine, type Quantization } from './live-update'
 
 export type JamQueueReason = 'kit' | 'jam' | 'reshuffle' | 'mute-solo'
 
-/** Module guard — survives React Strict Mode remount; resets on full page load. */
+/** Module guard — survives React Strict Mode remount; reset on full load or bfcache pageshow. */
 let freshStartDone = false
 
-export function resetFreshStartGuardForTests() {
+/** Clear the once-per-load guard (tests + bfcache / pageshow restore). */
+export function resetFreshStartGuard() {
   freshStartDone = false
 }
+
+/** @deprecated Prefer resetFreshStartGuard */
+export const resetFreshStartGuardForTests = resetFreshStartGuard
 
 export function queueLive(
   reason: JamQueueReason = 'jam',
@@ -186,8 +190,9 @@ export type FreshStartResult = {
 }
 
 /**
- * Once per page load: if no tracks, pick a random kit (else persisted / KITS[0]),
- * then always reshuffleUnlocked so cold load / refresh yields varied riffs.
+ * Once per page load (or after bfcache pageshow resets the guard):
+ * if no tracks, prefer persisted jam.kitId then pickRandomKit / KITS[0],
+ * then always reshuffleUnlocked so reload yields new riffs on the same kit.
  * Still opens the kit picker when the user has never picked a kit.
  */
 export function freshStartJam(): FreshStartResult {
@@ -211,12 +216,14 @@ export function freshStartJam(): FreshStartResult {
 
   const session = useSessionStore.getState()
   if (session.tracks.length === 0) {
+    // Prefer last kit so reload = same kit, new riffs. Else pickRandomKit (exclude current id).
+    const persisted = jam.kitId ? getKit(jam.kitId) : undefined
     const preferred =
-      pickRandomKit(KITS) ??
-      (jam.kitId ? getKit(jam.kitId) : undefined) ??
+      persisted ??
+      pickRandomKit(KITS, jam.kitId) ??
       KITS[0]
     if (preferred) {
-      randomKit = true
+      randomKit = !persisted
       applyKit(preferred.id)
       kitName = preferred.name
     }
@@ -224,6 +231,7 @@ export function freshStartJam(): FreshStartResult {
     redealDeals()
   }
 
+  // Always reshuffle after kit apply (or when tracks already present).
   const { shuffled } = reshuffleUnlocked()
 
   const peek = kitName ? `${kitName} · reshuffled` : 'fresh · reshuffled'
