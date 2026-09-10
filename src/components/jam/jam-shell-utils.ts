@@ -6,18 +6,30 @@ import {
   getSoundFromCode,
   getNFromCode,
 } from '../../engine/code-effects'
-import { liveUpdateEngine } from '../../engine/live-update'
+import { liveUpdateEngine, type Quantization } from '../../engine/live-update'
 
 export const PREBAKE_MIN_VISIBLE_MS = 600
 
 
 
-export function queueJam(reason: 'kit' | 'jam' | 'reshuffle' | 'mute-solo' = 'jam') {
+export function queueJam(
+  reason: 'kit' | 'jam' | 'reshuffle' | 'mute-solo' = 'jam',
+  quantization?: Quantization,
+) {
   if (!useSessionStore.getState().isPlaying) return
-  const q = useUIStore.getState().getEffectiveQuantization(
-    useSessionStore.getState().activeTrackId,
-  )
+  const q =
+    quantization ??
+    useUIStore.getState().getEffectiveQuantization(
+      useSessionStore.getState().activeTrackId,
+    )
   liveUpdateEngine.queueUpdate(q, reason)
+}
+
+/** Mix changes (mute/solo/volume) and post-remove compose — never wait on cycle quant. */
+export function queueJamImmediate(
+  reason: 'kit' | 'jam' | 'reshuffle' | 'mute-solo' = 'mute-solo',
+) {
+  queueJam(reason, 'immediate')
 }
 
 export function trackSoundHint(code: string): string | null {
