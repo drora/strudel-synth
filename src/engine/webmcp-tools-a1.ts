@@ -130,7 +130,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'apply_kit',
     description:
-      'Apply a kit (same as Jam picker). While playing, preserves current BPM; when stopped, adopts kit BPM. Redeals mutations/missions.',
+      'Apply a kit (same as Jam picker): regenerates tracks from the kit shuffle profile, then reshuffles. Peek `kit · Name · shuffled`. While playing, preserves current BPM; when stopped, adopts kit BPM. Redeals mutations/missions.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -158,7 +158,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'shuffle_sounds',
     description:
-      'Reshuffle unlocked tracks (respects lockKit + pinEffects). Locked tracks are skipped.',
+      'Reshuffle unlocked tracks from the active kit shuffle profile + drumsBank when kitId is set (else free pools). Respects pinEffects; locked tracks are skipped.',
     inputSchema: { type: 'object', properties: {} },
     execute: () => {
       const r = reshuffleUnlocked()
