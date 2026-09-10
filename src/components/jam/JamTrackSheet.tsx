@@ -15,7 +15,7 @@ import {
 } from '../../engine/code-effects'
 import { liveUpdateEngine } from '../../engine/live-update'
 import type { Track } from '../../engine/types'
-import { queueJam } from './jam-shell-utils'
+import { queueJam, queueJamImmediate } from './jam-shell-utils'
 
 /** Lean Jam FX — stepped chips; mirrors EffectsPanel keys via code-effects. */
 const JAM_FX_CONTROLS: Array<{
@@ -57,7 +57,8 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
     // removeTrack clears soundTrackId/codeTrackId + retargets activeTrackId in the store.
     useSessionStore.getState().removeTrack(id)
     useJamStore.getState().setLastPeek(`Removed · ${name}`)
-    queueJam('jam')
+    // Drop deleted track from live compose ASAP — don't wait on cycle quant.
+    queueJamImmediate('jam')
   }
 
   const applySound = (choice: SoundChoice) => {
@@ -109,14 +110,14 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
     const muted = useSessionStore.getState().tracks.find((t) => t.id === current.id)?.muted
     useJamStore.getState().setLastPeek(`${current.name} · ${muted ? 'muted' : 'on'}`)
     liveUpdateEngine.markDirty()
-    queueJam('mute-solo')
+    queueJamImmediate('mute-solo')
   }
 
   const setVolume = (v: number) => {
     useSessionStore.getState().setVolume(live.id, v)
     useJamStore.getState().setLastPeek(`${live.name} · vol ${v}`)
     liveUpdateEngine.markDirty()
-    queueJam('mute-solo')
+    queueJamImmediate('mute-solo')
   }
 
   const editSoundInCode = () => {

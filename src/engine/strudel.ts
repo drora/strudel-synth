@@ -1,8 +1,8 @@
-import type { Track } from './types'
 import { useUIStore } from '../store/ui-store'
 import { registerDynamicSamples } from '../components/editor/autocomplete-data'
 import { COMMUNITY_SAMPLE_BANKS } from './samples'
 import { syncToStrudelAudioContext, unlockAudio } from './audio-context'
+export { composeTracks } from './compose-tracks'
 
 declare global {
   // eslint-disable-next-line no-var
@@ -264,22 +264,6 @@ export async function setBpm(bpm: number): Promise<void> {
     try { await engine.evaluateFn(`setcps(${cps})`) }
     catch (e) { console.warn('[Strudel Studio] setcps() failed:', e) }
   }
-}
-
-export function composeTracks(tracks: Track[], bpm: number): string {
-  const cps = bpm / 60 / 4
-  const activeTracks = tracks.filter((t) => {
-    if (tracks.some((tr) => tr.soloed)) return t.soloed && !t.muted
-    return !t.muted
-  })
-  const header = `setcps(${cps})\n`
-  if (activeTracks.length === 0) return header + 'silence'
-  if (activeTracks.length === 1) {
-    const t = activeTracks[0]
-    return `${header}(${t.code}).gain(${t.volume})`
-  }
-  const parts = activeTracks.map((t) => `  (${t.code}).gain(${t.volume})`).join(',\n')
-  return `${header}stack(\n${parts}\n)`
 }
 
 declare global {

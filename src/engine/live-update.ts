@@ -1,5 +1,5 @@
 import { useSessionStore } from '../store/session-store'
-import { evaluateCode, composeTracks, getSchedulerCycle } from './strudel'
+import { evaluateCode, composeTracks, getSchedulerCycle, stop as hushPlayback } from './strudel'
 import { getAudioContext } from './audio-context'
 
 export type Quantization = 'immediate' | '1' | '2' | '4'
@@ -49,12 +49,15 @@ class LiveUpdateEngine {
   private status: UpdateStatus = 'idle'
   private listeners = new Set<StatusListener>()
   private appliedFlashTimer: ReturnType<typeof setTimeout> | null = null
+  /** Last composed track count — hush before re-eval when arity changes (remove/add). */
+  private lastTrackCount: number | null = null
 
   /**
    * Call when playback is audibly starting (after evaluate).
    * Wall/audio epochs align to hearing; scheduler.now() is preferred when available.
    */
   markPlayStarted() {
+    this.lastTrackCount = useSessionStore.getState().tracks.length
     this.playEpochSec = performance.now() / 1000
     try {
       this.playEpochAudio = getAudioContext().currentTime
@@ -72,6 +75,7 @@ class LiveUpdateEngine {
     this.cancel()
     this.playEpochSec = null
     this.playEpochAudio = null
+    this.lastTrackCount = null
     this.setStatus('idle')
   }
 
@@ -180,6 +184,14 @@ class LiveUpdateEngine {
     }
 
     try {
+      const trackCount = state.tracks.length
+      const arityChanged =
+        this.lastTrackCount != null && this.lastTrackCount !== trackCount
+      this.lastTrackCount = trackCount
+      // Remove/add changes stack arity — hush first so ghost lanes die.
+      if (arityChanged) {
+        await hushPlayback()
+      }
       const code = composeTracks(state.tracks, state.bpm)
       await evaluateCode(code)
       state.tracks.forEach((t) => {
