@@ -7,9 +7,38 @@ import { KITS_C } from './kits-data-c'
 import { KITS_D } from './kits-data-d'
 import { KITS_E } from './kits-data-e'
 import { KITS_F } from './kits-data-f'
-import type { VibeId, VibeInfo, SoundChoice, KitTrack, Kit } from './kits-types'
+import type {
+  VibeId,
+  VibeInfo,
+  SoundChoice,
+  KitTrack,
+  KitTrackLayout,
+  KitShuffleProfile,
+  Kit,
+  GrooveFamily,
+  Density,
+  ScaleKind,
+  FxBias,
+  ResolvedShuffleProfile,
+} from './kits-types'
+import { VIBE_SHUFFLE_DEFAULTS, resolveShuffleProfile } from './kits-types'
+import { generateKitTracks } from './reshuffle'
 
-export type { VibeId, VibeInfo, SoundChoice, KitTrack, Kit }
+export type {
+  VibeId,
+  VibeInfo,
+  SoundChoice,
+  KitTrack,
+  KitTrackLayout,
+  KitShuffleProfile,
+  Kit,
+  GrooveFamily,
+  Density,
+  ScaleKind,
+  FxBias,
+  ResolvedShuffleProfile,
+}
+export { VIBE_SHUFFLE_DEFAULTS, resolveShuffleProfile, generateKitTracks }
 
 export const VIBES: VibeInfo[] = [
   { id: 'techno', label: 'Techno' },
@@ -32,13 +61,18 @@ export function getKit(id: string): Kit | undefined {
   return KITS.find((k) => k.id === id)
 }
 
+/**
+ * Build a Template by *generating* fresh track code from the kit shuffle profile
+ * + lane layout. Every call yields related-but-new patterns (not baked recipes).
+ */
 export function kitToTemplate(kit: Kit): Template {
+  const tracks = generateKitTracks(kit)
   return {
     id: kit.id,
     name: kit.name,
     description: kit.description,
     bpm: kit.bpm,
-    tracks: kit.tracks.map((t) => ({
+    tracks: tracks.map((t) => ({
       name: t.name,
       role: t.role,
       code: t.code,
