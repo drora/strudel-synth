@@ -1,13 +1,11 @@
 /**
- * Shared Jam kit/deal/AB actions (part A) — used by UI + WebMCP.
+ * Shared Jam kit/AB actions (part A) — used by UI + WebMCP.
  */
 import { useSessionStore } from '../store/session-store'
 import { useJamStore, type AbSlot } from '../store/jam-store'
 import { useUIStore } from '../store/ui-store'
 import { KITS, getKit, kitToTemplate } from './kits'
 import { pickRandomKit } from './kit-browser'
-import { suggestMutations, applyMutationToTracks, type MutationCard } from './mutators'
-import { suggestMissions, applyMissionToTracks, type MissionCard } from './missions'
 import { reshuffleTrack } from './reshuffle'
 import { liveUpdateEngine, type Quantization } from './live-update'
 
@@ -41,12 +39,6 @@ export function queueLiveImmediate(reason: JamQueueReason = 'mute-solo') {
   queueLive(reason, 'immediate')
 }
 
-export function redealDeals() {
-  const tracks = useSessionStore.getState().tracks
-  const jam = useJamStore.getState()
-  jam.setMutationDeal(suggestMutations(tracks, 3))
-  jam.setMissionDeal(suggestMissions(tracks, 2))
-}
 
 export function applyKit(
   id: string,
@@ -63,9 +55,6 @@ export function applyKit(
   jam.setVibe(kit.vibe)
   jam.setHasPickedKit(true)
   if (opts?.fromPicker) jam.setShowKitPicker(false)
-  const nextTracks = useSessionStore.getState().tracks
-  jam.setMutationDeal(suggestMutations(nextTracks, 3))
-  jam.setMissionDeal(suggestMissions(nextTracks, 2))
   // Always reshuffle so picking the same kit twice yields new in-profile riffs.
   reshuffleUnlocked()
   jam.setLastPeek(`kit · ${kit.name} · shuffled`)
@@ -77,68 +66,6 @@ export function applyKit(
     bpm: useSessionStore.getState().bpm,
     preservedBpm: preserveBpm,
   }
-}
-
-export function applyMutation(
-  cardOrId: MutationCard | string,
-): { ok: true; trackId: string; label: string } | { ok: false; error: string } {
-  const jam = useJamStore.getState()
-  const card =
-    typeof cardOrId === 'string'
-      ? jam.mutationDeal.find((c) => c.id === cardOrId)
-      : cardOrId
-  if (!card) return { ok: false, error: `Mutation not found: ${String(cardOrId)}` }
-
-  const state = useSessionStore.getState()
-  const result = applyMutationToTracks(state.tracks, card)
-  if (!result) {
-    redealDeals()
-    return { ok: false, error: 'Mutation not applicable — deals redealt' }
-  }
-  const prev = state.tracks.find((t) => t.id === result.trackId)
-  if (prev) {
-    jam.pushUndo({ trackId: prev.id, code: prev.code, label: card.label })
-  }
-  state.setCode(result.trackId, result.code)
-  jam.setLastPeek(card.label)
-  liveUpdateEngine.markDirty()
-  queueLive('jam')
-  redealDeals()
-  return { ok: true, trackId: result.trackId, label: card.label }
-}
-
-export function applyMission(
-  cardOrId: MissionCard | string,
-): { ok: true; trackId: string; label: string } | { ok: false; error: string; already?: boolean } {
-  const jam = useJamStore.getState()
-  const mission =
-    typeof cardOrId === 'string'
-      ? jam.missionDeal.find((c) => c.id === cardOrId)
-      : cardOrId
-  if (!mission) return { ok: false, error: `Mission not found: ${String(cardOrId)}` }
-
-  const state = useSessionStore.getState()
-  const result = applyMissionToTracks(state.tracks, mission)
-  if (!result) {
-    jam.setLastPeek(`Mission · ${mission.label} (already there)`)
-    jam.setMissionDeal(suggestMissions(state.tracks, 2))
-    return { ok: false, error: 'Mission already satisfied', already: true }
-  }
-  const prev = state.tracks.find((t) => t.id === result.trackId)
-  if (prev) {
-    jam.pushUndo({
-      trackId: prev.id,
-      code: prev.code,
-      label: `Mission · ${mission.label}`,
-    })
-  }
-  state.setCode(result.trackId, result.code)
-  jam.setLastPeek(`Mission · ${mission.label}`)
-  liveUpdateEngine.markDirty()
-  queueLive('jam')
-  jam.setMissionDeal(suggestMissions(useSessionStore.getState().tracks, 2))
-  jam.setMutationDeal(suggestMutations(useSessionStore.getState().tracks, 3))
-  return { ok: true, trackId: result.trackId, label: mission.label }
 }
 
 export function undoJam(): { ok: true; label: string } | { ok: false; error: string } {
@@ -173,7 +100,6 @@ export function reshuffleUnlocked(): {
   }
   jam.setLastPeek(activeKit ? `Shuffle · ${activeKit.name}` : jam.lockKit ? 'Shuffle · same kit' : 'Shuffle · free')
   queueLive('reshuffle')
-  redealDeals()
   return { ok: true, shuffled, lockKit: jam.lockKit }
 }
 
@@ -200,7 +126,6 @@ export function reshuffleTrackById(
   state.setCode(track.id, next)
   jam.setLastPeek(`Shuffle · ${track.name}`)
   queueLive('reshuffle')
-  redealDeals()
   return { ok: true, trackId: track.id, name: track.name }
 }
 
@@ -257,8 +182,6 @@ export function freshStartJam(): FreshStartResult {
       applyKit(preferred.id)
       kitName = preferred.name
     }
-  } else if (jam.mutationDeal.length === 0 || jam.missionDeal.length === 0) {
-    redealDeals()
   }
 
   // Always reshuffle after kit apply (or when tracks already present).
