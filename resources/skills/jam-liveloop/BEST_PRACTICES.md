@@ -14,7 +14,6 @@ Kits are **identity + shuffle profile**, not frozen recipes. Profile fields: `gr
 - `apply_kit` and `shuffle_sounds` regenerate lines in that profile (same bank / groove / scale family).
 - Hand `update_track` edits must stay coherent with `get_kit` (read jam state first).
 - Prefer shuffle / re-apply for variety over pasting a "classic" pattern as THE kit.
-- Deals are secondary spice — profile-coherent tweaks come first.
 
 ## Familiar → kit
 
@@ -39,7 +38,7 @@ Kits are **identity + shuffle profile**, not frozen recipes. Profile fields: `gr
 
 ## Phone Jam constraints
 
-- Thumb UI: kit picker, chips, Sound|FX sheet, Code sheet, deal strip, A/B near Kit.
+- Thumb UI: kit picker, chips, Sound|FX sheet, Code sheet, A/B near Kit.
 - Sheets stay open while browsing sounds — agents should not spam `close_code_sheet`.
 - Sample prebake may briefly block; wait for playable state via `get_session`.
 - Touch latency: favor cycle quant over `immediate` for musical edits.
@@ -60,12 +59,9 @@ stopped                          → store update only (no queue)
 - Soft tags: `tempo:slow|mid|fast`, `bank:909`, `vibe:techno`.
 - `lockKit: true` → shuffle keeps bank **and** profile groove family; `false` → free reshuffle across kits.
 
-## Deal mutations as suggestions
+## Undo
 
-- Phrase: “Deal suggests *Busy kick* on drums — apply?”
-- After apply, deals redeal automatically; call `list_deals` again if offering another.
-- `undo_jam` reverts last mutation/mission/sound/FX.
-- Prefer profile-coherent kit/track tweaks before stacking deals.
+- `undo_jam` reverts last sound/FX (or historical) change from the Jam undo stack.
 
 ## Sound + FX
 
