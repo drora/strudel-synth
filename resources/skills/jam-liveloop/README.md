@@ -2,6 +2,8 @@
 
 In-repo Cursor skill for living-loop partnership with **Strudel Studio Jam** via WebMCP.
 
+Kits are **identity + shuffle profile** (not frozen recipes). See `SKILL.md` / `BEST_PRACTICES.md` for profile-aware partnering and Familiar → kit picking.
+
 ## Install into Cursor
 
 Copy or symlink this folder into your personal or project skills directory:
@@ -35,8 +37,8 @@ Then enable / select the **jam-liveloop** skill in Cursor Agent settings (or `@`
 
 | File | Role |
 |------|------|
-| `SKILL.md` | Frontmatter + liveloop recipe |
-| `BEST_PRACTICES.md` | Mini-notation, phone constraints, quant, kits |
+| `SKILL.md` | Frontmatter + liveloop partner guide (profiles, Familiar → kit) |
+| `BEST_PRACTICES.md` | Mini-notation, shuffle profiles, phone constraints, quant |
 | `README.md` | This install note |
 
 ## Related
