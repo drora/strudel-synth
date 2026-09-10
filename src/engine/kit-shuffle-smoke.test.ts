@@ -92,4 +92,43 @@ assert.ok(tProf.groove !== lProf.groove || tKit.drumsBank !== lKit.drumsBank)
 }
 assert.equal(getKit(KITS[0]!.id)?.id, KITS[0]!.id)
 
+/** Classify lead note-pattern shape features (not the exact notes). */
+function leadShapeKey(code: string): string {
+  const m =
+    code.match(/\.note\((["'`])([\s\S]*?)\1\)/) ||
+    code.match(/note\((["'`])([\s\S]*?)\1\)/)
+  const pat = (m?.[2] ?? '').trim()
+  const hasRest = pat.includes('~')
+  const hasAngle = /</.test(pat)
+  const mul =
+    /\*3\b/.test(pat) ? '*3'
+    : /\*4\b/.test(pat) ? '*4'
+    : /\*1\b/.test(pat) ? '*1'
+    : /\*0\.5\b/.test(pat) ? '*0.5'
+    : /\*2\b/.test(pat) ? '*2'
+    : 'nomul'
+  return [hasRest ? '~' : 'norest', hasAngle ? '<>' : 'flat', mul].join('|')
+}
+
+// Lead pattern families: 30 regenerations → >3 distinct shapes
+{
+  const kit = KITS.find((k) => k.tracks.some((t) => t.role === 'lead')) ?? KITS[0]!
+  const shapes = new Set<string>()
+  const samples: string[] = []
+  for (const density of ['low', 'mid', 'high'] as const) {
+    for (let i = 0; i < 10; i++) {
+      const code = reshuffleTrack('lead', 'note("c4").sound("sawtooth")', {
+        shuffle: { ...kit.shuffle, density, root: kit.shuffle.root ?? 'c', scale: kit.shuffle.scale ?? 'minor' },
+        lockKit: true,
+      })
+      const key = leadShapeKey(code)
+      shapes.add(key)
+      if (samples.length < 8) samples.push(`${key} :: ${code.slice(0, 72)}`)
+    }
+  }
+  console.log(`lead shapes (${shapes.size}): ${[...shapes].join(' · ')}`)
+  for (const s of samples) console.log(`  ${s}`)
+  assert.ok(shapes.size > 3, `expected >3 lead shapes, got ${shapes.size}: ${[...shapes]}`)
+}
+
 console.log('ALL CHECKS PASSED')
