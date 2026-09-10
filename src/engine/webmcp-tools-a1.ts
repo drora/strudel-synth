@@ -96,7 +96,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'list_kits',
     description:
-      'List Jam kits (id, name, bpm, drumsBank, vibe, description). Optional search / soft tags (tempo:slow|mid|fast, bank:909, vibe:techno) / vibe / tempo filters.',
+      'List Jam kits (id, name, bpm, drumsBank, vibe, description, shuffle{groove,density,root,scale}). Optional search / soft tags (tempo:slow|mid|fast, bank:909, vibe:techno) / vibe / tempo filters.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -114,7 +114,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   })
   register({
     name: 'get_kit',
-    description: 'Full kit definition by id (tracks + metadata).',
+    description: 'Full kit by id: layout tracks + metadata + shuffle profile (groove/density/root/scale/melodicSounds/fxBias/pinN). Prefer this over inventing mini-notation.',
     inputSchema: {
       type: 'object',
       properties: { id: { type: 'string' } },

@@ -218,6 +218,12 @@ export function listKitsFiltered(opts?: {
     drumsBank: k.drumsBank,
     vibe: k.vibe,
     description: k.description,
+    shuffle: {
+      groove: k.shuffle.groove,
+      density: k.shuffle.density,
+      root: k.shuffle.root,
+      scale: k.shuffle.scale,
+    },
   }))
 }
 
