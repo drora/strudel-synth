@@ -14,6 +14,7 @@ import {
   isPatternedEffect,
 } from '../../engine/code-effects'
 import { liveUpdateEngine } from '../../engine/live-update'
+import { reshuffleTrackById } from '../../engine/jam-actions'
 import type { Track } from '../../engine/types'
 import { queueJam, queueJamImmediate } from './jam-shell-utils'
 
@@ -41,7 +42,6 @@ type SheetTab = 'sound' | 'fx' | 'mix'
 
 export function JamTrackSheet({ track }: JamTrackSheetProps) {
   const [sheetTab, setSheetTab] = useState<SheetTab>('sound')
-  // Never fall back to a deleted track prop — mute/remove must match store.
   const live = useSessionStore((s) => s.tracks.find((t) => t.id === track.id))
   const trackCount = useSessionStore((s) => s.tracks.length)
   const canRemove = trackCount > 1
@@ -54,10 +54,8 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
     if (!canRemove) return
     const id = live.id
     const name = live.name
-    // removeTrack clears soundTrackId/codeTrackId + retargets activeTrackId in the store.
     useSessionStore.getState().removeTrack(id)
     useJamStore.getState().setLastPeek(`Removed · ${name}`)
-    // Drop deleted track from live compose ASAP — don't wait on cycle quant.
     queueJamImmediate('jam')
   }
 
@@ -71,7 +69,6 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
     const next = applySoundChoiceToCode(live.code, choice)
     useSessionStore.getState().setCode(live.id, next)
     jam.setLastPeek(`Sound · ${choice.label}`)
-    // Keep sheet open so user can keep browsing sounds / FX / Mix.
     queueJam('kit')
   }
 
@@ -82,7 +79,6 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
     }
     const jam = useJamStore.getState()
     const current = parseEffectValue(live.code, key)
-    // Second click on the active chip removes the effect; otherwise apply/replace.
     const removing = current !== null && current === value
     jam.pushUndo({
       trackId: live.id,
@@ -125,6 +121,14 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
     const jam = useJamStore.getState()
     jam.setSoundTrackId(null)
     jam.setCodeTrackId(live.id)
+  }
+
+  const shuffleThis = () => {
+    if (live.locked) {
+      useJamStore.getState().setLastPeek(`Locked · ${live.name}`)
+      return
+    }
+    reshuffleTrackById(live.id)
   }
 
   const tabs: Array<{ id: SheetTab; label: string }> = [
@@ -314,7 +318,25 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
               Done
             </button>
           </div>
-          <div className="flex justify-center pt-0.5">
+          <div className="flex items-center justify-center gap-3 pt-0.5">
+            <button
+              type="button"
+              disabled={live.locked}
+              onClick={shuffleThis}
+              title={
+                live.locked
+                  ? `Locked · unlock to shuffle ${live.name}`
+                  : `Shuffle only ${live.name}`
+              }
+              aria-label={
+                live.locked
+                  ? `Locked — cannot shuffle ${live.name}`
+                  : `Shuffle this track · ${live.name}`
+              }
+              className="text-[11px] text-text-muted hover:text-accent underline-offset-2 hover:underline disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed px-2 py-1"
+            >
+              Shuffle this
+            </button>
             <button
               type="button"
               disabled={!canRemove}
