@@ -9,10 +9,7 @@ import { drumsBankShortName } from './kit-browser'
 import { isMicRecording } from './mic-sample'
 import { searchStrudelDocs } from './strudel-docs-index'
 import {
-  applyMutation,
-  applyMission,
   undoJam,
-  redealDeals,
   stashAb,
   punchAb,
   toggleAb,
@@ -26,25 +23,12 @@ import type { AbSlot } from '../store/jam-store'
 export function registerWebMcpToolsB2(register: WebMcpRegister) {
   register({
     name: 'undo_jam',
-    description: 'Undo last Jam mutation/mission/sound/FX change.',
+    description: 'Undo last Jam sound/FX (or historical) change.',
     inputSchema: { type: 'object', properties: {} },
     execute: () => {
       const r = undoJam()
       if (!r.ok) return fail('undo_jam', {}, r.error)
       return ok('undo_jam', {}, r)
-    },
-  })
-  register({
-    name: 'redeal',
-    description: 'Redeal mutation + mission cards from current tracks.',
-    inputSchema: { type: 'object', properties: {} },
-    execute: () => {
-      redealDeals()
-      const jam = useJamStore.getState()
-      return ok('redeal', {}, {
-        mutations: jam.mutationDeal.map((c) => ({ id: c.id, label: c.label })),
-        missions: jam.missionDeal.map((c) => ({ id: c.id, label: c.label })),
-      })
     },
   })
   register({
