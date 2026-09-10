@@ -33,13 +33,34 @@ const SCALE_DEGREES: Record<ScaleKind, number[]> = {
 /** Match reshuffle note spelling so suggestions stay in-groove with generated code. */
 const NOTE_NAMES = ['c', 'c#', 'd', 'eb', 'e', 'f', 'f#', 'g', 'ab', 'a', 'bb', 'b']
 
-/** Dirt-style aliases also accepted by Strudel — include for typing cs/ds/… */
-const NOTE_ALIASES: Record<string, string[]> = {
-  'c#': ['cs', 'db'],
-  eb: ['ds', 'd#'],
-  'f#': ['fs', 'gb'],
-  ab: ['gs', 'g#'],
-  bb: ['as', 'a#'],
+/** Pitch-class index for any common Strudel note spelling (c#, cs, db, …). */
+const SPELLING_TO_PC: Record<string, number> = {
+  c: 0,
+  'c#': 1, cs: 1, db: 1,
+  d: 2,
+  'd#': 3, ds: 3, eb: 3,
+  e: 4, fb: 4,
+  f: 5,
+  'f#': 6, fs: 6, gb: 6,
+  g: 7,
+  'g#': 8, gs: 8, ab: 8,
+  a: 9,
+  'a#': 10, as: 10, bb: 10,
+  b: 11, cb: 11,
+}
+
+/** `pc|octave` key, or null if not a note label. */
+export function notePitchKey(label: string): string | null {
+  const m = String(label).trim().toLowerCase().match(/^([a-g](?:#|b|s)?)(\d+)$/)
+  if (!m) return null
+  const pc = SPELLING_TO_PC[m[1]!]
+  if (pc === undefined) return null
+  return `${pc}|${m[2]}`
+}
+
+function isCanonicalSpelling(label: string): boolean {
+  const base = label.replace(/\d+$/, '').toLowerCase()
+  return (NOTE_NAMES as readonly string[]).includes(base)
 }
 
 function rootIndex(root: string): number {
@@ -77,6 +98,17 @@ function poolsForRole(role: TrackRole | null | undefined) {
   if (role === 'hihats') return HAT_POOLS
   if (role === 'fx') return FX_POOLS
   return DRUM_POOLS
+}
+
+/** Fisher–Yates sample — re-roll neighbors each completion open (not full-line regen). */
+function sampleN<T>(arr: readonly T[], n: number): T[] {
+  const copy = [...arr]
+  const take = Math.min(n, copy.length)
+  for (let i = 0; i < take; i++) {
+    const j = i + Math.floor(Math.random() * (copy.length - i))
+    ;[copy[i], copy[j]] = [copy[j]!, copy[i]!]
+  }
+  return copy.slice(0, take)
 }
 
 function voiceSampleHints(drumsBank: string, role: TrackRole | null | undefined): string[] {
@@ -130,19 +162,7 @@ function suggestNotes(profile: ResolvedShuffleProfile, role: TrackRole | null | 
         info: `In-kit scale · ${profile.root} ${profile.scale}`,
         boost: Math.max(40, boost),
       })
-      const base = label.replace(/\d+$/, '')
-      for (const alias of NOTE_ALIASES[base] ?? []) {
-        const al = `${alias}${oct}`
-        if (seen.has(al)) continue
-        seen.add(al)
-        out.push({
-          label: al,
-          type: 'text',
-          detail: `${profile.root} ${profile.scale}`,
-          info: `In-kit scale alias · ${label}`,
-          boost: Math.max(30, boost - 8),
-        })
-      }
+      // Aliases (cs/db/…) stay in chromatic pool; dedupeNotesByPitch collapses by pitch.
     }
   }
   return out
@@ -183,20 +203,107 @@ function suggestDrumHits(kit: Kit, profile: ResolvedShuffleProfile, role: TrackR
   return out
 }
 
+/** Build in-scale melodic motif pool (same families as reshuffle lead/bass/arp). */
+function melodicMotifPool(
+  profile: ResolvedShuffleProfile,
+  role: TrackRole | null | undefined,
+): string[] {
+  const degs = SCALE_DEGREES[profile.scale]
+  const oct = role === 'bass' ? 2 : role === 'arp' ? 3 : 4
+  // Stable degree order for filling — sample which notes, not chaotic reordering of the scale itself
+  const ns = degs.slice(0, Math.min(7, degs.length)).map((d) => noteAt(profile.root, d, oct))
+  const pickDegs = sampleN(ns, Math.min(6, ns.length))
+  const [a, b, c, d, e, f] = [
+    pickDegs[0] ?? ns[0]!,
+    pickDegs[1] ?? ns[1] ?? ns[0]!,
+    pickDegs[2] ?? ns[2] ?? ns[0]!,
+    pickDegs[3] ?? ns[3] ?? ns[1] ?? ns[0]!,
+    pickDegs[4] ?? ns[4] ?? ns[2] ?? ns[0]!,
+    pickDegs[5] ?? ns[5] ?? ns[3] ?? ns[0]!,
+  ]
+  const density = profile.density
+  const low = [
+    `${a} ~ ~ ${b}`,
+    `<${a} ~ ${b}>`,
+    `<${a} ~ ${a} ${b}>`,
+    `${a} ${b} ${c}`,
+    `<${a} ${b}>`,
+    `${a} ~ ${b} ~`,
+    `<${a} ${b} ${a} ~>`,
+  ]
+  const high = [
+    `<${a} ${b} ${c} ${d}>*2`,
+    `<${a} ${b} ${c}>*3`,
+    `<${a} ~ ${a} ${b}>`,
+    `${a} ~ ${b} ~ ${c} ${d}`,
+    `<${a} ${b} ${c} ${d} ${e} ${f}>`,
+    `${a} ${b} ${c} ${d}`,
+    `<~ ${a} ${b} ${c}>*2`,
+    `<${a} ${b}>*4`,
+  ]
+  const mid = [
+    `<${a} ${b} ${c} ${d}>*2`,
+    `<${a} ~ ${a} ${b}>`,
+    `${a} ~ ${b} ~ ${c}`,
+    `<${a} ${b} ${c}>*3`,
+    `${a} ${b} ${c} ${d}`,
+    `<${a} ${b} ${c} ${d} ${e}>`,
+    `~ ${a} ~ ${b} ${c}`,
+    `<${a} ${b} ${a} ${c}>`,
+  ]
+  return density === 'low' ? low : density === 'high' ? high : mid
+}
+
+/** Melodic lead/bass/arp motif fragments — sampled each open from profile pools. */
+function suggestMelodicPatternFragments(
+  profile: ResolvedShuffleProfile,
+  role: TrackRole | null | undefined,
+): KitSuggestion[] {
+  const density = profile.density
+  const shapes = sampleN(melodicMotifPool(profile, role), 6)
+  return shapes.map((p, i) => ({
+    label: p,
+    type: 'text' as const,
+    detail: `${profile.root} ${profile.scale}`,
+    info: `Kit melodic fragment · ${density}`,
+    boost: 55 - i,
+  }))
+}
+
 function suggestPatternFragments(
   profile: ResolvedShuffleProfile,
   role: TrackRole | null | undefined,
 ): KitSuggestion[] {
-  if (role && !DRUM_ROLES.includes(role)) return []
+  if (role && !DRUM_ROLES.includes(role)) {
+    return suggestMelodicPatternFragments(profile, role)
+  }
   const pools = poolsForRole(role)
   const patterns = pools[profile.groove][profile.density]
-  // Cap — neighbor ideas, not a dump of the whole pool
-  return patterns.slice(0, 6).map((p, i) => ({
+  // Sample neighbors from the same groove/density pool reshuffle uses
+  return sampleN(patterns, 6).map((p, i) => ({
     label: p,
     type: 'text' as const,
     detail: `${profile.groove}`,
     info: `Kit groove fragment · ${profile.groove}/${profile.density}`,
     boost: 55 - i,
+  }))
+}
+
+/**
+ * Rotating “try this” motif neighbors for note("...") — below stable scale notes.
+ * Re-sampled each completion open; never replaces the ranked scale set.
+ */
+function suggestSampledMotifNeighbors(
+  profile: ResolvedShuffleProfile,
+  role: TrackRole | null | undefined,
+): KitSuggestion[] {
+  const motifs = sampleN(melodicMotifPool(profile, role), 3)
+  return motifs.map((p, i) => ({
+    label: p,
+    type: 'text' as const,
+    detail: 'try this',
+    info: `Shuffle neighbor · ${profile.root} ${profile.scale} · ${profile.density}`,
+    boost: 28 - i,
   }))
 }
 
@@ -276,7 +383,8 @@ export function suggestFromKitProfile(
 
   switch (context) {
     case 'note':
-      return suggestNotes(profile, role)
+      // Stable ranked scale notes + lightly sampled motif neighbors (not full-line regen)
+      return [...suggestNotes(profile, role), ...suggestSampledMotifNeighbors(profile, role)]
     case 'sample': {
       if (!role || DRUM_ROLES.includes(role)) {
         return [
@@ -306,6 +414,83 @@ export type Suggestable = {
   detail?: string
   info?: unknown
   type?: string
+}
+
+/**
+ * One completion per pitch+octave. Prefer reshuffle NOTE_NAMES spelling (c#, eb, …)
+ * over cs/db aliases unless `prefix` clearly wants the alias (e.g. typed `cs`).
+ */
+export function dedupeNotesByPitch(
+  items: readonly Suggestable[],
+  opts?: { prefix?: string },
+): Suggestable[] {
+  const prefix = (opts?.prefix ?? '').toLowerCase()
+  const byKey = new Map<string, Suggestable>()
+  const passthrough: Suggestable[] = []
+
+  for (const raw of items) {
+    const key = notePitchKey(raw.label)
+    if (!key) {
+      passthrough.push({ ...raw, boost: raw.boost ?? 0 })
+      continue
+    }
+    const pc = Number(key.split('|')[0])
+    const oct = key.split('|')[1]!
+    const base = raw.label.replace(/\d+$/, '').toLowerCase()
+    const canonical = `${NOTE_NAMES[pc]!}${oct}`
+    const boost = raw.boost ?? 0
+    const prefixWantsThisAlias =
+      prefix.length > 0 &&
+      !isCanonicalSpelling(raw.label) &&
+      base.startsWith(prefix) &&
+      !NOTE_NAMES[pc]!.startsWith(prefix)
+
+    let candidate: Suggestable = { ...raw, boost }
+    if (!prefixWantsThisAlias && !isCanonicalSpelling(raw.label)) {
+      candidate = {
+        ...candidate,
+        label: canonical,
+        info:
+          typeof raw.info === 'string'
+            ? raw.info
+            : `Note ${NOTE_NAMES[pc]!.toUpperCase()}${oct}`,
+      }
+    }
+
+    const prev = byKey.get(key)
+    if (!prev) {
+      byKey.set(key, candidate)
+      continue
+    }
+    const prevBoost = prev.boost ?? 0
+    const prevBase = prev.label.replace(/\d+$/, '').toLowerCase()
+    const candBase = candidate.label.replace(/\d+$/, '').toLowerCase()
+    const prevMatches = prefix.length === 0 || prev.label.toLowerCase().startsWith(prefix)
+    const candMatches = prefix.length === 0 || candidate.label.toLowerCase().startsWith(prefix)
+
+    if (candMatches && !prevMatches) {
+      byKey.set(key, candidate)
+    } else if (candMatches === prevMatches) {
+      if (boost > prevBoost) {
+        byKey.set(key, candidate)
+      } else if (boost === prevBoost) {
+        if (isCanonicalSpelling(candidate.label) && !isCanonicalSpelling(prev.label)) {
+          byKey.set(key, candidate)
+        } else if (prefixWantsThisAlias && !isCanonicalSpelling(candidate.label)) {
+          byKey.set(key, candidate)
+        }
+      } else if (prefixWantsThisAlias && candBase.startsWith(prefix) && !prevBase.startsWith(prefix)) {
+        byKey.set(key, candidate)
+      }
+    }
+  }
+
+  let out = [...byKey.values(), ...passthrough]
+  if (prefix) {
+    const matched = out.filter((x) => x.label.toLowerCase().startsWith(prefix))
+    if (matched.length > 0) out = matched
+  }
+  return out.sort((a, b) => (b.boost ?? 0) - (a.boost ?? 0))
 }
 
 /** Merge kit-biased suggestions over a base list; higher boost wins on duplicate labels. */
