@@ -8,7 +8,7 @@
 
 1. **Jam** — choosing a kit (or cold reload) always regenerates from that kit’s **shuffle profile** (`kit · name · shuffled`; same bank / groove / scale family, fresh lines); bfcache restore re-runs fresh start; open the kit browser (search / soft tags), Play, Shuffle / Spice / deals.
 2. **Tap a track** — Sound|FX sheet (chips write real Strudel code; sheet stays open while browsing). **M** on the chip mutes. **+ Track** adds a role with preset code without switching kits.
-3. **Edit in Code** / header **`</> Code`** — CodeMirror sheet for that track (Update / Lock / quantize). Stays in Jam; no mode bounce.
+3. **Edit in Code** / header **`</> Code`** — CodeMirror sheet for that track (Update / Lock / quantize). Completions soft-bias to the active kit shuffle profile (in-scale notes, kit bank/hits, melodicSounds). Stays in Jam; no mode bounce.
 4. **Liveloop** — BPM ring + per-track phase ticks while playing; **Rec** (red) records mic → sample → track; Stop is neutral (not Rec-red); **A/B** near Kit stashes and punches arrangement variants.
 5. **Learn** — challenges with Check / hints; **Apply to Jam** adds a track and opens its Code sheet.
 
@@ -19,7 +19,7 @@ Mobile: Jam is the default landing; touch targets and sheets are thumb-friendly.
 
 About **71** kits in the Jam catalog (**27** originals + **44** Rank A/B/usable-C cherry-picks across classic drum machines, dirt breaks, uzu, mridangam, VCSL, piano).
 
-Kits are **shuffle profiles**, not baked Strudel recipes: layout (track name + role) + `shuffle` (`groove` / `density` / scale hints). Apply, reload, and Shuffle always regenerate in-pattern music via `reshuffle.ts`.
+Kits are **shuffle profiles**, not baked Strudel recipes: layout (track name + role) + `shuffle` (`groove` / `density` / scale hints). Apply, reload, and Shuffle always regenerate in-pattern music via `reshuffle.ts`. Code autocomplete reuses the same profile for ranked neighbor suggestions (not whole-track regen).
 
 - **Kit browser** — soft tags (tempo / bank / vibe) + search; bank short labels from `BANK_SHORT` in `kit-browser.ts`.
 - **Naming** — collision-safe ids and display names (model in the title: LM-2 Pocket, CR-1000 Disco, MC-303 Groove, …).
