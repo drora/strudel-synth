@@ -13,6 +13,7 @@ import { liveUpdateEngine } from '../../engine/live-update'
 import {
   applyKit as applyKitAction,
   freshStartJam,
+  resetFreshStartGuard,
   reshuffleUnlocked,
 } from '../../engine/jam-actions'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -68,9 +69,22 @@ export function useJamShell() {
     applyKitAction(id, { fromPicker })
   }, [])
 
-  // Once per page load (module guard inside freshStartJam) — random kit when empty + reshuffle.
+  // Fresh start on mount; bfcache / pageshow re-run so restore yields new riffs.
   useEffect(() => {
     freshStartJam()
+    let afterMount = false
+    const markReady = () => {
+      afterMount = true
+    }
+    // Skip the initial pageshow that can race with mount; always re-run after that.
+    queueMicrotask(markReady)
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!(event.persisted || afterMount)) return
+      resetFreshStartGuard()
+      freshStartJam()
+    }
+    window.addEventListener('pageshow', onPageShow)
+    return () => window.removeEventListener('pageshow', onPageShow)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

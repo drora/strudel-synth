@@ -13,6 +13,7 @@ export {
   undoJam,
   reshuffleUnlocked,
   stashAb,
+  resetFreshStartGuard,
   resetFreshStartGuardForTests,
   type FreshStartResult,
   freshStartJam,

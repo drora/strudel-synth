@@ -6,7 +6,7 @@ Guide for coding agents working on [`drora/strudel-synth`](https://github.com/dr
 
 **One home: Jam.** Browser music app wrapping [Strudel](https://strudel.cc). Kits, missions, mutations, Sound|FX sheets, and a **Code sheet** (CodeMirror / `TrackCodePane`) overlay the active track — not a separate Studio app mode.
 
-- **Jam** (`JamShell`) — default and primary UI.
+- **Jam** (`JamShell`) — default UI; `freshStartJam()` on mount / bfcache `pageshow` (prefer last `kitId`, then `reshuffleUnlocked`).
 - **Code** — sheet/overlay inside Jam (`JamCodeSheet` → `TrackCodePane`).
 - **+ Track** — under Sounds/FX chips; pick role → `ROLE_PRESETS` default → Sound|FX sheet (no kit switch).
 - **Liveloop** — cycle phase on the BPM ring (`JamPhaseRing`) and a subtle per-track phase tick on chips (`JamTrackChip` / `useLoopPhase` via `liveUpdateEngine`); mic Rec (`JamMicRec` / `engine/mic-sample.ts`); simple A/B punch (`JamABToggle` near Kit). Mute is 1-tap via the **M** on each track chip (Mix tab volume still available).
@@ -62,7 +62,7 @@ src/
 
 ## WebMCP + agent skills
 
-Browser agents talk to the live Jam via **WebMCP** (`src/engine/webmcp.ts` → `navigator.modelContext`). Shared mutators live in `src/engine/jam-actions.ts` (also used by `useJamShell`) so tools are not UI-only. Cold load: `freshStartJam()` (once per page) — random kit when empty + reshuffle; picker/`applyKit` leave the recipe as chosen.
+Browser agents talk to the live Jam via **WebMCP** (`src/engine/webmcp.ts` → `navigator.modelContext`). Shared mutators live in `src/engine/jam-actions.ts` (also used by `useJamShell`) so tools are not UI-only. Cold/reload: `freshStartJam()` (once per page + bfcache `pageshow`) — prefer last `kitId`, then reshuffle; picker/`applyKit` leave the recipe as chosen.
 
 **Core (always):** `get_session`, `set_bpm`, `update_track`, `add_track`, `remove_track`, `mute_track`, `solo_track`, `play`, `stop`, `get_reference`, `get_samples`, `get_scales_and_chords`, `evaluate_code`.
 
