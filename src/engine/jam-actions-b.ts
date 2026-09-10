@@ -46,7 +46,9 @@ export function setVolume(trackId: string, volume: number) {
   if (!track) return { ok: false as const, error: 'Track not found' }
   const v = Math.max(0, Math.min(1.5, volume))
   session.setVolume(trackId, v)
-  useJamStore.getState().setLastPeek(`${track.name} · vol ${v}`)
+  const jam = useJamStore.getState()
+  jam.touchTrack(trackId)
+  jam.setLastPeek(`${track.name} · vol ${v}`)
   liveUpdateEngine.markDirty()
   queueLiveImmediate('mute-solo')
   return { ok: true as const, trackId, volume: v }
@@ -92,6 +94,7 @@ export function applySoundChoice(
   })
   const next = applySoundChoiceToCode(track.code, choice)
   session.setCode(track.id, next)
+  jam.touchTrack(track.id)
   jam.setLastPeek(`Sound · ${choice.label}`)
   queueLive('kit')
   return { ok: true, label: choice.label }
@@ -126,6 +129,7 @@ export function setFx(
     ? removeEffectFromCode(track.code, key)
     : setEffectInCode(track.code, key, value)
   session.setCode(track.id, next)
+  jam.touchTrack(track.id)
   jam.setLastPeek(
     clearing
       ? `FX · ${track.name} · ${key} off`
