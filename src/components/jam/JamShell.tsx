@@ -1,4 +1,3 @@
-import { VIBES } from '../../engine/kits'
 import { useJamStore } from '../../store/jam-store'
 import { useSessionStore } from '../../store/session-store'
 import { useUIStore } from '../../store/ui-store'
@@ -14,6 +13,7 @@ import { JamMicRec } from './JamMicRec'
 import { JamABToggle } from './JamABToggle'
 import { useJamShell } from './useJamShell'
 import { JamTrackChip } from './JamTrackChip'
+import { drumsBankShortName } from '../../engine/kit-browser'
 
 function openCodeForTrack(trackId: string | null | undefined) {
   if (!trackId) return
@@ -71,31 +71,21 @@ export function JamShell() {
       )}
 
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {VIBES.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              onClick={() => j.onVibe(v.id)}
-              className={`shrink-0 min-h-11 px-3 rounded-full text-xs font-medium border transition-colors ${
-                j.vibe === v.id
-                  ? 'bg-accent text-bg border-accent'
-                  : 'bg-bg-elevated text-text-muted border-border hover:border-accent/40'
-              }`}
-            >
-              {v.label}
-            </button>
-          ))}
-        </div>
-
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => useJamStore.getState().setShowKitPicker(true)}
             className="flex-1 min-h-12 px-4 rounded-xl border border-accent/40 bg-accent/10 text-left flex items-center justify-between gap-2 hover:border-accent transition-colors"
           >
-            <span className="text-sm font-medium text-accent truncate">
-              Kit · {j.activeKit?.name ?? 'Pick one'}
+            <span className="min-w-0">
+              <span className="text-sm font-medium text-accent truncate block">
+                Kit · {j.activeKit?.name ?? 'Browse kits'}
+              </span>
+              {j.activeKit && (
+                <span className="text-[10px] text-text-muted truncate block">
+                  {j.activeKit.bpm} BPM · {drumsBankShortName(j.activeKit.drumsBank)}
+                </span>
+              )}
             </span>
             <span className="text-accent shrink-0" aria-hidden>
               ▾
@@ -115,7 +105,8 @@ export function JamShell() {
             <div className="text-[10px] uppercase tracking-wider text-text-muted text-center mb-1.5">
               Sounds / FX · tap · M mute · long-press Code
             </div>
-            <div className="flex flex-wrap justify-center gap-1.5">
+            {/* Single-row scroll: fixed chip widths keep orientation on mute/add/remove */}
+            <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scroll-smooth">
               {j.tracks.map((t) => (
                 <JamTrackChip
                   key={t.id}
@@ -190,6 +181,10 @@ export function JamShell() {
         <JamKitPicker
           kits={j.kits}
           kitId={j.kitId}
+          filterTags={j.kitFilterTags}
+          filterSearch={j.kitFilterSearch}
+          onFilterTagsChange={j.setKitFilterTags}
+          onFilterSearchChange={j.setKitFilterSearch}
           onPick={(id) => j.applyKit(id, true)}
           onSkip={() => {
             useJamStore.getState().setShowKitPicker(false)

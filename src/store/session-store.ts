@@ -23,7 +23,7 @@ interface SessionState {
   setError: (trackId: string, error: string | null) => void
   setVolume: (trackId: string, volume: number) => void
   setTrackName: (trackId: string, name: string) => void
-  loadTemplate: (template: Template) => void
+  loadTemplate: (template: Template, opts?: { preserveBpm?: boolean }) => void
   addTrack: (track: Omit<Track, 'id'>) => string
   removeTrack: (trackId: string) => void
   toggleMute: (trackId: string) => void
@@ -83,8 +83,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       ),
     })),
 
-  loadTemplate: (template) => {
-    set(applyTemplate(template, genId))
+  loadTemplate: (template, opts) => {
+    const next = applyTemplate(template, genId)
+    if (opts?.preserveBpm) {
+      next.bpm = get().bpm
+    }
+    set(next)
   },
 
   addTrack: (track) => {

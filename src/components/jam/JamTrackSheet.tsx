@@ -301,29 +301,31 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
           <div className="flex gap-2">
             <button
               type="button"
-              className="flex-1 min-h-11 text-xs text-accent border border-accent/30 rounded-xl"
+              className="flex-1 min-h-11 text-xs font-medium text-accent border border-accent/40 rounded-xl bg-transparent hover:bg-accent/10"
               onClick={editSoundInCode}
             >
               Edit in Code
             </button>
             <button
               type="button"
-              className="flex-1 min-h-11 text-xs text-text-muted border border-border rounded-xl"
+              className="flex-1 min-h-11 text-xs font-semibold rounded-xl bg-accent text-bg border border-accent hover:brightness-110"
               onClick={close}
             >
               Done
             </button>
           </div>
-          <button
-            type="button"
-            disabled={!canRemove}
-            onClick={removeTrack}
-            title={canRemove ? 'Remove this track' : 'Need at least one track'}
-            aria-label={canRemove ? `Remove ${live.name}` : 'Need at least one track'}
-            className="w-full min-h-11 text-xs rounded-xl border border-error/40 text-error disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-error/10"
-          >
-            {canRemove ? 'Remove' : 'Remove · Need at least one track'}
-          </button>
+          <div className="flex justify-center pt-0.5">
+            <button
+              type="button"
+              disabled={!canRemove}
+              onClick={removeTrack}
+              title={canRemove ? 'Remove this track' : 'Need at least one track'}
+              aria-label={canRemove ? `Remove ${live.name}` : 'Need at least one track'}
+              className="text-[11px] text-error/70 hover:text-error underline-offset-2 hover:underline disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed px-2 py-1"
+            >
+              {canRemove ? 'Remove track' : 'Need at least one track'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
