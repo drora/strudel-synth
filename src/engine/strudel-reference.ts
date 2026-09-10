@@ -105,7 +105,7 @@ export const STRUDEL_REFERENCE = `
 - Melodic: pluck, arpy, jvbass, juno, sax, gtr, sitar, pad
 - FX: perc, tabla, metal, mouth, click, noise, space, wind, wobble, hoover, stab
 - NOTE: After piano prebake, \`.sound("piano")\` works for pitched keys. Guitar still uses gtr / pluck.
-- Banks (featured): RolandTR808, RolandTR909, RolandTR707, RolandTR606, RolandTR505, LinnDrum, LinnLM1, AkaiMPC60, EmuSP12, BossDR110, OberheimDMX, RolandCompurhythm78
+- Banks (featured): full Jam kit set via \`FEATURED_BANKS\` in \`samples.ts\` (TR series, Linn/LM, MPC/SP-12, CR78/1000/8000, RY30/JD990/HR16/DR220, M1/RX/MT32, System100, RhythmAce, MS404, SK1/KR55/RZ1, …)
 - Synth oscillators (use with sound()): sawtooth, square, triangle, sine
 
 ## FM Synthesis
