@@ -31,6 +31,7 @@ export function JamTrackChip({
   isPlaying: boolean
 }) {
   const hint = trackSoundHint(track.code)
+  const isLastTouched = useJamStore((s) => s.lastTouchedTrackId === track.id)
   const wrapRef = useRef<HTMLDivElement>(null)
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const startPos = useRef<{ x: number; y: number } | null>(null)
@@ -71,11 +72,22 @@ export function JamTrackChip({
   return (
     <div
       ref={wrapRef}
-      className={`${CHIP_OUTER_CLASS} transition-opacity ${track.muted ? 'opacity-45' : 'opacity-100'}`}
+      className={`${CHIP_OUTER_CLASS} transition-opacity ${track.muted ? 'opacity-45' : 'opacity-100'} ${
+        isLastTouched ? 'jam-chip-last-touched' : ''
+      }`}
       style={{ background: 'transparent' }}
+      data-last-touched={isLastTouched ? 'true' : undefined}
     >
+      {isLastTouched && (
+        <span
+          className="pointer-events-none absolute -top-0.5 -right-0.5 z-[2] h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_0_1px_var(--color-bg)]"
+          aria-hidden
+        />
+      )}
       <div
-        className="flex items-stretch w-full h-full rounded-[6.5px] border bg-bg-elevated overflow-hidden"
+        className={`flex items-stretch w-full h-full rounded-[6.5px] border bg-bg-elevated overflow-hidden ${
+          isLastTouched ? 'ring-1 ring-accent ring-offset-0' : ''
+        }`}
         style={{ borderColor: track.color + '88' }}
       >
         <button
