@@ -55,6 +55,7 @@ src/
 
 - **Kit-first browser** — `kit-browser.ts`: soft tags (tempo / bank / vibe), search, random pick. Every `drumsBank` needs a `BANK_SHORT` entry.
 - **Collision-safe names** — unique `kit.id` + display names with model (LM-2, CR-1000, DR-550, SK-1, etc.); never bare “Linn” / “Casio” / “DR”.
+- **Sound sheet + autocomplete** — melodic roles (lead/pad/arp/bass/vox/custom) have richer `SOUND_CHOICES`; `FEATURED_BANKS` + `CURATED_AUTOCOMPLETE_SAMPLES` keep Code bank/sample completion in sync with kits.
 - **Heavy packs curated** — `YamahaRM50` / `RolandMC303` recipes use `.n(0)` (or small n); do **not** dump all bank files into the Sound sheet.
 - **Non-tidal banks** — dirt / uzu / mridangam / VCSL / piano use stable short `drumsBank` strings (`dirt-amen`, `uzu`, `mridangam`, `vcsl`, …) for tags.
 - Existing 27 kits stay unchanged when expanding; skip D-rank and deferred community crates unless explicitly asked.
