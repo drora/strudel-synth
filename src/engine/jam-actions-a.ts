@@ -17,6 +17,7 @@ import {
 } from './note-harmony'
 import { liveUpdateEngine, type Quantization } from './live-update'
 import { applyMutateToTracks, getMutation, type MutateId } from './mutate'
+import { planShuffleTargets } from './shuffle-lock'
 
 export type JamQueueReason = 'kit' | 'jam' | 'reshuffle' | 'mute-solo'
 
@@ -119,9 +120,10 @@ export function reshuffleUnlocked(): {
   const pinEffects = useUIStore.getState().pinEffects
   const jam = useJamStore.getState()
   const activeKit = jam.kitId ? getKit(jam.kitId) : undefined
+  const plan = planShuffleTargets(state.tracks)
+  const targets = plan.ok ? plan.targets : []
   let shuffled = 0
-  for (const t of state.tracks) {
-    if (t.locked) continue
+  for (const t of targets) {
     let next = reshuffleTrack(t.role, t.code, {
       pinEffects,
       lockKit: jam.lockKit || !!activeKit,
@@ -143,12 +145,15 @@ export function reshuffleTrackById(
   trackId: string,
 ): { ok: true; trackId: string; name: string } | { ok: false; error: string } {
   const state = useSessionStore.getState()
-  const track = state.tracks.find((t) => t.id === trackId)
-  if (!track) return { ok: false, error: `Track not found: ${trackId}` }
-  if (track.locked) {
-    useJamStore.getState().setLastPeek(`Locked · ${track.name}`)
-    return { ok: false, error: `Track locked: ${track.name}` }
+  const plan = planShuffleTargets(state.tracks, trackId)
+  if (!plan.ok) {
+    if (plan.error.startsWith('Track locked:')) {
+      const name = plan.error.slice('Track locked: '.length)
+      useJamStore.getState().setLastPeek(`Locked · ${name}`)
+    }
+    return { ok: false, error: plan.error }
   }
+  const track = plan.targets[0]!
   const pinEffects = useUIStore.getState().pinEffects
   const jam = useJamStore.getState()
   const activeKit = jam.kitId ? getKit(jam.kitId) : undefined
