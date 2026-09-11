@@ -27,9 +27,8 @@ function openCodeForTrack(trackId: string | null | undefined) {
 
 export function JamShell() {
   const j = useJamShell()
-  const codeTrackId = useJamStore.getState ? useJamStore((s) => s.codeTrackId) : null
-  const codeTrackId2 = useJamStore((s) => s.codeTrackId)
-  const codeTrack = j.tracks.find((t) => t.id === codeTrackId2)
+  const codeTrackId = useJamStore((s) => s.codeTrackId)
+  const codeTrack = j.tracks.find((t) => t.id === codeTrackId)
 
   return (
     <div
@@ -156,6 +155,7 @@ export function JamShell() {
             <div className="text-[10px] uppercase tracking-wider text-text-muted text-center mb-1.5">
               Sounds / FX · tap · M mute · long-press Code
             </div>
+            {/* Vertical stack: fixed chip widths (PR #19) — no sideways reflow; page scrolls */}
             <div className="flex flex-col items-center gap-1.5">
               {j.tracks.map((t) => (
                 <JamTrackChip
