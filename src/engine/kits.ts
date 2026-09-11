@@ -1,1 +1,1 @@
-PLACEHOLDER_REPLACE
+@file:/workspace/kit-sound-ship/src/engine/kits.ts
