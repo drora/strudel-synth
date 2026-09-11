@@ -11,6 +11,7 @@ import {
   matchSoundChoice,
   type SoundChoice,
 } from './kits'
+import { soundChoicesForKit } from './kit-sound-choices'
 import { filterKits } from './kit-browser'
 import {
   parseEffectValue,
@@ -71,7 +72,9 @@ export function listSoundChoices(trackId?: string): {
     ? session.tracks.find((t) => t.id === trackId)
     : session.tracks.find((t) => t.id === session.activeTrackId) ?? session.tracks[0]
   if (!track) return { ok: false, error: 'No track' }
-  const choices = SOUND_CHOICES[track.role] ?? SOUND_CHOICES.custom
+  const jamState = useJamStore.getState()
+  const kit = jamState.kitId ? getKit(jamState.kitId) : undefined
+  const choices = soundChoicesForKit(track.role, kit)
   const active = choices.find((c) => matchSoundChoice(track.code, c))
   return { role: track.role, choices, activeId: active?.id ?? null }
 }
@@ -83,10 +86,11 @@ export function applySoundChoice(
   const session = useSessionStore.getState()
   const track = session.tracks.find((t) => t.id === trackId)
   if (!track) return { ok: false, error: 'Track not found' }
-  const choices = SOUND_CHOICES[track.role] ?? SOUND_CHOICES.custom
+  const jam = useJamStore.getState()
+  const kit = jam.kitId ? getKit(jam.kitId) : undefined
+  const choices = soundChoicesForKit(track.role, kit)
   const choice = choices.find((c) => c.id === choiceId)
   if (!choice) return { ok: false, error: `Unknown sound choice: ${choiceId}` }
-  const jam = useJamStore.getState()
   jam.pushUndo({
     trackId: track.id,
     code: track.code,

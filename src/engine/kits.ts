@@ -84,6 +84,35 @@ export function kitToTemplate(kit: Kit): Template {
 export { SOUND_CHOICES } from './kits-sound-choices'
 
 
+/** True when `s("...")` body contains `sample` as a whole token. */
+function sBodyContainsSample(code: string, sample: string): boolean {
+  const m = code.match(/\bs\(\s*["']([^"']+)["']\s*\)/)
+  if (!m) return false
+  return m[1]!.trim().split(/\s+/).some((t) => t === sample)
+}
+
+/** Rewrite `s("...")` hits to `sample`, keeping rests / length when possible. */
+function rewriteSPatternSample(code: string, sample: string): string {
+  const m = code.match(/\bs\(\s*["']([^"']+)["']\s*\)/)
+  if (!m) return setSoundInCode(code, sample)
+  const tokens = m[1]!.trim().split(/\s+/)
+  if (tokens.length <= 1) {
+    return code.replace(/\bs\(\s*["'][^"']+["']\s*\)/, `s("${sample}")`)
+  }
+  const nextBody = tokens.map((t) => (t === '~' ? '~' : sample)).join(' ')
+  return code.replace(/\bs\(\s*["'][^"']+["']\s*\)/, `s("${nextBody}")`)
+}
+
+/** Sample-voice choice (tabla:0, amencutup:3, mridangam_tha, …) — no .bank(). */
+function isSampleVoiceChoice(choice: SoundChoice): boolean {
+  if (!choice.sound || choice.bank) return false
+  const s = choice.sound
+  return (
+    s.includes(':') ||
+    /^(tabla2?|tablex|amencutup|breaks\d+|gretsch|electro1|jazz|mridangam_|bassdrum\d*|snare_|hihat)/.test(s)
+  )
+}
+
 /** True when code currently reflects this Sound sheet choice (bank/sound/n). */
 export function matchSoundChoice(code: string, choice: SoundChoice): boolean {
   const bank = getBankFromCode(code)
@@ -97,7 +126,9 @@ export function matchSoundChoice(code: string, choice: SoundChoice): boolean {
     return n == null || n === 0
   }
   if (choice.sound) {
-    return sound === choice.sound
+    if (sound === choice.sound) return true
+    // Sample-voice drum lines: s("tabla:0 ~ tabla:2 ~") — match token in body
+    return sBodyContainsSample(code, choice.sound)
   }
   return false
 }
@@ -106,12 +137,19 @@ export function applySoundChoiceToCode(code: string, choice: SoundChoice): strin
   let next = code
   if (choice.bank) next = setBankInCode(next, choice.bank)
   if (choice.sound) {
-    // Prefer .sound() for synths; drum lines often use s("bd") + bank
-    if (/\.sound\(/.test(next) || /note\(/.test(next)) {
+    if (
+      isSampleVoiceChoice(choice) &&
+      /\bs\(\s*["'][^"']+["']\s*\)/.test(next) &&
+      !/\.sound\(/.test(next) &&
+      !/\bnote\(/.test(next)
+    ) {
+      next = rewriteSPatternSample(next, choice.sound)
+    } else if (/\.sound\(/.test(next) || /note\(/.test(next)) {
+      // Prefer .sound() for synths; drum lines often use s("bd") + bank
       next = setSoundInCode(next, choice.sound)
     } else if (!/\.bank\(/.test(next) && choice.bank) {
       next = setBankInCode(next, choice.bank)
-    } else if (choice.sound) {
+    } else {
       next = setSoundInCode(next, choice.sound)
     }
   }

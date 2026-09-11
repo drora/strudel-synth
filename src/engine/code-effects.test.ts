@@ -40,8 +40,9 @@ import {
   const sNote = 's("sawtooth").note("c3 e3")'
   const sNext = setSoundInCode(sNote, 'square')
   assert.match(sNext, /^s\("square"\)/)
-  // Top-level s("...") has no leading dot — getSoundFromCode reads .sound/.s only
-  assert.equal(getSoundFromCode(sNext), null)
+  // Leading s("...") first non-rest token (sample-voice + melodic s+note)
+  assert.equal(getSoundFromCode(sNext), 'square')
+  assert.equal(getSoundFromCode('s("tabla:0 ~ tabla:2 ~")'), 'tabla:0')
   assert.equal(getSoundFromCode('note("c3").s("piano")'), 'piano')
 }
 
