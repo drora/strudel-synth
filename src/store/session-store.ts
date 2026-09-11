@@ -22,6 +22,7 @@ interface SessionState {
   setActiveTrack: (trackId: string) => void
   setError: (trackId: string, error: string | null) => void
   setVolume: (trackId: string, volume: number) => void
+  setOctave: (trackId: string, octave: number) => void
   setTrackName: (trackId: string, name: string) => void
   loadTemplate: (template: Template, opts?: { preserveBpm?: boolean }) => void
   addTrack: (track: Omit<Track, 'id'>) => string
@@ -94,7 +95,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   addTrack: (track) => {
     const id = genId()
     set((state) => ({
-      tracks: [...state.tracks, { ...track, id }],
+      tracks: [
+        ...state.tracks,
+        { ...track, id, octave: track.octave ?? 0 },
+      ],
       activeTrackId: id,
     }))
     return id
@@ -167,6 +171,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set((state) => ({
       tracks: state.tracks.map((t) =>
         t.id === trackId ? { ...t, volume: Math.max(0, Math.min(1.5, volume)) } : t
+      ),
+    })),
+
+  setOctave: (trackId, octave) =>
+    set((state) => ({
+      tracks: state.tracks.map((t) =>
+        t.id === trackId
+          ? { ...t, octave: Math.max(-3, Math.min(3, Math.trunc(octave))) }
+          : t
       ),
     })),
 
