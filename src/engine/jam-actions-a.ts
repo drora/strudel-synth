@@ -115,13 +115,15 @@ export function reshuffleUnlocked(): {
   let shuffled = 0
   for (const t of state.tracks) {
     if (t.locked) continue
-    const next = reshuffleTrack(t.role, t.code, {
+    let next = reshuffleTrack(t.role, t.code, {
       pinEffects,
       lockKit: jam.lockKit || !!activeKit,
       bank: activeKit?.drumsBank,
       shuffle: songAwareShuffle(activeKit?.shuffle),
-      octaveOffset: t.octave ?? 0,
     })
+    // Apply octave here too so Shuffle works even if reshuffle opts are ignored.
+    const oct = t.octave ?? 0
+    if (oct && isMelodicRole(t.role)) next = shiftNotesByOctaves(next, oct)
     state.setCode(t.id, next)
     shuffled++
   }
@@ -145,13 +147,14 @@ export function reshuffleTrackById(
   const pinEffects = useUIStore.getState().pinEffects
   const jam = useJamStore.getState()
   const activeKit = jam.kitId ? getKit(jam.kitId) : undefined
-  const next = reshuffleTrack(track.role, track.code, {
+  let next = reshuffleTrack(track.role, track.code, {
     pinEffects,
     lockKit: jam.lockKit || !!activeKit,
     bank: activeKit?.drumsBank,
     shuffle: songAwareShuffle(activeKit?.shuffle),
-    octaveOffset: track.octave ?? 0,
   })
+  const oct = track.octave ?? 0
+  if (oct && isMelodicRole(track.role)) next = shiftNotesByOctaves(next, oct)
   state.setCode(track.id, next)
   jam.touchTrack(track.id)
   jam.setLastPeek(`Shuffle · ${track.name}`)
