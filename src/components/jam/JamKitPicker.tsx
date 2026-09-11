@@ -115,15 +115,11 @@ export function JamKitPicker({
     const delta = scrollTop - lastScrollTopRef.current
     lastScrollTopRef.current = scrollTop
 
-    // Auto-expand only at top.
     if (scrollTop < EXPAND_AT) {
       if (filtersCollapsed) setCollapsed(false)
       return
     }
 
-    // Collapse only on downward scroll past threshold — not merely because
-    // scrollTop > COLLAPSE_AT while already expanded (e.g. after tap-expand
-    // before scrollTop is reset, or layout-induced scroll events).
     if (delta > COLLAPSE_DELTA && scrollTop > COLLAPSE_AT) {
       if (!filtersCollapsed) setCollapsed(true)
     }
@@ -157,16 +153,9 @@ export function JamKitPicker({
           >
             {collapsedFilterSummary(filterSearch, filterTags.length)}
           </button>
-        ) : null}
-
-        <div
-          className={`grid overflow-hidden transition-[grid-template-rows] duration-200 ease-out ${
-            filtersCollapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
-          }`}
-          aria-hidden={filtersCollapsed}
-        >
-          <div className="overflow-hidden min-h-0 space-y-3">
-            <p className="text-xs text-text-muted shrink-0">
+        ) : (
+          <div className="shrink-0 space-y-3">
+            <p className="text-xs text-text-muted">
               Search and filter, then pick a full kit recipe.
             </p>
 
@@ -177,14 +166,13 @@ export function JamKitPicker({
               onFocus={() => setLocalFocus(true)}
               onBlur={() => setLocalFocus(false)}
               placeholder="Search kits, banks, BPM…"
-              tabIndex={filtersCollapsed ? -1 : undefined}
               className={`w-full min-h-11 px-3 rounded-xl bg-bg border text-sm outline-none transition-colors ${
                 localFocus ? 'border-accent' : 'border-border'
               }`}
               aria-label="Search kits"
             />
 
-            <div className="space-y-2 shrink-0 overflow-hidden">
+            <div className="space-y-2">
               <div className="flex gap-1.5 overflow-x-auto pb-0.5">
                 {tempoTags.map((t) => (
                   <TagChip
@@ -224,14 +212,13 @@ export function JamKitPicker({
             </div>
 
             {(filterTags.length > 0 || filterSearch.trim()) && (
-              <div className="flex items-center justify-between text-[11px] text-text-muted shrink-0">
+              <div className="flex items-center justify-between text-[11px] text-text-muted">
                 <span>
                   {filtered.length} kit{filtered.length === 1 ? '' : 's'}
                 </span>
                 <button
                   type="button"
                   className="hover:text-accent"
-                  tabIndex={filtersCollapsed ? -1 : undefined}
                   onClick={() => {
                     onFilterTagsChange([])
                     onFilterSearchChange('')
@@ -242,7 +229,7 @@ export function JamKitPicker({
               </div>
             )}
           </div>
-        </div>
+        )}
 
         <div
           ref={listRef}
