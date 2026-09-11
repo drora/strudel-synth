@@ -1,1 +1,1 @@
-@/workspace/shuffle-pin-push/code-effects.ts
+PLACEHOLDER_LOAD_FROM_DISK
