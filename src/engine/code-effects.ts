@@ -117,3 +117,23 @@ export function getNFromCode(code: string): number | null {
   const m = code.match(/\.n\(\s*(\d+)\s*\)/)
   return m ? parseInt(m[1]!, 10) : null
 }
+
+/** First non-rest token in any `s("...")` — Sound sheet / shuffle sample pin. */
+export function primarySSample(code: string): string | null {
+  const m = code.match(/\bs\(\s*["']([^"']+)["']\s*\)/)
+  if (!m) return null
+  const token = m[1]!.trim().split(/\s+/).find((t) => t !== '~' && t.length > 0)
+  return token ?? null
+}
+
+/** Rewrite `s("...")` hits to `sample`, keeping rests / length when possible. */
+export function rewriteSPatternSample(code: string, sample: string): string {
+  const m = code.match(/\bs\(\s*["']([^"']+)["']\s*\)/)
+  if (!m) return setSoundInCode(code, sample)
+  const tokens = m[1]!.trim().split(/\s+/)
+  if (tokens.length <= 1) {
+    return code.replace(/\bs\(\s*["'][^"']+["']\s*\)/, `s("${sample}")`)
+  }
+  const nextBody = tokens.map((t) => (t === '~' ? '~' : sample)).join(' ')
+  return code.replace(/\bs\(\s*["'][^"']+["']\s*\)/, `s("${nextBody}")`)
+}

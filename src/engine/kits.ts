@@ -1,6 +1,6 @@
 import type { TrackRole, Template } from './types'
 import { ROLE_COLORS } from './types'
-import { setBankInCode, setSoundInCode, setNInCode, getBankFromCode, getSoundFromCode, getNFromCode } from './code-effects'
+import { setBankInCode, setSoundInCode, setNInCode, getBankFromCode, getSoundFromCode, getNFromCode, primarySSample, rewriteSPatternSample } from './code-effects'
 import { KITS_A } from './kits-data-a'
 import { KITS_B } from './kits-data-b'
 import { KITS_C } from './kits-data-c'
@@ -83,26 +83,6 @@ export function kitToTemplate(kit: Kit): Template {
 
 export { SOUND_CHOICES } from './kits-sound-choices'
 
-
-/** First non-rest token in `s("...")` — Sound sheet selection highlight. */
-function primarySSample(code: string): string | null {
-  const m = code.match(/\bs\(\s*["']([^"']+)["']\s*\)/)
-  if (!m) return null
-  const token = m[1]!.trim().split(/\s+/).find((t) => t !== '~' && t.length > 0)
-  return token ?? null
-}
-
-/** Rewrite `s("...")` hits to `sample`, keeping rests / length when possible. */
-function rewriteSPatternSample(code: string, sample: string): string {
-  const m = code.match(/\bs\(\s*["']([^"']+)["']\s*\)/)
-  if (!m) return setSoundInCode(code, sample)
-  const tokens = m[1]!.trim().split(/\s+/)
-  if (tokens.length <= 1) {
-    return code.replace(/\bs\(\s*["'][^"']+["']\s*\)/, `s("${sample}")`)
-  }
-  const nextBody = tokens.map((t) => (t === '~' ? '~' : sample)).join(' ')
-  return code.replace(/\bs\(\s*["'][^"']+["']\s*\)/, `s("${nextBody}")`)
-}
 
 /** Sample-voice choice (tabla:0, amencutup:3, mridangam_tha, …) — no .bank(). */
 function isSampleVoiceChoice(choice: SoundChoice): boolean {
