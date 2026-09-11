@@ -35,7 +35,7 @@ function suggestNotes(profile: ResolvedShuffleProfile, role: TrackRole | null | 
         label,
         type: 'text',
         detail: `${profile.root} ${profile.scale}`,
-        info: `In-kit scale · ${profile.root} ${profile.scale}`,
+        info: `Song scale · ${profile.root} ${profile.scale}`,
         boost: Math.max(40, boost),
       })
       // Aliases (cs/db/…) stay in chromatic pool; dedupeNotesByPitch collapses by pitch.
@@ -220,24 +220,36 @@ function suggestScaleNames(profile: ResolvedShuffleProfile): KitSuggestion[] {
   return (aliases[profile.scale] ?? [profile.scale]).map((label, i) => ({
     label,
     type: 'text' as const,
-    detail: 'kit scale',
-    info: `Active kit scale · ${profile.root} ${profile.scale}`,
+    detail: 'song scale',
+    info: `Active song scale · ${profile.root} ${profile.scale}`,
     boost: 90 - i * 5,
   }))
+}
+
+/** Optional song-level root/scale — mirrors jam-actions songAwareShuffle. */
+export type KitSuggestHarmony = {
+  root: string
+  scale: ScaleKind
 }
 
 /**
  * Ranked neighbor suggestions from the active kit shuffle profile.
  * Soft bias only — callers should merge with global/curated fallbacks.
+ * When `harmony` is set (songRoot/songScale), note/scale/motif suggestions
+ * use that root+scale while keeping kit groove/density/melodicSounds/banks.
  */
 export function suggestFromKitProfile(
   kit: Kit | null | undefined,
   role: TrackRole | null | undefined,
   context: KitSuggestContext,
+  harmony?: KitSuggestHarmony | null,
 ): KitSuggestion[] {
   if (!kit) return []
-  const profile = profileOf(kit)
-  if (!profile) return []
+  const base = profileOf(kit)
+  if (!base) return []
+  const profile = harmony
+    ? { ...base, root: harmony.root, scale: harmony.scale }
+    : base
 
   switch (context) {
     case 'note':

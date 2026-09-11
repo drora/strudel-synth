@@ -182,4 +182,37 @@ for (const kit of [punch!, dusty!]) {
   console.log('  used-note demotion: c3 demoted; sole prefix match kept')
 }
 
+
+// Song harmony override: note() suggestions follow songRoot/songScale, not kit shuffle only
+{
+  const MAJOR = new Set([0, 2, 4, 5, 7, 9, 11])
+  const NAMES = ['c', 'c#', 'd', 'eb', 'e', 'f', 'f#', 'g', 'ab', 'a', 'bb', 'b']
+  const song = { root: 'f#', scale: 'major' as const }
+  const kitRoot = resolveShuffleProfile(punch!).root
+  assert.notEqual(kitRoot.toLowerCase(), 'f#', 'fixture kit root differs from song f#')
+  const sugs = suggestFromKitProfile(punch!, 'bass', 'note', song)
+  assert.ok(sugs.length > 0)
+  const labels = top(sugs, 7).filter((l) => !/^(cs|db|ds|d#|fs|gb|gs|g#|as|a#)/i.test(l)).slice(0, 5)
+  for (const lab of labels) {
+    const m = lab.match(/^([a-g][#b]?)(\d+)$/i)
+    assert.ok(m, `parseable song-harmony note ${lab}`)
+    const idx = NAMES.indexOf(m![1]!.toLowerCase())
+    const root = NAMES.indexOf('f#')
+    assert.ok(MAJOR.has((idx - root + 12) % 12), `${lab} in f# major (song)`)
+  }
+  assert.ok(labels.some((l) => l.startsWith('f#') || l.startsWith('gb')), 'song root among top notes')
+  assert.ok(
+    sugs.every((n) => (n.info ?? '').includes('Song scale') || (n.detail ?? '').includes('f#')),
+    'note info/detail reflects song scale',
+  )
+  // usedInner demotion still works with song harmony
+  const used = dedupeNotesByPitch(sugs, { usedInner: `${labels[0]} ${labels[0]} ` })
+  const unusedTop = used.filter((u) => notePitchKey(u.label))
+  assert.notEqual(unusedTop[0]!.label, labels[0], 'used song-scale note demoted')
+  // bank suggestions unchanged by harmony (still kit drumsBank)
+  const banks = suggestFromKitProfile(punch!, 'drums', 'bank', song)
+  assert.equal(banks[0]?.label, punch!.drumsBank)
+  console.log(`  song harmony note: ${labels.join(', ')} (kit was ${kitRoot})`)
+}
+
 console.log('ALL CHECKS PASSED')

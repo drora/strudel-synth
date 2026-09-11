@@ -23,6 +23,7 @@ import {
   dedupeNotesByPitch,
   mergeKitSuggestions,
   suggestFromKitProfile,
+  type KitSuggestHarmony,
 } from '../../engine/kit-suggest'
 
 /**
@@ -45,22 +46,33 @@ function withInfo(options: readonly Completion[]): Completion[] {
   })
 }
 
-/** Active jam kit + track role for soft-ranked completions (same profile as reshuffle). */
-function resolveKitSuggestCtx(): { kit: Kit | undefined; role: TrackRole | null } {
+/** Active jam kit + track role + song harmony (same songAwareShuffle override as reshuffle). */
+function resolveKitSuggestCtx(): {
+  kit: Kit | undefined
+  role: TrackRole | null
+  harmony: KitSuggestHarmony
+} {
   const jam = useJamStore.getState()
   const session = useSessionStore.getState()
   const kit = jam.kitId ? getKit(jam.kitId) : undefined
   const trackId = jam.codeTrackId ?? session.activeTrackId
   const track = trackId ? session.tracks.find((t) => t.id === trackId) : undefined
-  return { kit, role: track?.role ?? null }
+  return {
+    kit,
+    role: track?.role ?? null,
+    harmony: {
+      root: jam.songRoot,
+      scale: jam.songScale,
+    },
+  }
 }
 
 function kitBiased(
   base: Completion[],
   context: import('../../engine/kit-suggest').KitSuggestContext,
 ): Completion[] {
-  const { kit, role } = resolveKitSuggestCtx()
-  const kitOnes = suggestFromKitProfile(kit, role, context)
+  const { kit, role, harmony } = resolveKitSuggestCtx()
+  const kitOnes = suggestFromKitProfile(kit, role, context, harmony)
   if (kitOnes.length === 0) return base
   return mergeKitSuggestions(base, kitOnes) as Completion[]
 }
@@ -107,7 +119,7 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
   const line = context.state.doc.lineAt(context.pos)
   const textBefore = line.text.slice(0, context.pos - line.from)
 
-  // ── Inside .scale("..." ) — complete scale names (kit scale boosted) ──
+  // ── Inside .scale("..." ) — complete scale names (song scale boosted) ──
   const scaleMatch = textBefore.match(/\.scale\(["']([^"']*)$/)
   if (scaleMatch) {
     return {
@@ -163,15 +175,15 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
   }
 
   // ── Inside note("..." ) — scale-coherent notes ranked above chromatic ──
-  // Dedupe enharmonics (c#/cs/db) to one label per pitch+octave; prefer kit spelling.
+  // Dedupe enharmonics (c#/cs/db) to one label per pitch+octave; prefer song-scale spelling.
   // Demote pitches already present in the inner note string (unused in-scale first).
   const noteMatch = textBefore.match(/note\(["']([^"']*)$/)
   if (noteMatch) {
     const inner = noteMatch[1]
     const lastWord = inner.match(/(?:^|[\s~\[\]<>,])([\w#]*)$/)
     const prefix = lastWord?.[1] ?? ''
-    const { kit, role } = resolveKitSuggestCtx()
-    const kitOnes = suggestFromKitProfile(kit, role, 'note')
+    const { kit, role, harmony } = resolveKitSuggestCtx()
+    const kitOnes = suggestFromKitProfile(kit, role, 'note', harmony)
     const noteCompletions = dedupeNotesByPitch(
       mergeKitSuggestions(chromaticNoteCompletions(), kitOnes),
       { prefix, usedInner: inner },
@@ -196,8 +208,8 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
     const inner = inString[1]
     const lastChar = inner.slice(-1)
     if (['*', '/', '!', '@', '?', '~', '(', '[', '<', ',', ':'].includes(lastChar)) {
-      const { kit, role } = resolveKitSuggestCtx()
-      const patternOnes = suggestFromKitProfile(kit, role, 'pattern')
+      const { kit, role, harmony } = resolveKitSuggestCtx()
+      const patternOnes = suggestFromKitProfile(kit, role, 'pattern', harmony)
       const merged = patternOnes.length
         ? (mergeKitSuggestions(miniNotationCompletions, patternOnes) as Completion[])
         : miniNotationCompletions
@@ -238,7 +250,8 @@ function strudelCompletion(context: CompletionContext): CompletionResult | null 
  * DocsPanel to cursor context via cursor-docs.ts.
  *
  * Kit-aware: completions soft-rank using the active jam kit shuffle profile
- * (same pools as apply/shuffle) — neighbor ideas only, not full-line regen.
+ * (groove/density/banks) with songRoot/songScale for notes — same override as
+ * Shuffle — neighbor ideas only, not full-line regen.
  */
 export const strudelAutocomplete = autocompletion({
   override: [strudelCompletion],
