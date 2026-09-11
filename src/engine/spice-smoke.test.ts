@@ -17,6 +17,7 @@ function track(id: string, code: string, role: Track['role'] = 'lead'): Track {
     soloed: false,
     locked: false,
     volume: 1,
+    octave: 0,
     error: null,
   }
 }
