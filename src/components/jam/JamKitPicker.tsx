@@ -19,6 +19,12 @@ interface Props {
   onSkip: () => void
 }
 
+/** Collapse once the list is scrolled past this; expand only near top (hysteresis). */
+const COLLAPSE_AT = 48
+const EXPAND_AT = 12
+/** Ignore scroll while layout height settles after expand/collapse. */
+const SCROLL_IGNORE_MS = 250
+
 function toggleTag(tags: string[], id: string): string[] {
   return tags.includes(id) ? tags.filter((t) => t !== id) : [...tags, id]
 }
@@ -75,23 +81,33 @@ export function JamKitPicker({
   )
   const [localFocus, setLocalFocus] = useState(false)
   const [filtersCollapsed, setFiltersCollapsed] = useState(false)
-  const lastScrollTopRef = useRef(0)
+  /** After collapse transition, hide paint so overflow-x chips cannot leak. */
+  const [filtersPaintHidden, setFiltersPaintHidden] = useState(false)
+  const ignoreScrollUntilRef = useRef(0)
 
   const tempoTags = softTags.filter((t) => t.kind === 'tempo')
   const bankTags = softTags.filter((t) => t.kind === 'bank')
   const vibeTags = softTags.filter((t) => t.kind === 'vibe')
 
-  const onKitListScroll = (e: UIEvent<HTMLDivElement>) => {
-    const scrollTop = e.currentTarget.scrollTop
-    const delta = scrollTop - lastScrollTopRef.current
-    lastScrollTopRef.current = scrollTop
+  const setCollapsed = (collapsed: boolean) => {
+    if (!collapsed) {
+      setFiltersPaintHidden(false)
+    }
+    setFiltersCollapsed(collapsed)
+    ignoreScrollUntilRef.current = performance.now() + SCROLL_IGNORE_MS
+  }
 
-    if (scrollTop < 8 || delta < -1) {
-      setFiltersCollapsed(false)
+  const onKitListScroll = (e: UIEvent<HTMLDivElement>) => {
+    if (performance.now() < ignoreScrollUntilRef.current) return
+    const scrollTop = e.currentTarget.scrollTop
+
+    // Hysteresis: expand only near the top — never on mid-list scroll-up.
+    if (scrollTop < EXPAND_AT) {
+      if (filtersCollapsed) setCollapsed(false)
       return
     }
-    if (scrollTop > 40 || delta > 1) {
-      setFiltersCollapsed(true)
+    if (scrollTop > COLLAPSE_AT) {
+      if (!filtersCollapsed) setCollapsed(true)
     }
   }
 
@@ -116,8 +132,8 @@ export function JamKitPicker({
         {filtersCollapsed ? (
           <button
             type="button"
-            className="shrink-0 w-full min-h-9 px-3 rounded-xl border border-border bg-bg text-left text-[11px] text-text-muted hover:border-accent/40 hover:text-accent transition-colors truncate"
-            onClick={() => setFiltersCollapsed(false)}
+            className="shrink-0 w-full min-h-9 px-3 rounded-xl border border-border bg-bg-elevated text-left text-[11px] text-text-muted hover:border-accent/40 hover:text-accent transition-colors truncate relative z-10"
+            onClick={() => setCollapsed(false)}
             aria-expanded={false}
             aria-label="Expand search and filters"
           >
@@ -126,12 +142,14 @@ export function JamKitPicker({
         ) : null}
 
         <div
-          className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${
-            filtersCollapsed
-              ? 'grid-rows-[0fr] opacity-0 pointer-events-none'
-              : 'grid-rows-[1fr] opacity-100'
-          }`}
+          className={`grid overflow-hidden transition-[grid-template-rows] duration-200 ease-out ${
+            filtersCollapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
+          } ${filtersPaintHidden ? 'invisible pointer-events-none' : ''}`}
           aria-hidden={filtersCollapsed}
+          onTransitionEnd={(e) => {
+            if (e.target !== e.currentTarget) return
+            if (filtersCollapsed) setFiltersPaintHidden(true)
+          }}
         >
           <div className="overflow-hidden min-h-0 space-y-3">
             <p className="text-xs text-text-muted shrink-0">
@@ -152,7 +170,7 @@ export function JamKitPicker({
               aria-label="Search kits"
             />
 
-            <div className="space-y-2 shrink-0">
+            <div className="space-y-2 shrink-0 overflow-hidden">
               <div className="flex gap-1.5 overflow-x-auto pb-0.5">
                 {tempoTags.map((t) => (
                   <TagChip
