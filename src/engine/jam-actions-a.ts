@@ -7,6 +7,14 @@ import { useUIStore } from '../store/ui-store'
 import { KITS, getKit, kitToTemplate } from './kits'
 import { pickRandomKit } from './kit-browser'
 import { reshuffleTrack } from './reshuffle'
+import { resolveShuffleProfile } from './kits-types'
+import type { ScaleKind } from './kits-types'
+import {
+  clampTrackOctave,
+  isMelodicRole,
+  remapNotesToHarmony,
+  shiftNotesByOctaves,
+} from './note-harmony'
 import { liveUpdateEngine, type Quantization } from './live-update'
 
 export type JamQueueReason = 'kit' | 'jam' | 'reshuffle' | 'mute-solo'
@@ -40,6 +48,19 @@ export function queueLiveImmediate(reason: JamQueueReason = 'mute-solo') {
 }
 
 
+function songAwareShuffle(kitShuffle: import('./kits-types').KitShuffleProfile | null | undefined) {
+  const jam = useJamStore.getState()
+  if (kitShuffle) {
+    return { ...kitShuffle, root: jam.songRoot, scale: jam.songScale }
+  }
+  return {
+    groove: 'four_on_floor' as const,
+    density: 'mid' as const,
+    root: jam.songRoot,
+    scale: jam.songScale,
+  }
+}
+
 export function applyKit(
   id: string,
   opts?: { fromPicker?: boolean },
@@ -53,6 +74,9 @@ export function applyKit(
   const jam = useJamStore.getState()
   jam.setKitId(kit.id)
   jam.setVibe(kit.vibe)
+  const resolved = resolveShuffleProfile(kit)
+  jam.setSongRoot(resolved.root)
+  jam.setSongScale(resolved.scale)
   jam.setHasPickedKit(true)
   if (opts?.fromPicker) jam.setShowKitPicker(false)
   // Always reshuffle so picking the same kit twice yields new in-profile riffs.
@@ -95,7 +119,8 @@ export function reshuffleUnlocked(): {
       pinEffects,
       lockKit: jam.lockKit || !!activeKit,
       bank: activeKit?.drumsBank,
-      shuffle: activeKit?.shuffle,
+      shuffle: songAwareShuffle(activeKit?.shuffle),
+      octaveOffset: t.octave ?? 0,
     })
     state.setCode(t.id, next)
     shuffled++
@@ -124,7 +149,8 @@ export function reshuffleTrackById(
     pinEffects,
     lockKit: jam.lockKit || !!activeKit,
     bank: activeKit?.drumsBank,
-    shuffle: activeKit?.shuffle,
+    shuffle: songAwareShuffle(activeKit?.shuffle),
+    octaveOffset: track.octave ?? 0,
   })
   state.setCode(track.id, next)
   jam.touchTrack(track.id)
@@ -207,4 +233,74 @@ export function freshStartJam(): FreshStartResult {
     shuffled,
     openedPicker: shouldOpenPicker,
   }
+}
+
+/** Update song-level root/scale; optionally remap existing melodic note(...) patterns. */
+export function setSongHarmony(
+  root: string,
+  scale: ScaleKind,
+  opts?: { remap?: boolean },
+): { ok: true; root: string; scale: ScaleKind; remapped: number } {
+  const jam = useJamStore.getState()
+  const prevRoot = jam.songRoot
+  const prevScale = jam.songScale
+  jam.setSongRoot(root)
+  jam.setSongScale(scale)
+  let remapped = 0
+  if (opts?.remap !== false && (prevRoot !== root || prevScale !== scale)) {
+    const session = useSessionStore.getState()
+    for (const t of session.tracks) {
+      if (!isMelodicRole(t.role)) continue
+      if (t.locked) continue
+      if (!t.code.includes('note(')) continue
+      const next = remapNotesToHarmony(t.code, prevRoot, prevScale, root, scale)
+      if (next !== t.code) {
+        jam.pushUndo({ trackId: t.id, code: t.code, label: `Scale · ${t.name}` })
+        session.setCode(t.id, next)
+        remapped++
+      }
+    }
+    if (remapped > 0) queueLive('jam')
+  }
+  jam.setLastPeek(
+    remapped > 0
+      ? `Key · ${root} ${scale} · remapped ${remapped}`
+      : `Key · ${root} ${scale}`,
+  )
+  return { ok: true, root, scale, remapped }
+}
+
+/** Shift melodic track octave (±1 UI step). Pins Sound; rewrites note(...) only. */
+export function setTrackOctave(
+  trackId: string,
+  octave: number,
+): { ok: true; trackId: string; octave: number } | { ok: false; error: string } {
+  const session = useSessionStore.getState()
+  const track = session.tracks.find((t) => t.id === trackId)
+  if (!track) return { ok: false, error: `Track not found: ${trackId}` }
+  if (!isMelodicRole(track.role)) {
+    return { ok: false, error: `Octave not applicable to ${track.role}` }
+  }
+  const nextOct = clampTrackOctave(octave)
+  const prev = track.octave ?? 0
+  const delta = nextOct - prev
+  if (delta === 0) {
+    session.setOctave(trackId, nextOct)
+    return { ok: true, trackId, octave: nextOct }
+  }
+  const jam = useJamStore.getState()
+  jam.pushUndo({
+    trackId: track.id,
+    code: track.code,
+    label: `Octave · ${track.name} · ${nextOct >= 0 ? '+' : ''}${nextOct}`,
+  })
+  const nextCode = shiftNotesByOctaves(track.code, delta)
+  session.setCode(track.id, nextCode)
+  session.setOctave(trackId, nextOct)
+  jam.touchTrack(track.id)
+  jam.setLastPeek(
+    `Octave · ${track.name} · ${nextOct >= 0 ? '+' : ''}${nextOct}`,
+  )
+  queueLive('jam')
+  return { ok: true, trackId, octave: nextOct }
 }
