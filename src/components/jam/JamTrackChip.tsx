@@ -140,7 +140,7 @@ export function JamTrackChip({
           <div className="font-medium truncate flex items-center gap-0.5">
             {track.locked && (
               <span className="shrink-0" aria-hidden title="Locked">
-                \uD83D\uDD12
+                {'\uD83D\uDD12'}
               </span>
             )}
             <span className="truncate">{track.name}</span>
