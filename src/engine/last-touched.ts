@@ -6,6 +6,7 @@
  * - Track sheet Sound / FX / mix gain (volume)
  * - Per-track Shuffle this
  * - Spice when it mutates a track (use that track id)
+ * - Mutate when it targets a single track (song-global half/double leave mark)
  *
  * Does NOT update for mute/solo alone.
  * Song-level Shuffle / New kit / applyKit: keep previous if still present,
