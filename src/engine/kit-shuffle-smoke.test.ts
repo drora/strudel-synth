@@ -12,7 +12,12 @@ import {
   resolveShuffleProfile,
 } from './kits'
 import { reshuffleTrack, resolveDrumVoice } from './reshuffle'
-import { getBankFromCode as getBank } from './code-effects'
+import {
+  getBankFromCode as getBank,
+  getNFromCode,
+  getSoundFromCode,
+  primarySSample,
+} from './code-effects'
 
 const DRUM_ROLES = new Set(['drums', 'hihats', 'fx'])
 
@@ -129,6 +134,58 @@ function leadShapeKey(code: string): string {
   console.log(`lead shapes (${shapes.size}): ${[...shapes].join(' · ')}`)
   for (const s of samples) console.log(`  ${s}`)
   assert.ok(shapes.size > 3, `expected >3 lead shapes, got ${shapes.size}: ${[...shapes]}`)
+}
+
+
+// Shuffle pins Sound identity (bank/n, primary sample, synth) — rhythm/notes may change
+{
+  const tablaCur = 's("tabla:3 ~ tabla:1 ~").gain(1)'
+  for (let i = 0; i < 8; i++) {
+    const next = reshuffleTrack('drums', tablaCur, {
+      bank: 'dirt-tabla',
+      shuffle: { groove: 'sparse', density: 'mid' },
+      lockKit: true,
+    })
+    assert.equal(primarySSample(next), 'tabla:3', `tabla primary pin; got ${next}`)
+    assert.ok(!getBank(next), `tabla should not gain .bank(); got ${next}`)
+  }
+
+  const bankCur = 's("bd sd hh cp").bank("RolandTR909").n(1).gain(1.05)'
+  for (let i = 0; i < 8; i++) {
+    const next = reshuffleTrack('drums', bankCur, {
+      bank: 'RolandTR909',
+      shuffle: { groove: 'four_on_floor', density: 'mid' },
+      lockKit: true,
+    })
+    assert.equal(getBank(next), 'RolandTR909', `bank pin; got ${next}`)
+    assert.equal(getNFromCode(next), 1, `n pin; got ${next}`)
+  }
+
+  const melCur = 'note("<c3 eb3 g3>").sound("triangle").lpf(800).gain(0.5)'
+  for (let i = 0; i < 8; i++) {
+    const next = reshuffleTrack('bass', melCur, {
+      shuffle: {
+        groove: 'four_on_floor',
+        density: 'mid',
+        root: 'c',
+        scale: 'minor',
+        melodicSounds: ['sawtooth', 'square', 'triangle', 'sine'],
+      },
+      lockKit: true,
+    })
+    assert.equal(getSoundFromCode(next), 'triangle', `synth pin; got ${next}`)
+    // Melody/rhythm may change — just ensure we still have a note/s pattern head
+    assert.ok(/note\(|s\(/.test(next), `melodic pattern present; got ${next}`)
+  }
+
+  // Empty prior → no pin crash; still returns code
+  const fresh = reshuffleTrack('drums', '', {
+    bank: 'RolandTR909',
+    shuffle: { groove: 'four_on_floor', density: 'mid' },
+    lockKit: true,
+  })
+  assert.ok(fresh.length > 0)
+  console.log('shuffle pin sound/bank/n/synth: ok')
 }
 
 console.log('ALL CHECKS PASSED')
