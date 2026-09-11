@@ -99,6 +99,7 @@ function assignSampleToTrack(sampleName: string): string {
     soloed: false,
     locked: false,
     volume: 1,
+    octave: 0,
     error: null,
   })
   jam.touchTrack(id)
