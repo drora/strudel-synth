@@ -276,6 +276,35 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
                 {live.muted ? 'Muted' : 'On'}
               </button>
             </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">
+                Lock
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  useSessionStore.getState().toggleLock(live.id)
+                  const now = useSessionStore.getState().tracks.find((t) => t.id === live.id)
+                  useJamStore.getState().setLastPeek(
+                    now?.locked ? `Locked · ${live.name}` : `Unlocked · ${live.name}`,
+                  )
+                }}
+                aria-pressed={live.locked}
+                aria-label={live.locked ? `Unlock ${live.name}` : `Lock ${live.name}`}
+                title={
+                  live.locked
+                    ? 'Unlock — Shuffle may change this track'
+                    : 'Lock — Shuffle skips this track'
+                }
+                className={`min-h-11 px-4 rounded-xl text-xs font-medium border ${
+                  live.locked
+                    ? 'border-accent/40 bg-accent/15 text-accent'
+                    : 'border-border text-text-muted hover:border-accent'
+                }`}
+              >
+                {live.locked ? 'Locked' : 'Lock'}
+              </button>
+            </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">
