@@ -1,5 +1,16 @@
 import type { TrackRole } from './types'
-import { splitEffectSuffix, getBankFromCode, setBankInCode } from './code-effects'
+import {
+  splitEffectSuffix,
+  getBankFromCode,
+  setBankInCode,
+  getNFromCode,
+  setNInCode,
+  getSoundFromCode,
+  setSoundInCode,
+  primarySSample,
+  rewriteSPatternSample,
+  removeEffectFromCode,
+} from './code-effects'
 import type {
   Density,
   FxBias,
@@ -344,9 +355,60 @@ function generateRaw(
   }
 }
 
+/** Sound identity pinned across Shuffle (rhythm/notes may change). */
+type PinnedSound =
+  | { kind: 'bank'; bank: string; n: number | null }
+  | { kind: 'sample'; sample: string }
+  | { kind: 'sound'; sound: string }
+
 /**
- * Reshuffle one track. When `opts.shuffle` + `opts.bank` come from the active kit,
- * patterns stay in-family (same groove / scale / drum bank).
+ * Capture current bank / primary sample / synth so Shuffle can regenerate
+ * rhythm and melody while keeping the Sound sheet selection.
+ */
+function captureSoundIdentity(currentCode: string): PinnedSound | null {
+  const code = currentCode?.trim() ?? ''
+  if (!code) return null
+
+  const bank = getBankFromCode(code)
+  if (bank) {
+    return { kind: 'bank', bank, n: getNFromCode(code) }
+  }
+
+  const hasLeadingS = /^\s*s\(\s*["'][^"']+["']\s*\)/.test(code)
+  const hasSound = /\.sound\(/.test(code)
+  const hasNote = /\bnote\(/.test(code)
+  // Sample-voice drum lines: s("tabla:0 ~ …") with no .bank / .sound / note()
+  if (hasLeadingS && !hasSound && !hasNote) {
+    const sample = primarySSample(code) ?? getSoundFromCode(code)
+    if (sample) return { kind: 'sample', sample }
+    return null
+  }
+
+  const sound = getSoundFromCode(code)
+  if (sound) return { kind: 'sound', sound }
+  return null
+}
+
+/** Re-apply pinned Sound identity onto freshly generated pattern code. */
+function applyPinnedSound(next: string, pinned: PinnedSound): string {
+  if (pinned.kind === 'bank') {
+    let out = setBankInCode(next, pinned.bank)
+    if (pinned.n != null) out = setNInCode(out, pinned.n)
+    else out = removeEffectFromCode(out, 'n')
+    return out
+  }
+  if (pinned.kind === 'sample') {
+    // Drop bank/n if generator emitted a bank-voice line; pin sample hits only.
+    let out = removeEffectFromCode(removeEffectFromCode(next, 'bank'), 'n')
+    return rewriteSPatternSample(out, pinned.sample)
+  }
+  return setSoundInCode(next, pinned.sound)
+}
+
+/**
+ * Reshuffle one track (rhythm + notes may change). Pins Sound identity
+ * (bank / .n / primary sample / synth) from currentCode when parseable.
+ * Kit shuffle profile still picks groove family; New kit / applyKit stays full regen.
  */
 export function reshuffleTrack(
   role: TrackRole,
@@ -354,6 +416,7 @@ export function reshuffleTrack(
   opts?: ReshuffleOpts,
 ): string {
   const profile = resolveProfile(opts)
+  const pinned = captureSoundIdentity(currentCode)
   const bank =
     opts?.bank ??
     (opts?.lockKit ? getBankFromCode(currentCode) : null) ??
@@ -362,16 +425,21 @@ export function reshuffleTrack(
 
   let next = generateRaw(role, currentCode, profile, DRUM_ROLES.includes(role) ? bank : null)
 
+  if (pinned) {
+    next = applyPinnedSound(next, pinned)
+  } else if (opts?.lockKit && DRUM_ROLES.includes(role)) {
+    // No prior sound to pin (fresh/empty) — keep kit bank on bank-voice kits.
+    const prevBank = opts.bank || getBankFromCode(currentCode)
+    if (prevBank && resolveDrumVoice(prevBank) === 'bank') {
+      next = setBankInCode(next, prevBank)
+    }
+  }
+
   if (opts?.pinEffects) {
     const { fx } = splitEffectSuffix(currentCode)
     if (fx) {
       const { head } = splitEffectSuffix(next)
       next = head + fx
-    }
-  } else if (opts?.lockKit && DRUM_ROLES.includes(role)) {
-    const prevBank = opts.bank || getBankFromCode(currentCode)
-    if (prevBank && resolveDrumVoice(prevBank) === 'bank') {
-      next = setBankInCode(next, prevBank)
     }
   }
   return next
