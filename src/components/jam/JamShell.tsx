@@ -14,6 +14,9 @@ import { useJamShell } from './useJamShell'
 import { JamTrackChip } from './JamTrackChip'
 import { drumsBankShortName } from '../../engine/kit-browser'
 import { resolveCodeOpenTrackId } from '../../engine/last-touched'
+import { setSongHarmony } from '../../engine/jam-actions'
+import { SONG_ROOTS, SONG_SCALES } from '../../engine/note-harmony'
+import type { ScaleKind } from '../../engine/kits'
 
 function openCodeForTrack(trackId: string | null | undefined) {
   if (!trackId) return
@@ -95,6 +98,49 @@ export function JamShell() {
             </span>
           </button>
           <JamABToggle />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="flex-1 min-h-11 px-3 rounded-xl border border-border bg-bg-elevated flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider text-text-muted shrink-0">
+              Root
+            </span>
+            <select
+              className="flex-1 min-h-9 bg-transparent text-sm outline-none capitalize"
+              value={j.songRoot}
+              aria-label="Song root"
+              onChange={(e) =>
+                setSongHarmony(e.target.value, j.songScale, { remap: true })
+              }
+            >
+              {SONG_ROOTS.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex-1 min-h-11 px-3 rounded-xl border border-border bg-bg-elevated flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider text-text-muted shrink-0">
+              Scale
+            </span>
+            <select
+              className="flex-1 min-h-9 bg-transparent text-sm outline-none capitalize"
+              value={j.songScale}
+              aria-label="Song scale"
+              onChange={(e) =>
+                setSongHarmony(j.songRoot, e.target.value as ScaleKind, {
+                  remap: true,
+                })
+              }
+            >
+              {SONG_SCALES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <div className="flex flex-col items-center py-2">
