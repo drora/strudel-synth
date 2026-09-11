@@ -61,8 +61,10 @@ assert.deepEqual(globalDrums, SOUND_CHOICES.drums)
 
 // match / apply sample-voice lines
 const code = 's("tabla:0 ~ tabla:2 ~").gain(1)'
-const choice = tablaDrums.find((c) => c.sound === 'tabla:0')!
-assert.ok(matchSoundChoice(code, choice), 'match tabla:0 in s body')
+const choice0 = tablaDrums.find((c) => c.sound === 'tabla:0')!
+const choice2 = tablaDrums.find((c) => c.sound === 'tabla:2')!
+assert.ok(matchSoundChoice(code, choice0), 'match primary tabla:0')
+assert.ok(!matchSoundChoice(code, choice2), 'mixed pattern must not highlight tabla:2')
 assert.equal(getSoundFromCode(code), 'tabla:0')
 
 const applied = applySoundChoiceToCode(code, tablaDrums.find((c) => c.sound === 'tabla:3')!)

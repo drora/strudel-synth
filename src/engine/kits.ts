@@ -84,11 +84,12 @@ export function kitToTemplate(kit: Kit): Template {
 export { SOUND_CHOICES } from './kits-sound-choices'
 
 
-/** True when `s("...")` body contains `sample` as a whole token. */
-function sBodyContainsSample(code: string, sample: string): boolean {
+/** First non-rest token in `s("...")` — Sound sheet selection highlight. */
+function primarySSample(code: string): string | null {
   const m = code.match(/\bs\(\s*["']([^"']+)["']\s*\)/)
-  if (!m) return false
-  return m[1]!.trim().split(/\s+/).some((t) => t === sample)
+  if (!m) return null
+  const token = m[1]!.trim().split(/\s+/).find((t) => t !== '~' && t.length > 0)
+  return token ?? null
 }
 
 /** Rewrite `s("...")` hits to `sample`, keeping rests / length when possible. */
@@ -127,8 +128,8 @@ export function matchSoundChoice(code: string, choice: SoundChoice): boolean {
   }
   if (choice.sound) {
     if (sound === choice.sound) return true
-    // Sample-voice drum lines: s("tabla:0 ~ tabla:2 ~") — match token in body
-    return sBodyContainsSample(code, choice.sound)
+    // Sample-voice: only primary (first non-rest) hit is "selected" — not every token in a mixed pattern
+    return primarySSample(code) === choice.sound
   }
   return false
 }
