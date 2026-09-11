@@ -16,6 +16,7 @@ import {
   shiftNotesByOctaves,
 } from './note-harmony'
 import { liveUpdateEngine, type Quantization } from './live-update'
+import { applyMutateToTracks, getMutation, type MutateId } from './mutate'
 
 export type JamQueueReason = 'kit' | 'jam' | 'reshuffle' | 'mute-solo'
 
@@ -79,7 +80,6 @@ export function applyKit(
   jam.setSongScale(resolved.scale)
   jam.setHasPickedKit(true)
   if (opts?.fromPicker) jam.setShowKitPicker(false)
-  // Always reshuffle so picking the same kit twice yields new in-profile riffs.
   reshuffleUnlocked()
   jam.setLastPeek(`kit · ${kit.name} · shuffled`)
   queueLive('kit')
@@ -95,7 +95,14 @@ export function applyKit(
 export function undoJam(): { ok: true; label: string } | { ok: false; error: string } {
   const entry = useJamStore.getState().popUndo()
   if (!entry) return { ok: false, error: 'Nothing to undo' }
-  useSessionStore.getState().setCode(entry.trackId, entry.code)
+  const session = useSessionStore.getState()
+  if (entry.batch && entry.batch.length > 0) {
+    for (const snap of entry.batch) {
+      session.setCode(snap.trackId, snap.code)
+    }
+  } else {
+    session.setCode(entry.trackId, entry.code)
+  }
   const jam = useJamStore.getState()
   jam.touchTrack(entry.trackId)
   jam.setLastPeek(`Undo · ${entry.label}`)
@@ -121,7 +128,6 @@ export function reshuffleUnlocked(): {
       bank: activeKit?.drumsBank,
       shuffle: songAwareShuffle(activeKit?.shuffle),
     })
-    // Apply octave here too so Shuffle works even if reshuffle opts are ignored.
     const oct = t.octave ?? 0
     if (oct && isMelodicRole(t.role)) next = shiftNotesByOctaves(next, oct)
     state.setCode(t.id, next)
@@ -133,7 +139,6 @@ export function reshuffleUnlocked(): {
   return { ok: true, shuffled, lockKit: jam.lockKit }
 }
 
-/** Reshuffle a single unlocked track from the active kit profile (same opts as full Shuffle). */
 export function reshuffleTrackById(
   trackId: string,
 ): { ok: true; trackId: string; name: string } | { ok: false; error: string } {
@@ -177,12 +182,6 @@ export type FreshStartResult = {
   openedPicker: boolean
 }
 
-/**
- * Once per page load (or after bfcache pageshow resets the guard):
- * if no tracks, prefer persisted jam.kitId then pickRandomKit / KITS[0],
- * then always reshuffleUnlocked so reload regenerates from the kit shuffle profile.
- * Still opens the kit picker when the user has never picked a kit.
- */
 export function freshStartJam(): FreshStartResult {
   if (freshStartDone) {
     const jam = useJamStore.getState()
@@ -204,7 +203,6 @@ export function freshStartJam(): FreshStartResult {
 
   const session = useSessionStore.getState()
   if (session.tracks.length === 0) {
-    // Prefer last kit so reload = same kit, new riffs. Else pickRandomKit (exclude current id).
     const persisted = jam.kitId ? getKit(jam.kitId) : undefined
     const preferred =
       persisted ??
@@ -217,7 +215,6 @@ export function freshStartJam(): FreshStartResult {
     }
   }
 
-  // Always reshuffle after kit apply (or when tracks already present).
   const { shuffled } = reshuffleUnlocked()
 
   const peek = kitName ? `${kitName} · shuffled` : 'fresh · shuffled'
@@ -238,7 +235,6 @@ export function freshStartJam(): FreshStartResult {
   }
 }
 
-/** Update song-level root/scale; optionally remap existing melodic note(...) patterns. */
 export function setSongHarmony(
   root: string,
   scale: ScaleKind,
@@ -273,7 +269,6 @@ export function setSongHarmony(
   return { ok: true, root, scale, remapped }
 }
 
-/** Shift melodic track octave (±1 UI step). Pins Sound; rewrites note(...) only. */
 export function setTrackOctave(
   trackId: string,
   octave: number,
@@ -306,4 +301,41 @@ export function setTrackOctave(
   )
   queueLive('jam')
   return { ok: true, trackId, octave: nextOct }
+}
+
+/** Apply a named Mutate transform. Song scope = all unlocked; else last-touched track. */
+export function applyMutate(
+  mutateId: MutateId | string,
+): { ok: true; id: MutateId; label: string; changed: number } | { ok: false; error: string } {
+  const def = getMutation(mutateId)
+  if (!def) return { ok: false, error: `Unknown mutate: ${mutateId}` }
+  const session = useSessionStore.getState()
+  const jam = useJamStore.getState()
+  const prefer = jam.lastTouchedTrackId ?? session.activeTrackId
+  const result = applyMutateToTracks(session.tracks, def.id, prefer)
+  if (!result) {
+    jam.setLastPeek(`Mutate · ${def.label} · (no change)`)
+    return { ok: false, error: 'Nothing to mutate' }
+  }
+  const snaps = result.changes.map((c) => {
+    const t = session.tracks.find((x) => x.id === c.trackId)!
+    return { trackId: t.id, code: t.code }
+  })
+  const primary = snaps[0]!
+  jam.pushUndo({
+    trackId: primary.trackId,
+    code: primary.code,
+    label: `Mutate · ${result.label}`,
+    batch: snaps.length > 1 ? snaps : undefined,
+  })
+  for (const c of result.changes) {
+    session.setCode(c.trackId, c.code)
+  }
+  if (result.scope === 'track') {
+    jam.touchTrack(result.changes[0]!.trackId)
+  }
+  const scopeTag = result.scope === 'song' ? ' · song' : ''
+  jam.setLastPeek(`Mutate · ${result.label}${scopeTag}`)
+  queueLive('jam')
+  return { ok: true, id: result.id, label: result.label, changed: result.changes.length }
 }
