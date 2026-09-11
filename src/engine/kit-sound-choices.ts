@@ -119,7 +119,8 @@ function specialVoiceChoices(voice: DrumVoice, role: TrackRole, kit: Kit): Sound
       return [{ id: '727', label: '727 perc', bank: 'RolandTR727' }]
     }
     case 'nobank':
-      // Dirt/uzu mini-notation samples Shuffle writes (no .bank()) — not synth tiles.
+      // Dirt/uzu mini-notation samples Shuffle writes (no .bank()) — not synths.
+      // Uzu Core Clap must list cp/sd/rim/… (not saw/triangle from melodicSounds).
       return nobankNativeChoices(role)
     default:
       return []
