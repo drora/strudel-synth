@@ -60,7 +60,7 @@ function prioritizeBank(role: TrackRole, drumsBank: string): SoundChoice[] {
 }
 
 /** Kit-native sample tiles for special drum voices (not the global TR bank list). */
-function specialVoiceChoices(voice: DrumVoice, role: TrackRole, kit: Kit): SoundChoice[] {
+function specialVoiceChoices(voice: DrumVoice, role: TrackRole): SoundChoice[] {
   switch (voice) {
     case 'tabla': {
       if (role === 'drums') return rangeTiles('tabla', 'Tabla', 'tabla', 0, 4)
@@ -172,7 +172,7 @@ export function soundChoicesForKit(role: TrackRole, kit: Kit | null | undefined)
   if (DRUM_ROLES.has(role)) {
     const voice = resolveDrumVoice(kit.drumsBank)
     if (voice === 'bank') return prioritizeBank(role, kit.drumsBank)
-    return specialVoiceChoices(voice, role, kit)
+    return specialVoiceChoices(voice, role)
   }
 
   return SOUND_CHOICES[role] ?? SOUND_CHOICES.custom
