@@ -10,6 +10,8 @@ export interface Track {
   soloed: boolean
   locked: boolean
   volume: number
+  /** Melodic octave offset (−3…+3). Drums/fx ignore. */
+  octave: number
   error: string | null
 }
 
