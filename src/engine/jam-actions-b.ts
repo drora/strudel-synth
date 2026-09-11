@@ -24,6 +24,7 @@ import { liveUpdateEngine } from './live-update'
 import { getSchedulerCycle } from './strudel'
 import type { TrackRole } from './types'
 import { queueLive, queueLiveImmediate } from './jam-actions-a'
+import { applySpiceToTracks } from './spice'
 
 export function punchAb(slot: AbSlot) {
   useJamStore.getState().punchVariant(slot)
@@ -40,6 +41,50 @@ export function setLockKit(lock: boolean) {
   useJamStore.getState().setLastPeek(lock ? 'Lock kit · on' : 'Lock kit · off')
   return { ok: true as const, lockKit: lock }
 }
+
+export function setTrackLock(
+  trackId: string,
+  locked: boolean,
+): { ok: true; trackId: string; locked: boolean; name: string } | { ok: false; error: string } {
+  const session = useSessionStore.getState()
+  const track = session.tracks.find((t) => t.id === trackId)
+  if (!track) return { ok: false, error: `Track not found: ${trackId}` }
+  if (track.locked !== locked) session.toggleLock(trackId)
+  const after = useSessionStore.getState().tracks.find((t) => t.id === trackId)!
+  useJamStore.getState().setLastPeek(
+    after.locked ? `Lock · ${after.name}` : `Unlock · ${after.name}`,
+  )
+  return { ok: true, trackId, locked: after.locked, name: after.name }
+}
+
+/** Same as Jam footer Spice — one FX/timbre nudge on preferTrackId / active / any. */
+export function spiceTracks(
+  preferTrackId?: string | null,
+): { ok: true; trackId: string; label: string } | { ok: false; error: string } {
+  const session = useSessionStore.getState()
+  const prefer = preferTrackId ?? session.activeTrackId
+  const result = applySpiceToTracks(session.tracks, prefer)
+  if (!result) {
+    useJamStore.getState().setLastPeek('Spice · (no change)')
+    return { ok: false, error: 'Nothing to spice' }
+  }
+  const prev = session.tracks.find((t) => t.id === result.trackId)
+  if (prev) {
+    useJamStore.getState().pushUndo({
+      trackId: prev.id,
+      code: prev.code,
+      label: `Spice · ${result.label}`,
+    })
+  }
+  session.setCode(result.trackId, result.code)
+  const jam = useJamStore.getState()
+  jam.touchTrack(result.trackId)
+  jam.setLastPeek(`Spice · ${result.label}`)
+  liveUpdateEngine.markDirty()
+  queueLive('jam')
+  return { ok: true, trackId: result.trackId, label: result.label }
+}
+
 
 export function setVolume(trackId: string, volume: number) {
   const session = useSessionStore.getState()
