@@ -5,6 +5,7 @@ import { PlayButton } from '../transport/PlayButton'
 import { SampleLoadingIndicator } from '../transport/SampleLoadingIndicator'
 import { JamTrackSheet } from './JamTrackSheet'
 import { JamCodeSheet } from './JamCodeSheet'
+import { JamMutateSheet } from './JamMutateSheet'
 import { JamKitPicker } from './JamKitPicker'
 import { JamAddTrack } from './JamAddTrack'
 import { JamPhaseRing } from './JamPhaseRing'
@@ -26,8 +27,9 @@ function openCodeForTrack(trackId: string | null | undefined) {
 
 export function JamShell() {
   const j = useJamShell()
-  const codeTrackId = useJamStore((s) => s.codeTrackId)
-  const codeTrack = j.tracks.find((t) => t.id === codeTrackId)
+  const codeTrackId = useJamStore.getState ? useJamStore((s) => s.codeTrackId) : null
+  const codeTrackId2 = useJamStore((s) => s.codeTrackId)
+  const codeTrack = j.tracks.find((t) => t.id === codeTrackId2)
 
   return (
     <div
@@ -154,7 +156,6 @@ export function JamShell() {
             <div className="text-[10px] uppercase tracking-wider text-text-muted text-center mb-1.5">
               Sounds / FX · tap · M mute · long-press Code
             </div>
-            {/* Vertical stack: fixed chip widths (PR #19) — no sideways reflow; page scrolls */}
             <div className="flex flex-col items-center gap-1.5">
               {j.tracks.map((t) => (
                 <JamTrackChip
@@ -216,6 +217,14 @@ export function JamShell() {
           >
             Spice
           </button>
+          <button
+            type="button"
+            onClick={() => j.setShowMutateSheet(true)}
+            className="min-h-11 px-3 rounded-xl text-xs font-medium bg-bg-elevated border border-border"
+            title="Deterministic pattern transforms — not Shuffle, not Spice"
+          >
+            Mutate
+          </button>
         </div>
       </div>
 
@@ -237,6 +246,9 @@ export function JamShell() {
 
       {j.soundTrack && <JamTrackSheet track={j.soundTrack} />}
       {codeTrack && <JamCodeSheet track={codeTrack} />}
+      {j.showMutateSheet && (
+        <JamMutateSheet onClose={() => j.setShowMutateSheet(false)} />
+      )}
     </div>
   )
 }
