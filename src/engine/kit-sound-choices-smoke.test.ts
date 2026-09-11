@@ -99,4 +99,30 @@ const appliedCp = applySoundChoiceToCode(clapCode, uzuFx.find((c) => c.sound ===
 assert.ok(appliedCp.includes('rim'), `apply rewrites s() to rim; got ${appliedCp}`)
 assert.ok(!appliedCp.includes('.sound('), 'nobank sample apply uses s() rewrite not .sound()')
 
-console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, nobank dirt, match/apply')
+// Missing-catalog bank (TR-606 / DR-110 absent from FX SOUND_CHOICES): fallback tile + match
+const kit606 = getKit('techno-minimal606')
+assert.ok(kit606, 'Minimal 606 kit')
+assert.equal(kit606!.drumsBank, 'RolandTR606')
+const fx606 = soundChoicesForKit('fx', kit606)
+assert.ok(fx606[0]?.bank === 'RolandTR606', `606 fx first tile bank=${fx606[0]?.bank}`)
+assert.ok(
+  fx606.some((c) => c.bank === 'RolandTR606'),
+  '606 fx choices include RolandTR606 fallback',
+)
+const code606 = 's("~ cp ~ cp").bank("RolandTR606")'
+assert.ok(
+  matchSoundChoice(code606, fx606.find((c) => c.bank === 'RolandTR606')!),
+  'matchSoundChoice bank fallback on TR-606 fx',
+)
+
+const kit110 = getKit('ambient-dr110-soft')
+assert.ok(kit110, 'DR-110 Soft kit')
+const hats110 = soundChoicesForKit('hihats', kit110)
+assert.ok(
+  hats110.some((c) => c.bank === 'BossDR110'),
+  'DR-110 hats include BossDR110 fallback (missing from hats catalog)',
+)
+const drums110 = soundChoicesForKit('drums', kit110)
+assert.ok(drums110[0]?.bank === 'BossDR110', 'DR-110 drums still prioritize catalog tile')
+
+console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, nobank dirt, bank fallback, match/apply')

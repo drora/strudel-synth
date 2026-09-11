@@ -7,6 +7,7 @@ import type { Kit, SoundChoice } from './kits-types'
 import { resolveShuffleProfile } from './kits-types'
 import { SOUND_CHOICES } from './kits-sound-choices'
 import { resolveDrumVoice, type DrumVoice } from './reshuffle-drums'
+import { drumsBankShortName } from './kit-browser'
 
 const MELODIC_ROLES = new Set<TrackRole>(['bass', 'lead', 'pad', 'arp', 'vox', 'custom'])
 const DRUM_ROLES = new Set<TrackRole>(['drums', 'hihats', 'fx'])
@@ -44,14 +45,28 @@ function melodicStyleForRole(role: TrackRole, kit: Kit): SoundChoice[] {
   return out
 }
 
+/** Role-ish label for a bank fallback tile (Kick / Hats / Clap). */
+function bankFallbackLabel(role: TrackRole, drumsBank: string): string {
+  const short = drumsBankShortName(drumsBank)
+  if (role === 'hihats') return `${short} Hats`
+  if (role === 'fx') return `${short} Clap`
+  return `${short} Kick`
+}
+
 /** Bank voice: kit.drumsBank tiles first, then the rest (dedupe by id). */
 function prioritizeBank(role: TrackRole, drumsBank: string): SoundChoice[] {
   const globals = SOUND_CHOICES[role] ?? []
   const primary = globals.filter((c) => c.bank === drumsBank)
   const rest = globals.filter((c) => c.bank !== drumsBank)
+  // When the kit bank is absent from SOUND_CHOICES[role] (common for fx/hats),
+  // prepend a fallback so Shuffle's `.bank("ThatKit")` still highlights.
+  const head: SoundChoice[] =
+    primary.length > 0
+      ? primary
+      : [{ id: `kit-bank-${drumsBank}`, label: bankFallbackLabel(role, drumsBank), bank: drumsBank }]
   const seen = new Set<string>()
   const out: SoundChoice[] = []
-  for (const c of [...primary, ...rest]) {
+  for (const c of [...head, ...rest]) {
     if (seen.has(c.id)) continue
     seen.add(c.id)
     out.push(c)
@@ -157,7 +172,8 @@ function nobankNativeChoices(role: TrackRole): SoundChoice[] {
 /**
  * Sound sheet tiles for a role given the active kit.
  * - Melodic: kit melodicSounds first, then global role choices.
- * - Drum bank voice: kit.drumsBank first among SOUND_CHOICES[role].
+ * - Drum bank voice: kit.drumsBank first among SOUND_CHOICES[role]; if the bank
+ *   is missing from that role catalog, prepend a bank fallback tile so highlight works.
  * - Special voices: kit-native samples only (tabla/amen/…).
  * - Nobank (uzu/piano/vcsl-keys/…): dirt sample tiles (bd/sd/cp/…) by role — not synths.
  * - No kit: unchanged SOUND_CHOICES[role].
