@@ -20,6 +20,8 @@ export {
   applyMutate,
 } from './jam-actions-a'
 
+export { isTrackShuffleLocked, planShuffleTargets } from './shuffle-lock'
+
 export {
   punchAb,
   toggleAb,

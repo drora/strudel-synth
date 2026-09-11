@@ -17,7 +17,8 @@
     "test:spice": "npx --yes tsx src/engine/spice-smoke.test.ts",
     "test:last-touched": "npx --yes tsx src/engine/last-touched-smoke.test.ts",
     "test:note-harmony": "npx --yes tsx src/engine/note-harmony-smoke.test.ts",
-    "test:mutate": "npx --yes tsx src/engine/mutate-smoke.test.ts"
+    "test:mutate": "npx --yes tsx src/engine/mutate-smoke.test.ts",
+    "test:jam-lock": "npx --yes tsx src/engine/jam-lock-shuffle-smoke.test.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.0",
