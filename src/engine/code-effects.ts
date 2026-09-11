@@ -95,7 +95,14 @@ export function getBankFromCode(code: string): string | null {
 export function getSoundFromCode(code: string): string | null {
   const m = code.match(/\.sound\(\s*["']([^"']+)["']\s*\)/)
     ?? code.match(/\.s\(\s*["']([^"']+)["']\s*\)/)
-  return m?.[1] ?? null
+  if (m?.[1]) return m[1]
+  // Sample-voice drum lines: leading s("tabla:0 ~ …") — first non-rest token
+  const sm = code.match(/^\s*s\(\s*["']([^"']+)["']\s*\)/)
+  if (sm) {
+    const token = sm[1]!.trim().split(/\s+/).find((t) => t !== '~' && t.length > 0)
+    return token ?? null
+  }
+  return null
 }
 
 /** Set or append `.n(index)` for drum-machine sample variant. */
