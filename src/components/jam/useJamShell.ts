@@ -35,6 +35,8 @@ export function useJamShell() {
 
   const vibe = useJamStore((s) => s.vibe)
   const kitId = useJamStore((s) => s.kitId)
+  const songRoot = useJamStore((s) => s.songRoot)
+  const songScale = useJamStore((s) => s.songScale)
   const lockKit = useJamStore((s) => s.lockKit)
   const showKitPicker = useJamStore((s) => s.showKitPicker)
   const lastPeek = useJamStore((s) => s.lastPeek)
@@ -137,6 +139,8 @@ export function useJamShell() {
     showKitLoadingBanner,
     vibe,
     kitId,
+    songRoot,
+    songScale,
     lockKit,
     showKitPicker,
     lastPeek,

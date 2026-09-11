@@ -167,6 +167,8 @@ export function getJamStateSnapshot() {
     kitId: jam.kitId,
     kitName: kit?.name ?? null,
     vibe: jam.vibe,
+    songRoot: jam.songRoot,
+    songScale: jam.songScale,
     lockKit: jam.lockKit,
     hasPickedKit: jam.hasPickedKit,
     ab: {

@@ -17,6 +17,7 @@ function track(partial: Partial<Track> & Pick<Track, 'id' | 'code'>): Track {
     soloed: partial.soloed ?? false,
     locked: partial.locked ?? false,
     volume: partial.volume ?? 1,
+    octave: partial.octave ?? 0,
     error: partial.error ?? null,
   }
 }

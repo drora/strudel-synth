@@ -15,6 +15,8 @@ export {
   resetFreshStartGuardForTests,
   type FreshStartResult,
   freshStartJam,
+  setSongHarmony,
+  setTrackOctave,
 } from './jam-actions-a'
 
 export {

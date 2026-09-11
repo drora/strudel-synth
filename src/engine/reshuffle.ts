@@ -23,6 +23,7 @@ import type {
 } from './kits-types'
 import { resolveShuffleProfile } from './kits-types'
 import { generateDrumRole, resolveDrumVoice } from './reshuffle-drums'
+import { isMelodicRole, shiftNotesByOctaves } from './note-harmony'
 
 const DRUM_ROLES: TrackRole[] = ['drums', 'hihats', 'fx']
 
@@ -37,6 +38,8 @@ export interface ReshuffleOpts {
   shuffle?: KitShuffleProfile | null
   /** Kit vibe used only if shuffle incomplete — prefer passing resolved profile. */
   vibe?: Kit['vibe']
+  /** Melodic octave offset applied after generate (track.octave). */
+  octaveOffset?: number
 }
 
 function pick<T>(arr: T[]): T {
@@ -441,6 +444,11 @@ export function reshuffleTrack(
       const { head } = splitEffectSuffix(next)
       next = head + fx
     }
+  }
+
+  const oct = opts?.octaveOffset ?? 0
+  if (oct && isMelodicRole(role)) {
+    next = shiftNotesByOctaves(next, oct)
   }
   return next
 }

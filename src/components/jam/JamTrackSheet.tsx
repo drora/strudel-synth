@@ -15,7 +15,8 @@ import {
   isPatternedEffect,
 } from '../../engine/code-effects'
 import { liveUpdateEngine } from '../../engine/live-update'
-import { reshuffleTrackById } from '../../engine/jam-actions'
+import { reshuffleTrackById, setTrackOctave } from '../../engine/jam-actions'
+import { isMelodicRole } from '../../engine/note-harmony'
 import type { Track } from '../../engine/types'
 import { queueJam, queueJamImmediate } from './jam-shell-utils'
 
@@ -309,6 +310,45 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
                 ))}
               </div>
             </div>
+            {isMelodicRole(live.role) && (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">
+                    Octave
+                  </span>
+                  <span className="text-[10px] text-text-muted tabular-nums">
+                    {(live.octave ?? 0) >= 0 ? '+' : ''}
+                    {live.octave ?? 0}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="min-h-11 flex-1 rounded-xl text-sm font-medium border border-border hover:border-accent"
+                    onClick={() => setTrackOctave(live.id, (live.octave ?? 0) - 1)}
+                    aria-label="Octave down"
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    className="min-h-11 flex-1 rounded-xl text-sm font-medium border border-border hover:border-accent"
+                    onClick={() => setTrackOctave(live.id, 0)}
+                    aria-label="Reset octave"
+                  >
+                    0
+                  </button>
+                  <button
+                    type="button"
+                    className="min-h-11 flex-1 rounded-xl text-sm font-medium border border-border hover:border-accent"
+                    onClick={() => setTrackOctave(live.id, (live.octave ?? 0) + 1)}
+                    aria-label="Octave up"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

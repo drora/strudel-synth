@@ -29,6 +29,7 @@ export interface CompactSession {
     m?: 0 | 1
     s?: 0 | 1
     v?: number
+    o?: number
     col?: string
     id?: string
   }>
@@ -77,6 +78,7 @@ export function sessionToCompact(session: SavedSession): CompactSession {
       m: tr.muted ? 1 : 0,
       s: tr.soloed ? 1 : 0,
       v: tr.volume === 1 ? undefined : tr.volume,
+      o: (tr.octave ?? 0) === 0 ? undefined : tr.octave,
       col: tr.color,
     })),
   }
@@ -101,6 +103,7 @@ export function compactToSession(c: CompactSession): SavedSession {
         soloed: tr.s === 1,
         locked: false,
         volume: typeof tr.v === 'number' ? tr.v : 1,
+        octave: typeof tr.o === 'number' ? tr.o : 0,
       }
     }),
   }

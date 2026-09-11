@@ -38,6 +38,8 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
         activeTrackId: state.activeTrackId,
         kitId: jam.kitId,
         vibe: jam.vibe,
+        songRoot: jam.songRoot,
+        songScale: jam.songScale,
         lockKit: jam.lockKit,
         ab: {
           a: jam.variantA != null,

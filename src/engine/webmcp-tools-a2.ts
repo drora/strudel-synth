@@ -72,6 +72,7 @@ export function registerWebMcpToolsA2(register: WebMcpRegister) {
         soloed: false,
         locked: false,
         volume: 1,
+        octave: 0,
         error: null,
       })
       return ok('add_track', { name, role }, { id, name, role, status: 'added' }, `Track "${name}" added`)

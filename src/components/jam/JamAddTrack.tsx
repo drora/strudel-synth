@@ -35,6 +35,7 @@ export function JamAddTrack() {
       soloed: false,
       locked: false,
       volume: 1,
+      octave: 0,
       error: null,
     })
     const jam = useJamStore.getState()
