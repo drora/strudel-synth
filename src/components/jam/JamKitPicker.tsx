@@ -19,9 +19,11 @@ interface Props {
   onSkip: () => void
 }
 
-/** Collapse once the list is scrolled past this; expand only near top (hysteresis). */
+/** Collapse only after scrolling down past this; expand only near top (hysteresis). */
 const COLLAPSE_AT = 48
 const EXPAND_AT = 12
+/** Minimum downward delta before collapse while expanded. */
+const COLLAPSE_DELTA = 8
 /** Ignore scroll while layout height settles after expand/collapse. */
 const SCROLL_IGNORE_MS = 250
 
@@ -80,9 +82,10 @@ export function JamKitPicker({
     [kits, filterSearch, filterTags],
   )
   const [localFocus, setLocalFocus] = useState(false)
+  /** Open on mount so search/filters are visible immediately. */
   const [filtersCollapsed, setFiltersCollapsed] = useState(false)
-  /** After collapse transition, hide paint so overflow-x chips cannot leak. */
-  const [filtersPaintHidden, setFiltersPaintHidden] = useState(false)
+  const listRef = useRef<HTMLDivElement>(null)
+  const lastScrollTopRef = useRef(0)
   const ignoreScrollUntilRef = useRef(0)
 
   const tempoTags = softTags.filter((t) => t.kind === 'tempo')
@@ -90,23 +93,38 @@ export function JamKitPicker({
   const vibeTags = softTags.filter((t) => t.kind === 'vibe')
 
   const setCollapsed = (collapsed: boolean) => {
-    if (!collapsed) {
-      setFiltersPaintHidden(false)
-    }
     setFiltersCollapsed(collapsed)
     ignoreScrollUntilRef.current = performance.now() + SCROLL_IGNORE_MS
   }
 
-  const onKitListScroll = (e: UIEvent<HTMLDivElement>) => {
-    if (performance.now() < ignoreScrollUntilRef.current) return
-    const scrollTop = e.currentTarget.scrollTop
+  const expandFilters = () => {
+    setCollapsed(false)
+    const list = listRef.current
+    if (list) {
+      list.scrollTop = 0
+      lastScrollTopRef.current = 0
+    }
+  }
 
-    // Hysteresis: expand only near the top — never on mid-list scroll-up.
+  const onKitListScroll = (e: UIEvent<HTMLDivElement>) => {
+    if (performance.now() < ignoreScrollUntilRef.current) {
+      lastScrollTopRef.current = e.currentTarget.scrollTop
+      return
+    }
+    const scrollTop = e.currentTarget.scrollTop
+    const delta = scrollTop - lastScrollTopRef.current
+    lastScrollTopRef.current = scrollTop
+
+    // Auto-expand only at top.
     if (scrollTop < EXPAND_AT) {
       if (filtersCollapsed) setCollapsed(false)
       return
     }
-    if (scrollTop > COLLAPSE_AT) {
+
+    // Collapse only on downward scroll past threshold — not merely because
+    // scrollTop > COLLAPSE_AT while already expanded (e.g. after tap-expand
+    // before scrollTop is reset, or layout-induced scroll events).
+    if (delta > COLLAPSE_DELTA && scrollTop > COLLAPSE_AT) {
       if (!filtersCollapsed) setCollapsed(true)
     }
   }
@@ -133,7 +151,7 @@ export function JamKitPicker({
           <button
             type="button"
             className="shrink-0 w-full min-h-9 px-3 rounded-xl border border-border bg-bg-elevated text-left text-[11px] text-text-muted hover:border-accent/40 hover:text-accent transition-colors truncate relative z-10"
-            onClick={() => setCollapsed(false)}
+            onClick={expandFilters}
             aria-expanded={false}
             aria-label="Expand search and filters"
           >
@@ -144,12 +162,8 @@ export function JamKitPicker({
         <div
           className={`grid overflow-hidden transition-[grid-template-rows] duration-200 ease-out ${
             filtersCollapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'
-          } ${filtersPaintHidden ? 'invisible pointer-events-none' : ''}`}
+          }`}
           aria-hidden={filtersCollapsed}
-          onTransitionEnd={(e) => {
-            if (e.target !== e.currentTarget) return
-            if (filtersCollapsed) setFiltersPaintHidden(true)
-          }}
         >
           <div className="overflow-hidden min-h-0 space-y-3">
             <p className="text-xs text-text-muted shrink-0">
@@ -231,6 +245,7 @@ export function JamKitPicker({
         </div>
 
         <div
+          ref={listRef}
           className="flex-1 min-h-0 overflow-y-auto space-y-1.5 -mx-1 px-1"
           onScroll={onKitListScroll}
         >
