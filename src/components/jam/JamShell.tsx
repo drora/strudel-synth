@@ -197,25 +197,10 @@ export function JamShell() {
           <JamMicRec large={!!j.isMobile} />
           <button
             type="button"
-            onClick={j.onShuffle}
-            className="min-h-11 flex-1 rounded-xl text-xs font-medium bg-bg-elevated border border-border"
-          >
-            Shuffle
-          </button>
-          <button
-            type="button"
             onClick={j.onNewKit}
             className="min-h-11 px-3 rounded-xl text-xs font-medium bg-bg-elevated border border-border"
           >
             New kit
-          </button>
-          <button
-            type="button"
-            onClick={j.onSpice}
-            className="min-h-11 px-3 rounded-xl text-xs font-medium bg-accent/20 text-accent border border-accent/30"
-            title="FX/timbre nudge — same tune, spiced up"
-          >
-            Spice
           </button>
           <button
             type="button"
@@ -224,6 +209,21 @@ export function JamShell() {
             title="Deterministic pattern transforms — not Shuffle, not Spice"
           >
             Mutate
+          </button>
+          <button
+            type="button"
+            onClick={j.onShuffle}
+            className="min-h-11 flex-1 rounded-xl text-xs font-medium bg-accent/20 text-accent border border-accent/30"
+          >
+            Shuffle
+          </button>
+          <button
+            type="button"
+            onClick={j.onSpice}
+            className="min-h-11 px-3 rounded-xl text-xs font-medium bg-accent/20 text-accent border border-accent/30"
+            title="FX/timbre nudge — same tune, spiced up"
+          >
+            Spice
           </button>
         </div>
       </div>
