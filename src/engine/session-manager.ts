@@ -47,6 +47,7 @@ export function applyTemplate(
     soloed: false,
     locked: false,
     volume: 1,
+    octave: 0,
     error: null,
   }))
   return {
@@ -72,6 +73,7 @@ export function applySavedSession(
     soloed: !!t.soloed,
     locked: false,
     volume: typeof t.volume === 'number' ? t.volume : 1,
+    octave: typeof (t as { octave?: number }).octave === 'number' ? (t as { octave: number }).octave : 0,
     error: null,
   }))
   return {
@@ -115,6 +117,7 @@ export function buildLearnTrack(opts: {
     soloed: false,
     locked: false,
     volume: 1,
+    octave: 0,
     error: null,
   }
 }
