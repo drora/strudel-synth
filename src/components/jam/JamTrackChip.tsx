@@ -137,7 +137,14 @@ export function JamTrackChip({
           style={{ color: track.color, WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
           title="Sound / FX — long-press for Code"
         >
-          <div className="font-medium truncate">{track.name}</div>
+          <div className="font-medium truncate flex items-center gap-0.5">
+            {track.locked && (
+              <span className="shrink-0" aria-hidden title="Locked">
+                \uD83D\uDD12
+              </span>
+            )}
+            <span className="truncate">{track.name}</span>
+          </div>
           {/* Always reserve second line so hint presence never changes chip height */}
           <div className="opacity-70 truncate h-[1em]">{hint || '\u00a0'}</div>
         </button>

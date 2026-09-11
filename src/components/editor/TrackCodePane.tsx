@@ -4,11 +4,10 @@ import { EditorSelection, EditorState } from '@codemirror/state'
 import { createExtensions } from './extensions'
 import { useSessionStore } from '../../store/session-store'
 import { useJamStore } from '../../store/jam-store'
-import { getKit } from '../../engine/kits'
 import { useUIStore, QUANT_OPTIONS } from '../../store/ui-store'
 import { liveUpdateEngine, type UpdateStatus, type Quantization } from '../../engine/live-update'
 import { startOrQueueUpdate, stopPlayback } from '../../engine/playback'
-import { reshuffleTrack } from '../../engine/reshuffle'
+import { reshuffleTrackById } from '../../engine/jam-actions'
 import { ROLE_PRESETS } from '../../engine/presets'
 import type { Track } from '../../engine/types'
 
@@ -86,23 +85,12 @@ export function TrackCodePane({ track, isActive, focusMode = false }: TrackCodeP
   )
 
   const handleReshuffle = useCallback(() => {
-    const pinEffects = useUIStore.getState().pinEffects
-    const jam = useJamStore.getState()
-    const activeKit = jam.kitId ? getKit(jam.kitId) : undefined
-    const newCode = reshuffleTrack(track.role, track.code, {
-      pinEffects,
-      lockKit: jam.lockKit || !!activeKit,
-      bank: activeKit?.drumsBank,
-      shuffle: activeKit?.shuffle,
-    })
-    useSessionStore.getState().setCode(track.id, newCode)
-    useJamStore.getState().touchTrack(track.id)
-    liveUpdateEngine.markDirty()
-    if (useSessionStore.getState().isPlaying) {
-      const q = useUIStore.getState().getEffectiveQuantization(track.id)
-      liveUpdateEngine.queueUpdate(q, 'reshuffle')
+    if (track.locked) {
+      useJamStore.getState().setLastPeek(`Locked · ${track.name}`)
+      return
     }
-  }, [track.id, track.role, track.code])
+    reshuffleTrackById(track.id)
+  }, [track.id, track.locked, track.name])
 
   const handleToggleLock = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
@@ -228,8 +216,13 @@ export function TrackCodePane({ track, isActive, focusMode = false }: TrackCodeP
           <>
             <button
               onClick={(e) => { e.stopPropagation(); handleReshuffle() }}
-              className={`${touchBtn} rounded bg-bg-elevated text-text-muted hover:text-accent hover:bg-accent/10 transition-colors flex items-center justify-center`}
-              title="Reshuffle pattern (Ctrl+Shift+R)"
+              disabled={track.locked}
+              className={`${touchBtn} rounded bg-bg-elevated text-text-muted hover:text-accent hover:bg-accent/10 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-text-muted disabled:hover:bg-bg-elevated`}
+              title={
+                track.locked
+                  ? `Locked · unlock to shuffle ${track.name}`
+                  : 'Reshuffle pattern (Ctrl+Shift+R)'
+              }
             >
               Shuffle
             </button>
