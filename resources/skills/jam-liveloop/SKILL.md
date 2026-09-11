@@ -29,11 +29,15 @@ Kits are **identity + shuffle profile**, not baked Strudel recipes. `apply_kit` 
 
 | Intent | Tool |
 |--------|------|
-| Read state | `get_session`, `get_jam_state`, `get_phase` |
-| Small code tweak | `update_track` with `quantization`: `"1"` or `"2"` |
+| Read state | `get_session` (incl. `songRoot`/`songScale`, track `octave`/`locked`), `get_jam_state`, `get_phase` |
+| Edit track code | `update_track` with `quantization`: `"1"` or `"2"` |
 | New kit identity + regenerates from its shuffle profile | `apply_kit` (BPM preserved while playing) |
-| Fresh lines, same kit profile | `shuffle_sounds` (optional `trackId` for one lane) or re-`apply_kit` |
-| Same tune, FX/timbre only | UI **Spice** (`engine/spice.ts`) — **Spice ≠ Shuffle**; Mission deals removed; Mutate = pattern transforms (not Shuffle/Spice) |
+| Fresh lines, same kit profile | `shuffle_sounds` (optional `trackId`; skips locked) or re-`apply_kit` |
+| Song key / scale | `set_song_harmony` (remaps melodic `note()` like UI) |
+| Melodic octave | `set_octave` (trackId, −3…+3; melodic roles only) |
+| Pin a lane | `set_track_lock` (trackId, locked) |
+| Pattern transforms | `list_mutations` → `apply_mutate` (optional trackId; song-scope = all unlocked) |
+| Same tune, FX/timbre only | `spice` / `spice_tracks` (Jam footer Spice) — **Spice ≠ Shuffle**; Mutate ≠ Spice |
 | Browse kits | `list_kits` → `get_kit` → `apply_kit` |
 | Sound swap | `list_sound_choices` → `apply_sound_choice` |
 | FX / mix nudge | `set_fx`, `set_volume` |

@@ -11,6 +11,9 @@ import {
   reshuffleUnlocked,
   reshuffleTrackById,
   setLockKit,
+  setSongHarmony,
+  setTrackOctave,
+  setTrackLock,
   setVolume,
   setActiveTrack,
   listSoundChoices,
@@ -20,12 +23,14 @@ import {
   listKitsFiltered,
   getKitDetail,
 } from './jam-actions'
+import { SONG_ROOTS, SONG_SCALES } from './note-harmony'
+import type { ScaleKind } from './kits-types'
 
 export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'get_session',
     description:
-      'Get the full current Strudel Studio session + Jam state: tracks (name, role, code, muted, soloed, volume, locked), BPM, playback, kitId, A/B active, and cheap phase. Always call this first.',
+      'Get the full current Strudel Studio session + Jam state: tracks (name, role, code, muted, soloed, volume, locked, octave), BPM, playback, kitId, songRoot/songScale, A/B active, and cheap phase. Always call this first.',
     inputSchema: { type: 'object', properties: {} },
     annotations: { readOnlyHint: true },
     execute: () => {
@@ -60,6 +65,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
           soloed: t.soloed,
           volume: t.volume,
           locked: t.locked,
+          octave: t.octave ?? 0,
         })),
       }
       return ok('get_session', {}, result, 'Session state returned')
@@ -150,7 +156,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   })
   register({
     name: 'set_lock_kit',
-    description: 'When true, reshuffle keeps the kit drum bank; when false, free bank shuffle.',
+    description: 'Legacy kit-bank lock (UI omitted). When true, reshuffle keeps the kit drum bank; when false, free bank shuffle. Prefer per-track set_track_lock for pinning lanes.',
     inputSchema: {
       type: 'object',
       properties: { lock: { type: 'boolean' } },
@@ -181,4 +187,59 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
       return ok('shuffle_sounds', {}, r, `Shuffled ${r.shuffled}`)
     },
   })
+  register({
+    name: 'set_song_harmony',
+    description:
+      'Set song root + scale (same as Jam key/scale controls). Remaps existing note() melodic lanes like the UI (skips locked / non-melodic). get_session already exposes songRoot/songScale.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        root: { type: 'string', enum: [...SONG_ROOTS], description: 'Song root pitch class' },
+        scale: { type: 'string', enum: [...SONG_SCALES], description: 'Song scale kind' },
+        remap: { type: 'boolean', description: 'Remap melodic notes (default true)' },
+      },
+      required: ['root', 'scale'],
+    },
+    execute: ({ root, scale, remap }: { root: string; scale: ScaleKind; remap?: boolean }) => {
+      const r = setSongHarmony(root, scale, { remap })
+      return ok('set_song_harmony', { root, scale, remap }, r, `Key · ${r.root} ${r.scale}`)
+    },
+  })
+  register({
+    name: 'set_octave',
+    description:
+      'Set melodic track octave offset (−3…+3), shifting note() pitches like the Mix sheet. Errors on drums/hihats/fx.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        trackId: { type: 'string' },
+        octave: { type: 'number', minimum: -3, maximum: 3, description: 'Octave offset −3…+3' },
+      },
+      required: ['trackId', 'octave'],
+    },
+    execute: ({ trackId, octave }: { trackId: string; octave: number }) => {
+      const r = setTrackOctave(trackId, octave)
+      if (!r.ok) return fail('set_octave', { trackId, octave }, r.error)
+      return ok('set_octave', { trackId, octave }, r)
+    },
+  })
+  register({
+    name: 'set_track_lock',
+    description:
+      'Lock or unlock a track lane (pins Shuffle / Shuffle this / Mutate / song harmony remap). Uses session toggle/set. shuffle_sounds already skips locked.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        trackId: { type: 'string' },
+        locked: { type: 'boolean' },
+      },
+      required: ['trackId', 'locked'],
+    },
+    execute: ({ trackId, locked }: { trackId: string; locked: boolean }) => {
+      const r = setTrackLock(trackId, locked)
+      if (!r.ok) return fail('set_track_lock', { trackId, locked }, r.error)
+      return ok('set_track_lock', { trackId, locked }, r)
+    },
+  })
+
 }

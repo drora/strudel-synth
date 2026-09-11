@@ -12,6 +12,7 @@ import {
   freshStartJam,
   resetFreshStartGuard,
   reshuffleUnlocked,
+  spiceTracks,
 } from '../../engine/jam-actions'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useVisualViewportHeight } from '../../hooks/useVisualViewport'
@@ -20,8 +21,6 @@ import {
   queueJam,
   useMinVisible,
 } from './jam-shell-utils'
-import { liveUpdateEngine } from '../../engine/live-update'
-import { applySpiceToTracks } from '../../engine/spice'
 
 export function useJamShell() {
   const isMobile = useIsMobile()
@@ -106,27 +105,7 @@ export function useJamShell() {
   }
 
   const onSpice = () => {
-    const state = useSessionStore.getState()
-    const activeId = state.activeTrackId
-    const result = applySpiceToTracks(state.tracks, activeId)
-    if (!result) {
-      useJamStore.getState().setLastPeek('Spice · (no change)')
-      return
-    }
-    const prev = state.tracks.find((t) => t.id === result.trackId)
-    if (prev) {
-      useJamStore.getState().pushUndo({
-        trackId: prev.id,
-        code: prev.code,
-        label: `Spice · ${result.label}`,
-      })
-    }
-    state.setCode(result.trackId, result.code)
-    const jam = useJamStore.getState()
-    jam.touchTrack(result.trackId)
-    jam.setLastPeek(`Spice · ${result.label}`)
-    liveUpdateEngine.markDirty()
-    queueJam('jam')
+    spiceTracks(useSessionStore.getState().activeTrackId)
   }
 
   const shellStyle = isMobile

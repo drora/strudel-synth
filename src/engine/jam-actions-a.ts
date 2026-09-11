@@ -308,15 +308,19 @@ export function setTrackOctave(
   return { ok: true, trackId, octave: nextOct }
 }
 
-/** Apply a named Mutate transform. Song scope = all unlocked; else last-touched track. */
+/** Apply a named Mutate transform. Song scope = all unlocked; else trackId / last-touched. */
 export function applyMutate(
   mutateId: MutateId | string,
+  opts?: { trackId?: string },
 ): { ok: true; id: MutateId; label: string; changed: number } | { ok: false; error: string } {
   const def = getMutation(mutateId)
   if (!def) return { ok: false, error: `Unknown mutate: ${mutateId}` }
   const session = useSessionStore.getState()
   const jam = useJamStore.getState()
-  const prefer = jam.lastTouchedTrackId ?? session.activeTrackId
+  const prefer = opts?.trackId ?? jam.lastTouchedTrackId ?? session.activeTrackId
+  if (opts?.trackId && !session.tracks.some((t) => t.id === opts.trackId)) {
+    return { ok: false, error: `Track not found: ${opts.trackId}` }
+  }
   const result = applyMutateToTracks(session.tracks, def.id, prefer)
   if (!result) {
     jam.setLastPeek(`Mutate · ${def.label} · (no change)`)

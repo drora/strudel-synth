@@ -69,7 +69,7 @@ Browser agents talk to the live Jam via **WebMCP** (`src/engine/webmcp.ts` → `
 
 **Core (always):** `get_session`, `set_bpm`, `update_track`, `add_track`, `remove_track`, `mute_track`, `solo_track`, `play`, `stop`, `get_reference`, `get_samples`, `get_scales_and_chords`, `evaluate_code`.
 
-**Jam parity:** `get_jam_state`, `get_phase`, `list_kits`, `get_kit`, `apply_kit`, `set_lock_kit`, `shuffle_sounds`, `set_volume`, `set_active_track`, `list_sound_choices`, `apply_sound_choice`, `set_fx`, `open_code_sheet`, `close_code_sheet`, `stash_ab` / `punch_ab` / `toggle_ab`, `undo_jam`, `search_strudel_docs`, `mic_status` (Rec is user-gesture only).
+**Jam parity:** `get_jam_state`, `get_phase`, `list_kits`, `get_kit`, `apply_kit`, `set_lock_kit` (legacy bank lock; UI omitted), `shuffle_sounds` (skips locked), `set_song_harmony`, `set_octave`, `set_track_lock`, `list_mutations` / `apply_mutate`, `spice` / `spice_tracks`, `set_volume`, `set_active_track`, `list_sound_choices`, `apply_sound_choice`, `set_fx`, `open_code_sheet`, `close_code_sheet`, `stash_ab` / `punch_ab` / `toggle_ab`, `undo_jam`, `search_strudel_docs`, `mic_status` (Rec is user-gesture only). `get_session` includes `songRoot`/`songScale` and per-track `octave`/`locked`.
 
 **Skill (in-repo):** `resources/skills/jam-liveloop/` — copy/symlink into Cursor skills (see that folder’s `README.md`). Recipe: get_session first; one change/turn; prefer `update_track` quant 1/2; never hush/stop/remove without ask.
 

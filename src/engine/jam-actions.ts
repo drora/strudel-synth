@@ -26,6 +26,8 @@ export {
   punchAb,
   toggleAb,
   setLockKit,
+  setTrackLock,
+  spiceTracks,
   setVolume,
   setActiveTrack,
   listSoundChoices,

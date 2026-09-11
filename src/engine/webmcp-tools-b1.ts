@@ -14,8 +14,11 @@ import {
   setFx,
   openCodeSheet,
   closeCodeSheet,
+  applyMutate,
+  spiceTracks,
   PINNABLE_EFFECTS,
 } from './jam-actions'
+import { MUTATIONS } from './mutate'
 import type { AbSlot } from '../store/jam-store'
 
 export function registerWebMcpToolsB1(register: WebMcpRegister) {
@@ -102,4 +105,71 @@ export function registerWebMcpToolsB1(register: WebMcpRegister) {
     inputSchema: { type: 'object', properties: {} },
     execute: () => ok('toggle_ab', {}, toggleAb()),
   })
+  register({
+    name: 'list_mutations',
+    description:
+      'Catalog of Jam Mutate transforms (id, label, hint, scope song|track). Song-scope ops apply to all unlocked lanes; track-scope uses last-touched or apply_mutate trackId.',
+    inputSchema: { type: 'object', properties: {} },
+    annotations: { readOnlyHint: true },
+    execute: () => {
+      const mutations = MUTATIONS.map((m) => ({
+        id: m.id,
+        label: m.label,
+        hint: m.hint,
+        scope: m.scope,
+      }))
+      return ok('list_mutations', {}, { count: mutations.length, mutations }, `${mutations.length} mutations`)
+    },
+  })
+  register({
+    name: 'apply_mutate',
+    description:
+      'Apply a Mutate transform (same as Mutate sheet). Song-scope = all unlocked (skips locked); track-scope = optional trackId else last-touched/active. Undo snapshots (batch for song).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Mutation id from list_mutations' },
+        trackId: { type: 'string', description: 'Optional track for track-scope mutations' },
+      },
+      required: ['id'],
+    },
+    execute: ({ id, trackId }: { id: string; trackId?: string }) => {
+      const r = applyMutate(id, trackId ? { trackId } : undefined)
+      if (!r.ok) return fail('apply_mutate', { id, trackId }, r.error)
+      return ok('apply_mutate', { id, trackId }, r, `Mutate · ${r.label}`)
+    },
+  })
+  register({
+    name: 'spice',
+    description:
+      'Same as Jam footer Spice — one FX/timbre nudge (lpf/room/shape/delay/gain). Same tune, not Shuffle. Optional trackId prefers that lane.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        trackId: { type: 'string', description: 'Prefer this track; default active' },
+      },
+    },
+    execute: ({ trackId }: { trackId?: string } = {}) => {
+      const r = spiceTracks(trackId)
+      if (!r.ok) return fail('spice', { trackId }, r.error)
+      return ok('spice', { trackId }, r, `Spice · ${r.label}`)
+    },
+  })
+  register({
+    name: 'spice_tracks',
+    description:
+      'Alias of spice — Jam footer Spice FX/timbre nudge on prefer trackId / active / any.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        trackId: { type: 'string', description: 'Prefer this track; default active' },
+      },
+    },
+    execute: ({ trackId }: { trackId?: string } = {}) => {
+      const r = spiceTracks(trackId)
+      if (!r.ok) return fail('spice_tracks', { trackId }, r.error)
+      return ok('spice_tracks', { trackId }, r, `Spice · ${r.label}`)
+    },
+  })
+
 }
