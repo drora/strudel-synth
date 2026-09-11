@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { useSessionStore } from '../../store/session-store'
 import { useJamStore } from '../../store/jam-store'
 import {
-  SOUND_CHOICES,
+  getKit,
   applySoundChoiceToCode,
   matchSoundChoice,
   type SoundChoice,
 } from '../../engine/kits'
+import { soundChoicesForKit } from '../../engine/kit-sound-choices'
 import {
   parseEffectValue,
   setEffectInCode,
@@ -45,8 +46,12 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
   const live = useSessionStore((s) => s.tracks.find((t) => t.id === track.id))
   const trackCount = useSessionStore((s) => s.tracks.length)
   const canRemove = trackCount > 1
+  const kitId = useJamStore((s) => s.kitId)
+  const activeKit = kitId ? getKit(kitId) : undefined
 
   if (!live) return null
+
+  const soundChoices = soundChoicesForKit(live.role, activeKit)
 
   const close = () => useJamStore.getState().setSoundTrackId(null)
 
@@ -190,7 +195,7 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
 
         {sheetTab === 'sound' && (
           <div className="grid grid-cols-2 gap-2">
-            {(SOUND_CHOICES[live.role] ?? SOUND_CHOICES.custom).map((c) => {
+            {soundChoices.map((c) => {
               const active = matchSoundChoice(live.code, c)
               return (
                 <button
