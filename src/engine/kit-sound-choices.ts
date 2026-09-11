@@ -119,10 +119,38 @@ function specialVoiceChoices(voice: DrumVoice, role: TrackRole, kit: Kit): Sound
       return [{ id: '727', label: '727 perc', bank: 'RolandTR727' }]
     }
     case 'nobank':
-      return melodicStyleForRole(role === 'drums' || role === 'hihats' || role === 'fx' ? 'custom' : role, kit)
+      // Dirt/uzu mini-notation samples Shuffle writes (no .bank()) — not synth tiles.
+      return nobankNativeChoices(role)
     default:
       return []
   }
+}
+
+/** Native dirt sample tiles for nobank kits (uzu/piano/vcsl-keys/…); one path for all. */
+function nobankNativeChoices(role: TrackRole): SoundChoice[] {
+  if (role === 'drums') {
+    return [
+      tile('dirt-bd', 'Kick', 'bd'),
+      tile('dirt-sd', 'Snare', 'sd'),
+    ]
+  }
+  if (role === 'hihats') {
+    return [
+      tile('dirt-hh', 'Closed', 'hh'),
+      tile('dirt-oh', 'Open', 'oh'),
+    ]
+  }
+  if (role === 'fx') {
+    return [
+      tile('dirt-cp', 'Clap', 'cp'),
+      tile('dirt-sd-fx', 'Snare', 'sd'),
+      tile('dirt-rim', 'Rim', 'rim'),
+      tile('dirt-perc', 'Perc', 'perc'),
+      tile('dirt-cb', 'Cowbell', 'cb'),
+      tile('dirt-rd', 'Ride', 'rd'),
+    ]
+  }
+  return []
 }
 
 /**
@@ -130,6 +158,7 @@ function specialVoiceChoices(voice: DrumVoice, role: TrackRole, kit: Kit): Sound
  * - Melodic: kit melodicSounds first, then global role choices.
  * - Drum bank voice: kit.drumsBank first among SOUND_CHOICES[role].
  * - Special voices: kit-native samples only (tabla/amen/…).
+ * - Nobank (uzu/piano/vcsl-keys/…): dirt sample tiles (bd/sd/cp/…) by role — not synths.
  * - No kit: unchanged SOUND_CHOICES[role].
  */
 export function soundChoicesForKit(role: TrackRole, kit: Kit | null | undefined): SoundChoice[] {

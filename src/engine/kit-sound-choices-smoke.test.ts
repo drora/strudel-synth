@@ -71,4 +71,32 @@ const applied = applySoundChoiceToCode(code, tablaDrums.find((c) => c.sound === 
 assert.ok(applied.includes('tabla:3'), `apply rewrites to tabla:3; got ${applied}`)
 assert.ok(!applied.includes('tabla:0'), 'old hits replaced')
 
-console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, match/apply')
+// Nobank (Uzu Core): dirt samples for drum roles — not synth tiles
+const uzu = getKit('techno-uzu-core')
+assert.ok(uzu, 'Uzu Core kit')
+assert.equal(uzu!.drumsBank, 'uzu')
+const uzuFx = soundChoicesForKit('fx', uzu)
+assert.ok(uzuFx.length > 0, 'uzu fx choices')
+assert.ok(
+  !uzuFx.some((c) => c.sound === 'sawtooth' || c.id.includes('saw')),
+  `uzu fx must not be synth-first; got ${uzuFx.map((c) => c.id).join(',')}`,
+)
+const clapTile = uzuFx.find((c) => c.sound === 'cp' || c.label.toLowerCase().includes('clap'))
+assert.ok(clapTile, 'uzu fx includes clap/cp')
+assert.equal(clapTile!.sound, 'cp')
+const clapCode = 's("~ cp ~ cp").gain(0.7)'
+assert.ok(matchSoundChoice(clapCode, clapTile!), 'matchSoundChoice clap on nobank fx')
+assert.ok(!matchSoundChoice(clapCode, uzuFx.find((c) => c.sound === 'rd')!), 'ride not selected for cp pattern')
+
+const uzuDrums = soundChoicesForKit('drums', uzu)
+assert.ok(uzuDrums.every((c) => c.sound === 'bd' || c.sound === 'sd'), 'uzu drums = bd/sd')
+assert.ok(!uzuDrums[0]?.sound?.includes('saw'), 'no sawtooth-first on uzu drums')
+
+const uzuHats = soundChoicesForKit('hihats', uzu)
+assert.deepEqual(uzuHats.map((c) => c.sound), ['hh', 'oh'])
+
+const appliedCp = applySoundChoiceToCode(clapCode, uzuFx.find((c) => c.sound === 'rim')!)
+assert.ok(appliedCp.includes('rim'), `apply rewrites s() to rim; got ${appliedCp}`)
+assert.ok(!appliedCp.includes('.sound('), 'nobank sample apply uses s() rewrite not .sound()')
+
+console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, nobank dirt, match/apply')

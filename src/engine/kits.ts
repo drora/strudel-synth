@@ -84,13 +84,14 @@ export function kitToTemplate(kit: Kit): Template {
 export { SOUND_CHOICES } from './kits-sound-choices'
 
 
-/** Sample-voice choice (tabla:0, amencutup:3, mridangam_tha, …) — no .bank(). */
+/** Sample-voice choice (tabla:0, amencutup:3, mridangam_tha, bd/cp, …) — no .bank(). */
 function isSampleVoiceChoice(choice: SoundChoice): boolean {
   if (!choice.sound || choice.bank) return false
   const s = choice.sound
   return (
     s.includes(':') ||
-    /^(tabla2?|tablex|amencutup|breaks\d+|gretsch|electro1|jazz|mridangam_|bassdrum\d*|snare_|hihat)/.test(s)
+    /^(tabla2?|tablex|amencutup|breaks\d+|gretsch|electro1|jazz|mridangam_|bassdrum\d*|snare_|hihat)/.test(s) ||
+    /^(bd|sd|cp|hh|oh|rim|perc|cb|rd)$/.test(s)
   )
 }
 
