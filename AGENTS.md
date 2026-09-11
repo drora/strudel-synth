@@ -6,7 +6,7 @@ Guide for coding agents working on [`drora/strudel-synth`](https://github.com/dr
 
 **One home: Jam.** Browser music app wrapping [Strudel](https://strudel.cc). Kits, Sound|FX sheets, and a **Code sheet** (CodeMirror / `TrackCodePane`) overlay the active track — not a separate Studio app mode.
 
-- **Jam** (`JamShell`) — default UI; `freshStartJam()` on mount / bfcache `pageshow` (prefer last `kitId`, then `reshuffleUnlocked`). Song **Root/Scale** near Kit (defaults from kit `shuffle.root`/`scale`); feeds Shuffle; changing remaps melodic `note(...)` (drums/fx ignore). Melodic tracks expose **Octave** on the Mix tab (± shifts pitches; Sound pinned).
+- **Jam** (`JamShell`) — default UI; `freshStartJam()` on mount / bfcache `pageshow` (prefer last `kitId`, then `reshuffleUnlocked`). Song **Root/Scale** near Kit (defaults from kit `shuffle.root`/`scale`); feeds Shuffle; changing remaps melodic `note(...)` (drums/fx ignore). Melodic tracks expose **Octave** on the Mix tab (± shifts pitches; Sound pinned). Footer **Mutate** sheet applies deterministic pattern transforms (last-touched track; Half/Double-time = song; Undo).
 - **Code** — sheet/overlay inside Jam (`JamCodeSheet` → `TrackCodePane`). Header `</> Code` opens `lastTouchedTrackId` (chip tap / Code open / content edits; not mute). Last-touched chip: thin accent ring + tiny purple dot (`JamTrackChip`).
 - **+ Track** — under Sounds/FX chips; pick role → `ROLE_PRESETS` default → Sound|FX sheet (no kit switch).
 - **Liveloop** — cycle phase on the BPM ring (`JamPhaseRing`) and a subtle per-track phase tick on chips (`JamTrackChip` / `useLoopPhase` via `liveUpdateEngine`); mic Rec (`JamMicRec` / `engine/mic-sample.ts`); simple A/B punch (`JamABToggle` near Kit). Mute is 1-tap via the **M** on each track chip (Mix tab volume still available).
@@ -18,14 +18,14 @@ Guide for coding agents working on [`drora/strudel-synth`](https://github.com/dr
 src/
   App.tsx                 → AppShell (thin jam | learn router)
   components/
-    jam/                  → JamShell, JamTrackChip, JamCodeSheet, JamTrackSheet, kits UI,
+    jam/                  → JamShell, JamTrackChip, JamCodeSheet, JamTrackSheet, JamMutateSheet, kits UI,
                             JamPhaseRing, JamMicRec, JamABToggle
     editor/               → TrackCodePane, CodeMirror extensions, kit-aware autocomplete
     learning/             → LearnShell + challenge-data
     transport/            → PlayButton, SampleLoadingIndicator
     layout/               → AppShell only (no Studio chrome)
   engine/                 → strudel init, playback, live-update, kits*, jam-actions,
-                            last-touched, code-effects, samples, mic-sample, session-*, webmcp
+                            last-touched, mutate, code-effects, samples, mic-sample, session-*, webmcp
   hooks/                  → useLoopPhase, useIsMobile, useVisualViewport
   store/                  → jam-store (A/B, lastTouchedTrackId), session-store, ui-store (appMode: jam|learn)
 ```
@@ -44,7 +44,8 @@ src/
 | Session encode / autosave helpers | `engine/session-codec.ts`, `engine/session-manager.ts` |
 | Jam UI state | `store/jam-store.ts` (`soundTrackId`, `codeTrackId`, `lastTouchedTrackId`, `songRoot`/`songScale`, A/B, undo) |
 | Song key + octave | `engine/note-harmony.ts` + `setSongHarmony` / `setTrackOctave` in `jam-actions-a`; Shuffle uses song root/scale; track `octave` offset |
-| Spice (FX-only) | `engine/spice.ts` — one-tap `setEffectInCode` nudges (lpf/room/shape/delay/gain). **Spice ≠ Shuffle**; Mission/Mutate deal cards removed |
+| Spice (FX-only) | `engine/spice.ts` — one-tap `setEffectInCode` nudges (lpf/room/shape/delay/gain). **Spice ≠ Shuffle** |
+| Mutate (patterns) | `engine/mutate.ts` — deterministic s()/note() transforms (Sparse…Stutter + Rotate/Reverse/…). Track via `lastTouchedTrackId`; Half/Double-time = song. Undo snapshots (batch for song). **Mutate ≠ Shuffle ≠ Spice** |
 | Last-touched track | `engine/last-touched.ts` + `jam-store.lastTouchedTrackId` — header Code + chip ring/dot; tap/Code open/edits update; mute does not |
 | Tracks / BPM / play | `store/session-store.ts` |
 
