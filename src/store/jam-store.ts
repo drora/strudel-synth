@@ -14,6 +14,8 @@ export interface JamUndoEntry {
   trackId: string
   code: string
   label: string
+  /** Song-global Mutate (half/double-time): restore all codes in one Undo. */
+  batch?: { trackId: string; code: string }[]
 }
 
 export type AbSlot = 'a' | 'b'
@@ -194,7 +196,6 @@ export const useJamStore = create<JamState>()(
           get().stashVariant('a')
           return
         }
-        // Both set — punch the other
         const next: AbSlot = activeVariant === 'a' ? 'b' : 'a'
         get().punchVariant(next)
       },

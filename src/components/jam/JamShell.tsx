@@ -5,6 +5,7 @@ import { PlayButton } from '../transport/PlayButton'
 import { SampleLoadingIndicator } from '../transport/SampleLoadingIndicator'
 import { JamTrackSheet } from './JamTrackSheet'
 import { JamCodeSheet } from './JamCodeSheet'
+import { JamMutateSheet } from './JamMutateSheet'
 import { JamKitPicker } from './JamKitPicker'
 import { JamAddTrack } from './JamAddTrack'
 import { JamPhaseRing } from './JamPhaseRing'
@@ -216,6 +217,14 @@ export function JamShell() {
           >
             Spice
           </button>
+          <button
+            type="button"
+            onClick={() => j.setShowMutateSheet(true)}
+            className="min-h-11 px-3 rounded-xl text-xs font-medium bg-bg-elevated border border-border"
+            title="Deterministic pattern transforms — not Shuffle, not Spice"
+          >
+            Mutate
+          </button>
         </div>
       </div>
 
@@ -237,6 +246,9 @@ export function JamShell() {
 
       {j.soundTrack && <JamTrackSheet track={j.soundTrack} />}
       {codeTrack && <JamCodeSheet track={codeTrack} />}
+      {j.showMutateSheet && (
+        <JamMutateSheet onClose={() => j.setShowMutateSheet(false)} />
+      )}
     </div>
   )
 }

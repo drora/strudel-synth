@@ -45,6 +45,7 @@ export function useJamShell() {
 
   /** Soft-tag / search filters for kit browser (+ New Kit). */
   const [kitFilterSearch, setKitFilterSearch] = useState('')
+  const [showMutateSheet, setShowMutateSheet] = useState(false)
   // Soft tags start empty (kit-first). Persisted `vibe` still updates on applyKit.
   const [kitFilterTags, setKitFilterTags] = useState<string[]>([])
 
@@ -57,18 +58,15 @@ export function useJamShell() {
   const soundTrack = tracks.find((t) => t.id === soundTrackId)
 
   const applyKit = useCallback((id: string, fromPicker = false) => {
-    // Picker / New Kit: leave recipe as-is (no auto-reshuffle).
     applyKitAction(id, { fromPicker })
   }, [])
 
-  // Fresh start on mount; bfcache / pageshow re-run so restore yields new riffs.
   useEffect(() => {
     freshStartJam()
     let afterMount = false
     const markReady = () => {
       afterMount = true
     }
-    // Skip the initial pageshow that can race with mount; always re-run after that.
     queueMicrotask(markReady)
     const onPageShow = (event: PageTransitionEvent) => {
       if (!(event.persisted || afterMount)) return
@@ -83,7 +81,14 @@ export function useJamShell() {
   const onUndo = () => {
     const entry = useJamStore.getState().popUndo()
     if (!entry) return
-    useSessionStore.getState().setCode(entry.trackId, entry.code)
+    const session = useSessionStore.getState()
+    if (entry.batch && entry.batch.length > 0) {
+      for (const snap of entry.batch) {
+        session.setCode(snap.trackId, snap.code)
+      }
+    } else {
+      session.setCode(entry.trackId, entry.code)
+    }
     const jam = useJamStore.getState()
     jam.touchTrack(entry.trackId)
     jam.setLastPeek(`Undo · ${entry.label}`)
@@ -95,12 +100,10 @@ export function useJamShell() {
   }
 
   const onNewKit = () => {
-    // Prefer filtered list; fall back to all kits when filter is empty / no matches.
     const pool = filteredKits.length > 0 ? filteredKits : kits
     const pick = pickRandomKit(pool, kitId)
     if (pick) applyKit(pick.id)
   }
-
 
   const onSpice = () => {
     const state = useSessionStore.getState()
@@ -159,6 +162,8 @@ export function useJamShell() {
     onShuffle,
     onNewKit,
     onSpice,
+    showMutateSheet,
+    setShowMutateSheet,
   }
 }
 
