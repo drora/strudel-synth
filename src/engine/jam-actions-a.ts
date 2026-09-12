@@ -9,7 +9,7 @@ import { pickRandomKit } from './kit-browser'
 import { reshuffleTrack } from './reshuffle'
 import { resolveShuffleProfile } from './kits-types'
 import type { ScaleKind } from './kits-types'
-import { rollSeed, retargetSeed, hydrateSeed, randomSongRoot, type SongSeed } from './song-seed'
+import { rollSeed, retargetSeed, hydrateSeed, randomSongRoot, randomSongScale, type SongSeed } from './song-seed'
 import { ROLE_PRESETS } from './presets'
 import type { TrackRole } from './types'
 import {
@@ -74,14 +74,17 @@ export function applyKit(
   if (!kit) return { ok: false, error: `Unknown kit: ${id}` }
   const resolved = resolveShuffleProfile(kit)
   const jam = useJamStore.getState()
-  // First paint: randomizeRoot. Picker / reload with hasPickedKit: keep jam.songRoot.
-  // Bare apply (no flags, never picked): kit profile root.
+  // First paint / New kit: randomizeRoot → new home + scale (full pools, not kit C-minor).
+  // Picker / reload with hasPickedKit: keep jam.songRoot; scale from kit.
+  // Bare apply (no flags, never picked): kit profile root + scale.
   const root = opts?.randomizeRoot
-    ? randomSongRoot()
+    ? randomSongRoot(jam.songRoot)
     : (opts?.fromPicker || jam.hasPickedKit)
       ? (jam.songRoot || resolved.root)
       : resolved.root
-  const scale = resolved.scale
+  const scale = opts?.randomizeRoot
+    ? randomSongScale(jam.songScale)
+    : resolved.scale
   const seed = rollSeed({
     root,
     scale,

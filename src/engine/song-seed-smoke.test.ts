@@ -15,6 +15,7 @@ import {
   centerMelodyNotes,
   buildMixCard,
   randomSongRoot,
+  randomSongScale,
   walkConcertNames,
   type SongSeed,
   type WalkCenter,
@@ -395,6 +396,20 @@ console.log('  rollSeed degrees ∈ neighbors: ok')
   }
   assert.ok(seen.size >= 2, `randomSongRoot variety ${seen.size}`)
   console.log(`  applyKit root pool randomSongRoot (${seen.size} of ${SONG_ROOTS.length}): ok`)
+}
+
+{
+  for (let i = 0; i < 40; i++) {
+    const r = randomSongRoot('c')
+    assert.notEqual(r, 'c', 'randomSongRoot avoids current')
+    const s = randomSongScale('minor')
+    assert.notEqual(s, 'minor', 'randomSongScale avoids current')
+    assert.ok((SONG_SCALES as readonly string[]).includes(s), `scale ${s}`)
+  }
+  const seen = new Set<string>()
+  for (let i = 0; i < 80; i++) seen.add(randomSongScale())
+  assert.ok(seen.size >= 4, `randomSongScale variety ${seen.size}`)
+  console.log(`  randomSongRoot/Scale avoid + scale pool (${seen.size} of ${SONG_SCALES.length}): ok`)
 }
 
 // PR D: + Track / addJamTrack generate follows current seed (not ROLE_PRESETS C-minor)
