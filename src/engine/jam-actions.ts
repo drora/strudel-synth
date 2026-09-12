@@ -15,6 +15,7 @@ export {
   resetFreshStartGuardForTests,
   type FreshStartResult,
   freshStartJam,
+  addJamTrack,
   setSongHarmony,
   setTrackOctave,
   applyMutate,

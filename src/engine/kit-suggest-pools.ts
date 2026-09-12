@@ -216,6 +216,10 @@ function suggestScaleNames(profile: ResolvedShuffleProfile): KitSuggestion[] {
     major: ['major', 'ionian'],
     dorian: ['dorian'],
     pentatonic: ['pentatonic', 'minor pentatonic'],
+    mixolydian: ['mixolydian'],
+    phrygian: ['phrygian'],
+    lydian: ['lydian'],
+    harmonic_minor: ['harmonic minor', 'harmonic_minor'],
   }
   return (aliases[profile.scale] ?? [profile.scale]).map((label, i) => ({
     label,

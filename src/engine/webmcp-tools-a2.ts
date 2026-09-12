@@ -4,8 +4,7 @@ import { useSessionStore } from '../store/session-store'
 import { useJamStore } from '../store/jam-store'
 import { setBpm } from './strudel'
 import { liveUpdateEngine } from './live-update'
-import { ROLE_PRESETS } from './presets'
-import { ROLE_COLORS, type TrackRole } from './types'
+import type { TrackRole } from './types'
 import {
   applyKit,
   reshuffleUnlocked,
@@ -18,6 +17,7 @@ import {
   getPhaseSnapshot,
   listKitsFiltered,
   getKitDetail,
+  addJamTrack,
 } from './jam-actions'
 
 export function registerWebMcpToolsA2(register: WebMcpRegister) {
@@ -51,7 +51,7 @@ export function registerWebMcpToolsA2(register: WebMcpRegister) {
   })
   register({
     name: 'add_track',
-    description: "Add a new track. If no code provided, the role's default preset is used.",
+    description: "Add a new track. If no code provided, generate from the current song seed. Explicit code is used as-is.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -62,20 +62,8 @@ export function registerWebMcpToolsA2(register: WebMcpRegister) {
       required: ['name', 'role'],
     },
     execute: ({ name, role, code }: { name: string; role: TrackRole; code?: string }) => {
-      const preset = ROLE_PRESETS[role]
-      const id = useSessionStore.getState().addTrack({
-        name,
-        role,
-        code: code || preset.defaultCode,
-        color: ROLE_COLORS[role],
-        muted: false,
-        soloed: false,
-        locked: false,
-        volume: 1,
-        octave: 0,
-        error: null,
-      })
-      return ok('add_track', { name, role }, { id, name, role, status: 'added' }, `Track "${name}" added`)
+      const r = addJamTrack(role, code ? { name, code } : { name })
+      return ok('add_track', { name, role }, { id: r.id, name: r.name, role: r.role, status: 'added' }, `Track "${r.name}" added`)
     },
   })
   register({
