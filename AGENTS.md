@@ -6,7 +6,7 @@ Guide for coding agents working on [`drora/strudel-synth`](https://github.com/dr
 
 **One home: Jam.** Browser music app wrapping [Strudel](https://strudel.cc). Kits, Sound|FX sheets, and a **Code sheet** (CodeMirror / `TrackCodePane`) overlay the active track — not a separate Studio app mode.
 
-- **Jam** (`JamShell`) — default UI; `freshStartJam()` on mount / bfcache `pageshow` (prefer last `kitId`, then `reshuffleUnlocked`). Song **Root/Scale** near Kit (defaults from kit `shuffle.root`/`scale`); feeds Shuffle; changing remaps melodic `note(...)` (drums/fx ignore). Melodic tracks expose **Octave** on the Mix tab (± shifts pitches; Sound pinned). Per-track **Lock** pins lane from Shuffle / Shuffle this / Mutate; Mix tab + chip; not kit Lock. Footer **Mutate** sheet applies deterministic pattern transforms (last-touched track; Half/Double-time = song; Undo). Footer: New kit / Mutate / Shuffle / Spice. **Pads** sits under `+ Track` (improv plate: 8 fixed pads; live overlay hold; Keep → vox).
+- **Jam** (`JamShell`) — default UI; `freshStartJam()` on mount / bfcache `pageshow` (prefer last `kitId`, then `reshuffleUnlocked`). Song **Root/Scale** near Kit (defaults from kit `shuffle.root`/`scale`); feeds Shuffle; changing remaps melodic `note(...)` (drums/fx ignore). Melodic tracks expose **Octave** on the Mix tab (± shifts pitches; Sound pinned). Per-track **Lock** pins lane from Shuffle / Shuffle this / Mutate; Mix tab + chip; not kit Lock. Footer **Mutate** sheet applies deterministic pattern transforms (last-touched track; Half/Double-time = song; Undo). Footer: New kit / Mutate / Shuffle / Spice. **Pads** sits under `+ Track` (8 fixed pads; SuperDough one-shots — jam stack stays put; Keep → vox).
 - **Code** — sheet/overlay inside Jam (`JamCodeSheet` → `TrackCodePane`). Header `</> Code` opens `lastTouchedTrackId` (chip tap / Code open / content edits; not mute). Last-touched chip: thin accent ring + tiny purple dot (`JamTrackChip`).
 - **+ Track** — under Sounds/FX chips; pick role → `ROLE_PRESETS` default → Sound|FX sheet (no kit switch).
 - **Liveloop** — cycle phase on the BPM ring (`JamPhaseRing`) and a subtle per-track phase tick on chips (`JamTrackChip` / `useLoopPhase` via `liveUpdateEngine`); mic Rec (`JamMicRec` / `engine/mic-sample.ts`); simple A/B punch (`JamABToggle` near Kit). Mute is 1-tap via the **M** on each track chip (Mix tab volume still available).
@@ -46,7 +46,7 @@ src/
 | Song key + octave | `engine/note-harmony.ts` + `setSongHarmony` / `setTrackOctave` in `jam-actions-a`; Shuffle uses song root/scale; track `octave` offset |
 | Spice (FX-only) | `engine/spice.ts` — one-tap `setEffectInCode` nudges (lpf/room/shape/delay/gain). **Spice ≠ Shuffle** |
 | Mutate (patterns) | `engine/mutate.ts` — deterministic s()/note() transforms (Sparse…Stutter + Rotate/Reverse/…). Track via `lastTouchedTrackId`; Half/Double-time = song. Undo snapshots (batch for song). **Mutate ≠ Shuffle ≠ Spice** |
-| Improv pads / Keep vox | `engine/improv-plate.ts` + `JamImprovPlate` — 8 fixed pads (2×4); walk-glow triad; `improvHold` overlay via `composeTracks(..., overlay)`; Keep → new vox track |
+| Improv pads / Keep vox | `engine/improv-plate.ts` + `improv-trigger.ts` + `JamImprovPlate` — 8 fixed pads (2×4); walk-glow triad; SuperDough one-shots (no jam re-eval); Keep → new vox track |
 | Last-touched track | `engine/last-touched.ts` + `jam-store.lastTouchedTrackId` — header Code + chip ring/dot; tap/Code open/edits update; mute does not |
 | Tracks / BPM / play | `store/session-store.ts` |
 

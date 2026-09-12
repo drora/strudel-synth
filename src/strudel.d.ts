@@ -18,3 +18,11 @@ declare module '@strudel/mini' {
     }
   }
 }
+
+declare module 'superdough' {
+  export function superdough(
+    value: Record<string, unknown>,
+    deadline?: number,
+    duration?: number,
+  ): unknown
+}

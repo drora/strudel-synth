@@ -93,7 +93,19 @@ export function layoutImprovPads(
   return pads
 }
 
-/** Synth → note().sound(); jam_mic_* → note().s(). */
+/** SuperDough hap for an instant pad hit (no jam re-eval). */
+export function improvVoiceHap(
+  note: string,
+  voice: string,
+): { s: string; note: string; n?: number } {
+  const sliced = voice.match(/^(.+):(\d+)$/)
+  if (sliced) {
+    return { s: sliced[1]!, note, n: Number(sliced[2]) }
+  }
+  return { s: voice, note }
+}
+
+/** Synth → note().sound(); jam_mic_* → note().s(). Used by Keep. */
 export function improvVoiceCode(note: string, voice: string): string {
   if (voice.startsWith('jam_mic_')) {
     return `note("${note}").s("${voice}")`

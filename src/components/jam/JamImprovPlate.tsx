@@ -1,18 +1,16 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useJamStore } from '../../store/jam-store'
 import { useSessionStore } from '../../store/session-store'
 import { getKit } from '../../engine/kits'
 import {
   layoutImprovPads,
-  improvVoiceCode,
   hitsToNoteCode,
   type ImprovHit,
 } from '../../engine/improv-plate'
 import { improvSoundChoices } from '../../engine/kit-sound-choices'
 import { listMicSampleNames } from '../../engine/mic-sample'
 import { liveUpdateEngine } from '../../engine/live-update'
-import { ensureAudioUnlocked } from '../../engine/audio-context'
-import { evaluateCode, initEngine } from '../../engine/strudel'
+import { fireImprovNote, warmImprovTrigger } from '../../engine/improv-trigger'
 import { ROLE_COLORS } from '../../engine/types'
 
 interface Props {
@@ -23,7 +21,7 @@ interface Props {
 const RENDER_SLOTS = [5, 6, 7, 8, 1, 2, 3, 4] as const
 
 /**
- * Jam improv fidget plate — live overlay pads + Keep → vox track.
+ * Jam improv fidget plate — SuperDough one-shots + Keep → vox track.
  * Bottom sheet (z-50), like JamMutateSheet.
  */
 export function JamImprovPlate({ onClose }: Props) {
@@ -33,7 +31,12 @@ export function JamImprovPlate({ onClose }: Props) {
   const kitId = useJamStore((s) => s.kitId)
   const isPlaying = useSessionStore((s) => s.isPlaying)
 
+  useEffect(() => {
+    void warmImprovTrigger()
+  }, [])
+
   const [octave, setOctave] = useState(4)
+  const [pressed, setPressed] = useState<number | null>(null)
   const kit = kitId ? getKit(kitId) : undefined
   const voices = useMemo(
     () => improvSoundChoices(kit, listMicSampleNames()),
@@ -63,30 +66,14 @@ export function JamImprovPlate({ onClose }: Props) {
   const [hitCount, setHitCount] = useState(0)
   const activePadRef = useRef<number | null>(null)
 
-  const clearHold = useCallback(() => {
-    useJamStore.getState().setImprovHold(null)
-    if (useSessionStore.getState().isPlaying) {
-      liveUpdateEngine.queueUpdate('immediate', 'jam')
-    }
-  }, [])
-
   const padDown = useCallback(
-    async (slot: number) => {
+    (slot: number) => {
       const pad = bySlot.get(slot)
       if (!pad?.enabled || !pad.note) return
       activePadRef.current = slot
-      const pattern = improvVoiceCode(pad.note, voice)
-
+      setPressed(slot)
+      fireImprovNote(pad.note, voice)
       const playing = useSessionStore.getState().isPlaying
-      if (playing) {
-        useJamStore.getState().setImprovHold(pattern)
-        liveUpdateEngine.queueUpdate('immediate', 'jam')
-      } else {
-        await ensureAudioUnlocked()
-        await initEngine()
-        await evaluateCode(pattern)
-      }
-
       const cycle = playing ? liveUpdateEngine.getCurrentCycle() : 0
       hitsRef.current = [...hitsRef.current, { note: pad.note, cycle }]
       setHitCount(hitsRef.current.length)
@@ -96,8 +83,8 @@ export function JamImprovPlate({ onClose }: Props) {
 
   const padUp = useCallback(() => {
     activePadRef.current = null
-    clearHold()
-  }, [clearHold])
+    setPressed(null)
+  }, [])
 
   const onKeep = useCallback(() => {
     const hits = hitsRef.current
@@ -147,7 +134,7 @@ export function JamImprovPlate({ onClose }: Props) {
               Improv · {songRoot} {songScale}
             </div>
             <div className="text-[10px] text-text-muted truncate">
-              Hold pads · Keep → vox · monophonic
+              Tap pads · Keep → vox · monophonic
             </div>
           </div>
           <div className="flex items-center gap-1.5">
@@ -215,6 +202,7 @@ export function JamImprovPlate({ onClose }: Props) {
               const pad = bySlot.get(slot)!
               const dim = !pad.enabled
               const glow = pad.walkGlow
+              const down = pressed === slot
               return (
                 <button
                   key={slot}
@@ -222,15 +210,17 @@ export function JamImprovPlate({ onClose }: Props) {
                   disabled={dim}
                   onPointerDown={(e) => {
                     e.preventDefault()
-                    void padDown(slot)
+                    padDown(slot)
                   }}
                   onPointerUp={padUp}
                   className={`aspect-square rounded-2xl border text-sm font-semibold select-none touch-none transition-shadow ${
                     dim
                       ? 'opacity-25 bg-bg border-border cursor-not-allowed'
-                      : glow
-                        ? 'bg-purple-500/25 border-purple-400/70 text-text shadow-[0_0_18px_rgba(168,85,247,0.55)]'
-                        : 'bg-bg border-border text-text-muted hover:border-accent/40'
+                      : down
+                        ? 'bg-accent/30 border-accent text-text'
+                        : glow
+                          ? 'bg-purple-500/25 border-purple-400/70 text-text shadow-[0_0_18px_rgba(168,85,247,0.55)]'
+                          : 'bg-bg border-border text-text-muted hover:border-accent/40'
                   }`}
                   style={
                     glow && !dim
@@ -261,11 +251,9 @@ export function JamImprovPlate({ onClose }: Props) {
           >
             Keep{hitCount > 0 ? ` · ${hitCount}` : ''}
           </button>
-          {!isPlaying && (
-            <span className="text-[10px] text-text-muted whitespace-nowrap">
-              one-shot · Play for overlay
-            </span>
-          )}
+          <span className="text-[10px] text-text-muted whitespace-nowrap">
+            {isPlaying ? 'over the jam' : 'one-shots'}
+          </span>
         </div>
       </div>
     </div>
