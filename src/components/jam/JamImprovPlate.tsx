@@ -203,9 +203,10 @@ export function JamImprovPlate({ onClose }: Props) {
             <button
               type="button"
               onClick={onClose}
-              className="min-h-11 min-w-11 px-3 rounded-xl text-xs font-medium bg-bg text-text-muted border border-border hover:text-text"
+              className="min-h-9 min-w-9 rounded-lg text-xs text-text-muted border border-border hover:text-text"
+              aria-label="Close"
             >
-              Close
+              ✕
             </button>
           </div>
         </div>
