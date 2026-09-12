@@ -22,6 +22,9 @@ export type ImprovPad = {
 export type ImprovHit = {
   note: string
   cycle: number
+  /** Hold length in seconds. */
+  dur?: number
+  velocity?: number
 }
 
 /** Pitch-classes of walk triad tones (same math as walkTriadPcs in kit-suggest-pools). */
@@ -118,29 +121,63 @@ export function improvVoiceCode(note: string, voice: string): string {
  * One-cycle-ish pattern from recent pad hits.
  * Prefers last ~1–2 cycles; else last 8 notes in order.
  */
+function stretchMark(dur: number, minDur: number): string {
+  const r = Math.max(dur, 0.05) / Math.max(minDur, 0.05)
+  if (r < 1.45) return ''
+  if (r < 2.4) return '@2'
+  if (r < 3.4) return '@3'
+  return '@4'
+}
+
+function roundVel(v: number): number {
+  return Math.round(Math.min(1.5, Math.max(0.05, v)) * 20) / 20
+}
+
+/**
+ * One-cycle-ish pattern from recent pad hits.
+ * Hold length → mini `@` stretches; velocity → `.velocity(...)`.
+ */
 export function hitsToNoteCode(hits: ImprovHit[], voice: string): string {
   if (hits.length === 0) return improvVoiceCode('c4', voice)
   const lastCycle = hits[hits.length - 1]!.cycle
   const windowed = hits.filter((h) => h.cycle >= lastCycle - 1)
   const use =
     windowed.length > 0 ? windowed.slice(-8) : hits.slice(-8)
-  const notes = use.map((h) => h.note).join(' ')
-  return improvVoiceCode(notes, voice)
+  const durs = use.map((h) => h.dur ?? 0.25)
+  const minDur = Math.min(...durs)
+  const anyLong = durs.some((d) => d / minDur >= 1.45)
+  const tokens = use.map((h, i) => {
+    const mark = anyLong ? stretchMark(durs[i]!, minDur) : ''
+    return `${h.note}${mark}`
+  })
+  let code = improvVoiceCode(tokens.join(' '), voice)
+  const vels = use.map((h) => roundVel(h.velocity ?? 1))
+  const allDefault = vels.every((v) => Math.abs(v - 1) < 0.06)
+  if (!allDefault) {
+    const same = vels.every((v) => v === vels[0])
+    code += same
+      ? `.velocity(${vels[0]})`
+      : `.velocity("${vels.join(' ')}")`
+  }
+  if (anyLong) code += '.clip(1)'
+  return code
 }
 
 
 /** Mix applied to pad one-shots and baked into Keep. */
 export type ImprovPadMix = {
   volume: number
+  velocity: number
   lpf?: number | null
   hpf?: number | null
   room?: number | null
   delay?: number | null
 }
 
-export const IMPROV_MIX_DEFAULT: ImprovPadMix = { volume: 0.9 }
+export const IMPROV_MIX_DEFAULT: ImprovPadMix = { volume: 0.9, velocity: 0.85 }
 
 export const IMPROV_VOL_STEPS = [0, 0.25, 0.5, 0.75, 0.9, 1, 1.25, 1.5]
+export const IMPROV_VEL_STEPS = [0.3, 0.5, 0.7, 0.85, 1, 1.2]
 
 export const IMPROV_FX_CONTROLS: Array<{
   key: keyof Pick<ImprovPadMix, 'lpf' | 'hpf' | 'room' | 'delay'>

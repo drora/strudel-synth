@@ -117,6 +117,31 @@ console.log('=== Improv plate smoke ===')
     'triangle',
   )
   assert.match(code, /note\("c4 eb4 g4"\)\.sound\("triangle"\)/)
+  assert.doesNotMatch(code, /velocity/)
+}
+
+{
+  const held = hitsToNoteCode(
+    [
+      { note: 'c4', cycle: 1, dur: 0.2, velocity: 0.4 },
+      { note: 'g4', cycle: 1.2, dur: 0.8, velocity: 1 },
+    ],
+    'sine',
+  )
+  assert.match(held, /note\("c4 g4@4"\)/)
+  assert.match(held, /\.velocity\("0.4 1"\)/)
+  assert.match(held, /\.clip\(1\)/)
+  const even = hitsToNoteCode(
+    [
+      { note: 'c4', cycle: 1, dur: 0.3, velocity: 0.85 },
+      { note: 'eb4', cycle: 1.1, dur: 0.3, velocity: 0.85 },
+    ],
+    'sine',
+  )
+  assert.match(even, /note\("c4 eb4"\)/)
+  assert.match(even, /\.velocity\(0.85\)/)
+  assert.doesNotMatch(even, /clip/)
+  console.log('keep hold+velocity ok')
 }
 
 // composeTracks overlay
