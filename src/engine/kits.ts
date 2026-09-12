@@ -23,6 +23,7 @@ import type {
 } from './kits-types'
 import { VIBE_SHUFFLE_DEFAULTS, resolveShuffleProfile } from './kits-types'
 import { generateKitTracks } from './reshuffle'
+import type { SongSeed } from './song-seed'
 
 export type {
   VibeId,
@@ -65,8 +66,8 @@ export function getKit(id: string): Kit | undefined {
  * Build a Template by *generating* fresh track code from the kit shuffle profile
  * + lane layout. Every call yields related-but-new patterns (not baked recipes).
  */
-export function kitToTemplate(kit: Kit): Template {
-  const tracks = generateKitTracks(kit)
+export function kitToTemplate(kit: Kit, seed?: SongSeed): Template {
+  const tracks = generateKitTracks(kit, seed)
   return {
     id: kit.id,
     name: kit.name,

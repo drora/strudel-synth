@@ -30,7 +30,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'get_session',
     description:
-      'Get the full current Strudel Studio session + Jam state: tracks (name, role, code, muted, soloed, volume, locked, octave), BPM, playback, kitId, songRoot/songScale, A/B active, and cheap phase. Always call this first.',
+      'Get the full current Strudel Studio session + Jam state: tracks (name, role, code, muted, soloed, volume, locked, octave), BPM, playback, kitId, songRoot/songScale, songWalk, A/B active, and cheap phase. Always call this first.',
     inputSchema: { type: 'object', properties: {} },
     annotations: { readOnlyHint: true },
     execute: () => {
@@ -45,6 +45,9 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
         vibe: jam.vibe,
         songRoot: jam.songRoot,
         songScale: jam.songScale,
+        songWalk: jam.songSeed
+          ? { walk: jam.songSeed.walk, patternId: jam.songSeed.patternId }
+          : null,
         lockKit: jam.lockKit,
         ab: {
           a: jam.variantA != null,

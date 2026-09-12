@@ -9,6 +9,7 @@ import { pickRandomKit } from './kit-browser'
 import { reshuffleTrack } from './reshuffle'
 import { resolveShuffleProfile } from './kits-types'
 import type { ScaleKind } from './kits-types'
+import { rollSeed, retargetSeed, randomSongRoot, type SongSeed } from './song-seed'
 import {
   clampTrackOctave,
   isMelodicRole,
@@ -65,23 +66,32 @@ function songAwareShuffle(kitShuffle: import('./kits-types').KitShuffleProfile |
 
 export function applyKit(
   id: string,
-  opts?: { fromPicker?: boolean },
+  opts?: { fromPicker?: boolean; randomizeRoot?: boolean },
 ): { ok: true; kitId: string; name: string; bpm: number; preservedBpm: boolean } | { ok: false; error: string } {
   const kit = getKit(id)
   if (!kit) return { ok: false, error: `Unknown kit: ${id}` }
-  const template = kitToTemplate(kit)
+  const resolved = resolveShuffleProfile(kit)
+  const root = opts?.randomizeRoot ? randomSongRoot() : resolved.root
+  const scale = resolved.scale
+  const seed = rollSeed({
+    root,
+    scale,
+    vibe: kit.vibe,
+    density: resolved.density,
+  })
+  const template = kitToTemplate(kit, seed)
   const session = useSessionStore.getState()
   const preserveBpm = session.isPlaying
   session.loadTemplate(template, { preserveBpm })
   const jam = useJamStore.getState()
   jam.setKitId(kit.id)
   jam.setVibe(kit.vibe)
-  const resolved = resolveShuffleProfile(kit)
-  jam.setSongRoot(resolved.root)
-  jam.setSongScale(resolved.scale)
+  jam.setSongRoot(root)
+  jam.setSongScale(scale)
+  jam.setSongSeed(seed)
   jam.setHasPickedKit(true)
   if (opts?.fromPicker) jam.setShowKitPicker(false)
-  reshuffleUnlocked()
+  // ONE generate only — do not reshuffleUnlocked here.
   jam.setLastPeek(`kit · ${kit.name} · shuffled`)
   queueLive('kit')
   return {
@@ -120,6 +130,15 @@ export function reshuffleUnlocked(): {
   const pinEffects = useUIStore.getState().pinEffects
   const jam = useJamStore.getState()
   const activeKit = jam.kitId ? getKit(jam.kitId) : undefined
+  const resolved = activeKit ? resolveShuffleProfile(activeKit) : null
+  // Song Shuffle: NEW seed, same Root/Scale.
+  const seed = rollSeed({
+    root: jam.songRoot,
+    scale: jam.songScale,
+    vibe: activeKit?.vibe ?? jam.vibe,
+    density: resolved?.density ?? activeKit?.shuffle.density ?? 'mid',
+  })
+  jam.setSongSeed(seed)
   const plan = planShuffleTargets(state.tracks)
   const targets = plan.ok ? plan.targets : []
   let shuffled = 0
@@ -129,6 +148,7 @@ export function reshuffleUnlocked(): {
       lockKit: jam.lockKit || !!activeKit,
       bank: activeKit?.drumsBank,
       shuffle: songAwareShuffle(activeKit?.shuffle),
+      seed,
     })
     const oct = t.octave ?? 0
     if (oct && isMelodicRole(t.role)) next = shiftNotesByOctaves(next, oct)
@@ -157,11 +177,24 @@ export function reshuffleTrackById(
   const pinEffects = useUIStore.getState().pinEffects
   const jam = useJamStore.getState()
   const activeKit = jam.kitId ? getKit(jam.kitId) : undefined
+  const resolved = activeKit ? resolveShuffleProfile(activeKit) : null
+  // Keep existing seed (do not roll a new walk). If null, roll once and store.
+  let seed: SongSeed | null = jam.songSeed
+  if (!seed) {
+    seed = rollSeed({
+      root: jam.songRoot,
+      scale: jam.songScale,
+      vibe: activeKit?.vibe ?? jam.vibe,
+      density: resolved?.density ?? 'mid',
+    })
+    jam.setSongSeed(seed)
+  }
   let next = reshuffleTrack(track.role, track.code, {
     pinEffects,
     lockKit: jam.lockKit || !!activeKit,
     bank: activeKit?.drumsBank,
     shuffle: songAwareShuffle(activeKit?.shuffle),
+    seed,
   })
   const oct = track.octave ?? 0
   if (oct && isMelodicRole(track.role)) next = shiftNotesByOctaves(next, oct)
@@ -207,6 +240,7 @@ export function freshStartJam(): FreshStartResult {
   let kitName: string | null = jam.kitId ? (getKit(jam.kitId)?.name ?? null) : null
 
   const session = useSessionStore.getState()
+  let shuffled = 0
   if (session.tracks.length === 0) {
     const persisted = jam.kitId ? getKit(jam.kitId) : undefined
     const preferred =
@@ -218,9 +252,11 @@ export function freshStartJam(): FreshStartResult {
       applyKit(preferred.id)
       kitName = preferred.name
     }
+    // applyKit already generated — do not reshuffle again.
+  } else {
+    // Tracks exist → song Shuffle only (new seed, keep kit).
+    shuffled = reshuffleUnlocked().shuffled
   }
-
-  const { shuffled } = reshuffleUnlocked()
 
   const peek = kitName ? `${kitName} · shuffled` : 'fresh · shuffled'
   useJamStore.getState().setLastPeek(peek)
@@ -250,6 +286,11 @@ export function setSongHarmony(
   const prevScale = jam.songScale
   jam.setSongRoot(root)
   jam.setSongScale(scale)
+  const existing = jam.songSeed
+  const nextSeed = existing
+    ? retargetSeed(existing, root, scale)
+    : rollSeed({ root, scale, vibe: jam.vibe })
+  jam.setSongSeed(nextSeed)
   let remapped = 0
   if (opts?.remap !== false && (prevRoot !== root || prevScale !== scale)) {
     const session = useSessionStore.getState()
