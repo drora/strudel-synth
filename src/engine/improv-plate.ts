@@ -6,6 +6,7 @@ import type { ScaleKind } from './kits-types'
 import { SCALE_DEGREES, NOTE_NAMES, rootIndex } from './note-harmony'
 import { noteAt } from './kit-suggest-core'
 import type { WalkCenter } from './song-seed'
+import { setEffectInCode } from './code-effects'
 
 export type ImprovPad = {
   /** 1–8 logical slot (bottom-left = 1 … top-right = 8). */
@@ -125,6 +126,73 @@ export function hitsToNoteCode(hits: ImprovHit[], voice: string): string {
     windowed.length > 0 ? windowed.slice(-8) : hits.slice(-8)
   const notes = use.map((h) => h.note).join(' ')
   return improvVoiceCode(notes, voice)
+}
+
+
+/** Mix applied to pad one-shots and baked into Keep. */
+export type ImprovPadMix = {
+  volume: number
+  lpf?: number | null
+  hpf?: number | null
+  room?: number | null
+  delay?: number | null
+}
+
+export const IMPROV_MIX_DEFAULT: ImprovPadMix = { volume: 0.9 }
+
+export const IMPROV_VOL_STEPS = [0, 0.25, 0.5, 0.75, 0.9, 1, 1.25, 1.5]
+
+export const IMPROV_FX_CONTROLS: Array<{
+  key: keyof Pick<ImprovPadMix, 'lpf' | 'hpf' | 'room' | 'delay'>
+  label: string
+  steps: number[]
+  off: number
+}> = [
+  { key: 'lpf', label: 'LPF', steps: [200, 400, 800, 1200, 2000, 4000, 8000, 12000], off: 12000 },
+  { key: 'hpf', label: 'HPF', steps: [20, 100, 200, 400, 800, 1600, 3200], off: 20 },
+  { key: 'room', label: 'Room', steps: [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2], off: 0 },
+  { key: 'delay', label: 'Delay', steps: [0, 0.1, 0.2, 0.35, 0.5, 0.7], off: 0 },
+]
+
+export function isImprovFxOn(
+  key: (typeof IMPROV_FX_CONTROLS)[number]['key'],
+  value: number | null | undefined,
+): boolean {
+  const spec = IMPROV_FX_CONTROLS.find((c) => c.key === key)
+  if (spec == null || value == null) return false
+  return value !== spec.off
+}
+
+/** SuperDough hap + mix (volume → gain; unset/off FX omitted). */
+export function improvVoiceHapWithMix(
+  note: string,
+  voice: string,
+  mix: ImprovPadMix = IMPROV_MIX_DEFAULT,
+): Record<string, unknown> {
+  const hap: Record<string, unknown> = {
+    ...improvVoiceHap(note, voice),
+    gain: mix.volume,
+  }
+  for (const spec of IMPROV_FX_CONTROLS) {
+    const v = mix[spec.key]
+    if (isImprovFxOn(spec.key, v)) hap[spec.key] = v
+  }
+  return hap
+}
+
+/** Bake pad mix onto Keep code. Volume stays on the track, not `.gain()`. */
+export function applyImprovMixToCode(
+  code: string,
+  mix: ImprovPadMix = IMPROV_MIX_DEFAULT,
+): string {
+  let out = code
+  for (const spec of IMPROV_FX_CONTROLS) {
+    const v = mix[spec.key]
+    if (isImprovFxOn(spec.key, v) && v != null) {
+      out = setEffectInCode(out, spec.key, v)
+    }
+  }
+  return out
 }
 
 export { NOTE_NAMES, noteAt, SCALE_DEGREES }
