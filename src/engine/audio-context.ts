@@ -101,6 +101,9 @@ async function playSilentUnlock(ctx: AudioContext): Promise<void> {
 }
 
 async function resumeContext(ctx: AudioContext): Promise<AudioContextState> {
+  // Silent buffer into a live SuperDough graph rebinds Bluetooth (JBL → speaker).
+  // Only play it when resume() is not enough (first iOS gesture).
+  if (ctx.state === 'running') return ctx.state
   if (ctx.state === 'suspended' || (ctx.state as string) === 'interrupted') {
     try {
       await ctx.resume()
@@ -108,8 +111,10 @@ async function resumeContext(ctx: AudioContext): Promise<AudioContextState> {
       console.warn('[audio] resume failed:', err)
     }
   }
+  // resume() mutates state; TS still thinks it cannot be running here
+  const afterResume = ctx.state as AudioContextState
+  if (afterResume === 'running') return afterResume
   await playSilentUnlock(ctx)
-  // Second resume after silent buffer helps stubborn iOS WebViews
   if (ctx.state === 'suspended' || (ctx.state as string) === 'interrupted') {
     try {
       await ctx.resume()
