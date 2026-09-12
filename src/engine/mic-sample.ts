@@ -2,7 +2,7 @@
  * Mic → buffer → Strudel sample bank → track code.
  * Handles iOS unlock + getUserMedia; quantizes start/stop to cycle when playing.
  */
-import { ensureAudioUnlocked, getAudioContext } from './audio-context'
+import { ensureAudioUnlocked, getAudioContext, getAudioContextState, isAudioSyncedToStrudel } from './audio-context'
 import { initEngine } from './strudel'
 import { liveUpdateEngine } from './live-update'
 import { ROLE_COLORS, type TrackRole } from './types'
@@ -131,8 +131,14 @@ export async function startMicRecording(opts?: {
   const quantize = opts?.quantize !== false
 
   onState('arming')
-  await ensureAudioUnlocked()
-  await initEngine()
+  // Second Rec re-ran unlock + initEngine (silent buffer into the live graph) and
+  // reopened the mic during the cycle wait. That hops BT → speaker on any browser.
+  const alreadyLive =
+    isAudioSyncedToStrudel() && getAudioContextState() === 'running'
+  if (!alreadyLive) {
+    await ensureAudioUnlocked()
+    await initEngine()
+  }
   try {
     getAudioContext()
   } catch {
@@ -144,6 +150,14 @@ export async function startMicRecording(opts?: {
     throw new Error('getUserMedia unavailable')
   }
 
+  if (typeof MediaRecorder === 'undefined') {
+    onState('error', 'MediaRecorder not supported')
+    throw new Error('MediaRecorder unsupported')
+  }
+
+  // Open the mic only for the take — not during the cycle wait.
+  if (quantize) await waitForCycleBoundary()
+
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: {
       echoCancellation: false,
@@ -153,15 +167,6 @@ export async function startMicRecording(opts?: {
   })
   activeStream = stream
   mimeType = pickMimeType()
-
-  if (typeof MediaRecorder === 'undefined') {
-    stream.getTracks().forEach((t) => t.stop())
-    activeStream = null
-    onState('error', 'MediaRecorder not supported')
-    throw new Error('MediaRecorder unsupported')
-  }
-
-  if (quantize) await waitForCycleBoundary()
 
   chunks = []
   const recorder = mimeType
@@ -179,7 +184,7 @@ export async function startMicRecording(opts?: {
 
   const stop = async (): Promise<string | null> => {
     if (!activeRecorder || activeRecorder.state === 'inactive') {
-      cleanupStream()
+      await cleanupStream()
       onState('idle')
       return null
     }
@@ -187,26 +192,29 @@ export async function startMicRecording(opts?: {
 
     const rec = activeRecorder
     if (!rec) {
-      cleanupStream()
+      await cleanupStream()
       onState('idle')
       return null
     }
     const blob = await new Promise<Blob>((resolve, reject) => {
       rec.onstop = () => {
         const parts = chunks.slice()
-        cleanupStream()
-        resolve(new Blob(parts, { type: mimeType }))
+        void cleanupStream().then(
+          () => resolve(new Blob(parts, { type: mimeType })),
+          reject,
+        )
       }
       rec.onerror = () => {
-        cleanupStream()
-        reject(new Error('MediaRecorder error'))
+        void cleanupStream().then(
+          () => reject(new Error('MediaRecorder error')),
+          reject,
+        )
       }
       try {
         rec.requestData()
         rec.stop()
       } catch (err) {
-        cleanupStream()
-        reject(err)
+        void cleanupStream().then(() => reject(err), reject)
       }
     })
 
@@ -236,8 +244,7 @@ export async function startMicRecording(opts?: {
     } catch {
       /* ignore */
     }
-    cleanupStream()
-    chunks = []
+    void cleanupStream()
     onState('idle')
   }
 
@@ -248,24 +255,34 @@ export function isMicRecording(): boolean {
   return !!activeRecorder && activeRecorder.state === 'recording'
 }
 
-function stopTracks(stream: MediaStream | null | undefined) {
-  if (!stream) return
+function waitStopped(stream: MediaStream | null | undefined): Promise<void> {
+  if (!stream) return Promise.resolve()
+  const waits: Promise<void>[] = []
   for (const t of stream.getTracks()) {
+    if (t.readyState !== 'ended') {
+      waits.push(
+        new Promise((res) => {
+          t.addEventListener('ended', () => res(), { once: true })
+          window.setTimeout(() => res(), 400)
+        }),
+      )
+    }
     try {
       t.stop()
     } catch {
       /* already ended */
     }
   }
+  return Promise.all(waits).then(() => undefined)
 }
 
-function cleanupStream() {
+async function cleanupStream() {
   const rec = activeRecorder
+  const stream = activeStream
   activeRecorder = null
-  stopTracks(activeStream)
-  stopTracks(rec?.stream)
   activeStream = null
   chunks = []
+  await Promise.all([waitStopped(stream), waitStopped(rec?.stream)])
 }
 
 /** Names of jam_mic_* samples successfully registered this session. */
