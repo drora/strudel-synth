@@ -1,9 +1,11 @@
 /**
  * Song seed: shared chord walk for a 4-bar jam.
- * Melodic lanes follow the walk; drums/hats/fx stay on role pools (PR B).
+ * Melodic lanes follow the walk. Kick clock + mix card drive drums/hats/fx (PR B).
  */
-import type { Density, ScaleKind, VibeId } from './kits-types'
+import type { Density, FxBias, GrooveFamily, ScaleKind, VibeId } from './kits-types'
+import type { TrackRole } from './types'
 import { NOTE_NAMES, SONG_ROOTS, SCALE_DEGREES, rootIndex } from './note-harmony'
+import { DRUM_POOLS } from './reshuffle-pools'
 
 export type WalkCenter = {
   /** Semitones from song home (0, 3, 5, 7, 8, 10…). */
@@ -11,11 +13,95 @@ export type WalkCenter = {
   quality: 'min' | 'maj'
 }
 
+export type MixCard = {
+  gain: Partial<Record<TrackRole, number>>
+  pan: Partial<Record<TrackRole, number>>
+  room: Partial<Record<TrackRole, number>>
+  delay: Partial<Record<TrackRole, number>>
+  bassLpf: number
+  kickLpf: number | null
+  leadLpf: number | null
+}
+
 export type SongSeed = {
   root: string
   scale: ScaleKind
   walk: WalkCenter[]
   patternId: string
+  /** Raw kick mini-notation (before voicing). Hats/fx fill around this. */
+  kickClock?: string
+  budget?: Partial<Record<TrackRole, Density>>
+  mix?: MixCard
+}
+
+export function buildBudget(density: Density): Partial<Record<TrackRole, Density>> {
+  if (density === 'high') {
+    return { drums: 'mid', hihats: 'high', fx: 'mid', bass: 'mid', lead: 'low', pad: 'low', arp: 'mid' }
+  }
+  if (density === 'low') {
+    return { drums: 'low', hihats: 'low', fx: 'low', bass: 'mid', lead: 'low', pad: 'low', arp: 'low' }
+  }
+  return { drums: 'mid', hihats: 'mid', fx: 'mid', bass: 'mid', lead: 'mid', pad: 'low', arp: 'mid' }
+}
+
+export function buildMixCard(bias: FxBias): MixCard {
+  const gain: MixCard['gain'] = {
+    drums: 1.0, hihats: 0.32, fx: 0.55, bass: 0.6, pad: 0.26, lead: 0.2, arp: 0.2, vox: 0.18,
+  }
+  const pan: MixCard['pan'] = {
+    drums: 0, bass: 0, pad: 0, hihats: 0.15, fx: -0.12, lead: 0.18, arp: 0.1,
+  }
+  const room: MixCard['room'] = {}
+  const delay: MixCard['delay'] = {}
+  let kickLpf: number | null = null
+  let leadLpf: number | null = null
+  const bassLpf = 360
+  if (bias === 'roomy') {
+    room.pad = 0.55
+    room.fx = 0.5
+    room.hihats = 0.35
+    kickLpf = 900
+  } else if (bias === 'delay') {
+    delay.lead = 0.22
+    delay.arp = 0.18
+  } else if (bias === 'filtered') {
+    leadLpf = 1400
+    kickLpf = 2000
+  }
+  return { gain, pan, room, delay, bassLpf, kickLpf, leadLpf }
+}
+
+export function hydrateSeed(
+  seed: SongSeed,
+  opts?: { density?: Density; groove?: GrooveFamily; fxBias?: FxBias },
+): SongSeed {
+  if (seed.kickClock && seed.budget && seed.mix) return seed
+  const density = opts?.density ?? 'mid'
+  const groove = opts?.groove ?? 'four_on_floor'
+  const fxBias = opts?.fxBias ?? 'dry'
+  return {
+    ...seed,
+    kickClock: seed.kickClock ?? pick(DRUM_POOLS[groove][density]),
+    budget: seed.budget ?? buildBudget(density),
+    mix: seed.mix ?? buildMixCard(fxBias),
+  }
+}
+
+export function mixChain(role: TrackRole, mix?: MixCard | null): string {
+  if (!mix) return ''
+  let s = ''
+  const g = mix.gain[role]
+  if (g != null) s += `.gain(${g})`
+  const p = mix.pan[role]
+  if (p != null && p !== 0) s += `.pan(${p})`
+  const r = mix.room[role]
+  if (r != null) s += `.room(${r})`
+  const d = mix.delay[role]
+  if (d != null) s += `.delay(${d}).delaytime(0.125)`
+  if (role === 'bass') s += `.lpf(${mix.bassLpf})`
+  if (role === 'drums' && mix.kickLpf != null) s += `.lpf(${mix.kickLpf})`
+  if ((role === 'lead' || role === 'pad') && mix.leadLpf != null) s += `.lpf(${mix.leadLpf})`
+  return s
 }
 
 type WalkPattern = { id: string; centers: WalkCenter[] }
@@ -106,14 +192,22 @@ export function rollSeed(opts: {
   scale: ScaleKind
   vibe?: VibeId
   density?: Density
+  groove?: GrooveFamily
+  fxBias?: FxBias
 }): SongSeed {
   const patterns = weightPatterns(opts.scale, opts.vibe, opts.density)
   const pat = pick(patterns)
+  const density = opts.density ?? 'mid'
+  const groove = opts.groove ?? 'four_on_floor'
+  const kickPool = DRUM_POOLS[groove][density]
   return {
     root: opts.root,
     scale: opts.scale,
     walk: pat.centers.map((c) => ({ ...c })),
     patternId: pat.id,
+    kickClock: pick(kickPool),
+    budget: buildBudget(density),
+    mix: buildMixCard(opts.fxBias ?? 'dry'),
   }
 }
 
@@ -123,7 +217,14 @@ export function rollSeed(opts: {
  */
 export function retargetSeed(seed: SongSeed, root: string, scale: ScaleKind): SongSeed {
   if (seed.scale === scale) {
-    return { ...seed, root, walk: seed.walk.map((c) => ({ ...c })) }
+    return {
+      ...seed,
+      root,
+      walk: seed.walk.map((c) => ({ ...c })),
+      kickClock: seed.kickClock,
+      budget: seed.budget,
+      mix: seed.mix,
+    }
   }
   const patterns = WALK_PATTERNS[scale]
   const sameLen = patterns.filter((p) => p.centers.length === seed.walk.length)
@@ -134,6 +235,9 @@ export function retargetSeed(seed: SongSeed, root: string, scale: ScaleKind): So
     scale,
     walk: pat.centers.map((c) => ({ ...c })),
     patternId: pat.id,
+    kickClock: seed.kickClock,
+    budget: seed.budget,
+    mix: seed.mix,
   }
 }
 

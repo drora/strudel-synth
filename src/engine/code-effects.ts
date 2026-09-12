@@ -126,7 +126,7 @@ export function primarySSample(code: string): string | null {
   return token ?? null
 }
 
-/** Rewrite `s("...")` hits to `sample`, keeping rests / length when possible. */
+/** Pin only the primary (first non-rest) hit. Keep rests and later distinct hits. */
 export function rewriteSPatternSample(code: string, sample: string): string {
   const m = code.match(/\bs\(\s*["']([^"']+)["']\s*\)/)
   if (!m) return setSoundInCode(code, sample)
@@ -134,6 +134,16 @@ export function rewriteSPatternSample(code: string, sample: string): string {
   if (tokens.length <= 1) {
     return code.replace(/\bs\(\s*["'][^"']+["']\s*\)/, `s("${sample}")`)
   }
-  const nextBody = tokens.map((t) => (t === '~' ? '~' : sample)).join(' ')
+  let pinned = false
+  const nextBody = tokens
+    .map((t) => {
+      if (t === '~' || t.length === 0) return t
+      if (!pinned) {
+        pinned = true
+        return sample
+      }
+      return t
+    })
+    .join(' ')
   return code.replace(/\bs\(\s*["'][^"']+["']\s*\)/, `s("${nextBody}")`)
 }
