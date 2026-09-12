@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { VibeId, ScaleKind } from '../engine/kits'
+import type { SongSeed } from '../engine/song-seed'
 import type { SectionSnap } from '../engine/session-manager'
 import { useSessionStore } from './session-store'
 import { liveUpdateEngine } from '../engine/live-update'
@@ -27,6 +28,8 @@ interface JamState {
   songRoot: string
   /** Song-level scale kind. */
   songScale: ScaleKind
+  /** Shared chord walk for melodic generate / track shuffle. */
+  songSeed: SongSeed | null
   lockKit: boolean
   showKitPicker: boolean
   hasPickedKit: boolean
@@ -49,6 +52,7 @@ interface JamState {
   setKitId: (kitId: string | null) => void
   setSongRoot: (root: string) => void
   setSongScale: (scale: ScaleKind) => void
+  setSongSeed: (seed: SongSeed | null) => void
   setLockKit: (lock: boolean) => void
   setShowKitPicker: (show: boolean) => void
   setHasPickedKit: (v: boolean) => void
@@ -95,6 +99,7 @@ export const useJamStore = create<JamState>()(
       kitId: null,
       songRoot: 'c',
       songScale: 'minor',
+      songSeed: null,
       lockKit: true,
       showKitPicker: true,
       hasPickedKit: false,
@@ -111,6 +116,7 @@ export const useJamStore = create<JamState>()(
       setKitId: (kitId) => set({ kitId }),
       setSongRoot: (songRoot) => set({ songRoot }),
       setSongScale: (songScale) => set({ songScale }),
+      setSongSeed: (songSeed) => set({ songSeed }),
       setLockKit: (lockKit) => set({ lockKit }),
       setShowKitPicker: (showKitPicker) => set({ showKitPicker }),
       setHasPickedKit: (hasPickedKit) => set({ hasPickedKit }),
@@ -207,6 +213,7 @@ export const useJamStore = create<JamState>()(
         kitId: s.kitId,
         songRoot: s.songRoot,
         songScale: s.songScale,
+        songSeed: s.songSeed,
         lockKit: s.lockKit,
         hasPickedKit: s.hasPickedKit,
       }),
