@@ -149,7 +149,8 @@ export function JamImprovPlate({ onClose }: Props) {
     if (session.isPlaying) {
       liveUpdateEngine.queueUpdate('immediate', 'jam')
     }
-  }, [voice, mix, padUp])
+    onClose()
+  }, [voice, mix, padUp, onClose])
 
   return (
     <div
