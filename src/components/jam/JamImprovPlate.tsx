@@ -15,7 +15,7 @@ import {
   type ImprovPadMix,
 } from '../../engine/improv-plate'
 import { improvSoundChoices } from '../../engine/kit-sound-choices'
-import { listMicSampleNames } from '../../engine/mic-sample'
+import { listMicSampleNames, micSampleDuration } from '../../engine/mic-sample'
 import { liveUpdateEngine } from '../../engine/live-update'
 import { startImprovNote, stopImprovNote, warmImprovTrigger, preloadImprovVoice, padVelocity } from '../../engine/improv-trigger'
 import { ROLE_COLORS } from '../../engine/types'
@@ -113,7 +113,10 @@ export function JamImprovPlate({ onClose }: Props) {
     const hits = hitsRef.current
     if (hits.length === 0) return
     const session = useSessionStore.getState()
-    const code = applyImprovMixToCode(hitsToNoteCode(hits, voice, session.bpm), mix)
+    const code = applyImprovMixToCode(
+      hitsToNoteCode(hits, voice, session.bpm, micSampleDuration(voice)),
+      mix,
+    )
     const jam = useJamStore.getState()
     const id = session.addTrack({
       name: 'Pads',
@@ -157,7 +160,7 @@ export function JamImprovPlate({ onClose }: Props) {
               Improv · {songRoot} {songScale}
             </div>
             <div className="text-[10px] text-text-muted truncate">
-              Hold pads · Keep writes @ + velocity
+              Hold pads · Rec smears past the take
             </div>
           </div>
           <div className="flex items-center gap-1.5">

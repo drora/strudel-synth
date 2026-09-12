@@ -14,6 +14,12 @@ export type MicRecState = 'idle' | 'arming' | 'recording' | 'processing' | 'erro
 
 let micCounter = 0
 const registeredMicNames: string[] = []
+const micDurations = new Map<string, number>()
+
+/** Wall-clock length of a jam_mic_* take, if we decoded it. */
+export function micSampleDuration(name: string): number | undefined {
+  return micDurations.get(name)
+}
 let activeStream: MediaStream | null = null
 let activeRecorder: MediaRecorder | null = null
 let chunks: BlobPart[] = []
@@ -67,6 +73,13 @@ function waitForCycleBoundary(maxMs = 2500): Promise<void> {
 
 async function registerBlobAsSample(name: string, blob: Blob): Promise<string> {
   const url = URL.createObjectURL(blob)
+  try {
+    const ac = getAudioContext()
+    const buf = await ac.decodeAudioData(await blob.arrayBuffer())
+    micDurations.set(name, buf.duration)
+  } catch {
+    /* samples() still registers the url */
+  }
   const samplesFn = (globalThis as unknown as { samples?: (...args: unknown[]) => unknown }).samples
   if (typeof samplesFn !== 'function') {
     throw new Error('Strudel samples() not ready — hit Play once first')

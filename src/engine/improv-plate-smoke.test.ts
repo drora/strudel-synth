@@ -11,6 +11,8 @@ import {
   applyImprovMixToCode,
   hitsToNoteCode,
   walkTriadPcs,
+  smearFromHold,
+  noteTransposeRate,
 } from './improv-plate'
 import { improvLookahead, markImprovVoiceWarm } from './improv-trigger'
 import { composeTracks } from './compose-tracks'
@@ -226,6 +228,48 @@ console.log('=== Improv plate smoke ===')
   markImprovVoiceWarm('piano')
   assert.equal(improvLookahead('piano'), 0.02, 'heard sample is warm')
   console.log('pad lookahead ok')
+}
+
+{
+  assert.equal(noteTransposeRate('c2'), 1)
+  assert.equal(noteTransposeRate('c3'), 2)
+  assert.equal(noteTransposeRate('c4'), 4)
+  const dry = smearFromHold(0.3, 0.4)
+  assert.equal(dry, null, 'tap shorter than take stays dry')
+  const raw = smearFromHold(2, 0.4)
+  assert.ok(raw)
+  assert.equal(raw!.speed, 0.2)
+  assert.equal(raw!.stretch, 4)
+  const c3 = smearFromHold(2, 0.4, 'c3')
+  assert.ok(c3)
+  assert.equal(c3!.speed, 0.1)
+  assert.equal(c3!.stretch, 9)
+  const kept = hitsToNoteCode(
+    [{ note: 'c3', cycle: 0, dur: 2.0, velocity: 1, at: 20_000 }],
+    'jam_mic_1',
+    120,
+    0.4,
+  )
+  assert.match(kept, /note\("c3@4"\)/)
+  assert.match(kept, /\.s\("jam_mic_1"\)/)
+  assert.match(kept, /\.speed\(0\.1\)/)
+  assert.match(kept, /\.stretch\(9\)/)
+  const tap = hitsToNoteCode(
+    [{ note: 'c3', cycle: 0, dur: 0.2, velocity: 1, at: 20_000 }],
+    'jam_mic_1',
+    120,
+    0.4,
+  )
+  assert.doesNotMatch(tap, /speed/)
+  assert.doesNotMatch(tap, /stretch/)
+  const synth = hitsToNoteCode(
+    [{ note: 'c3', cycle: 0, dur: 2.0, velocity: 1, at: 20_000 }],
+    'sine',
+    120,
+    0.4,
+  )
+  assert.doesNotMatch(synth, /speed/)
+  console.log('rec smear keep ok')
 }
 
 console.log('improv-plate-smoke.test.ts: ok')

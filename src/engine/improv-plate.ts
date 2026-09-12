@@ -121,6 +121,41 @@ export function improvVoiceCode(note: string, voice: string): string {
 
 const PHRASE_GAP_SEC = 1.6
 
+const NOTE_CHROMA: Record<string, number> = {
+  c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11,
+}
+
+/** SuperDough array-bank rate: C3 (midi 36) = 1. */
+export function noteTransposeRate(note: string): number {
+  const m = note.toLowerCase().match(/^([a-g])([#b]?)(-?\d+)$/)
+  if (!m) return 1
+  const acc = m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0
+  const midi = (Number(m[3]) + 1) * 12 + (NOTE_CHROMA[m[1]!] ?? 0) + acc
+  return 2 ** ((midi - 36) / 12)
+}
+
+function round3(n: number): number {
+  return Math.round(n * 1000) / 1000
+}
+
+/**
+ * Same-pitch time-stretch for SuperDough.
+ * speed slows the buffer; stretch is pitchFactor-1 (worklet adds 1).
+ */
+export function smearFromHold(
+  holdSec: number,
+  takeSec: number,
+  note?: string,
+): { speed: number; stretch: number } | null {
+  if (!(takeSec > 0.05) || holdSec <= takeSec * 1.08) return null
+  const trans = note ? noteTransposeRate(note) : 1
+  const ratio = holdSec / takeSec
+  return {
+    speed: round3(takeSec / holdSec / trans),
+    stretch: round3(trans * ratio - 1),
+  }
+}
+
 /** 0 = too small, else 1/2/3/4/6/8 beats at song tempo. */
 export function quantizeBeats(sec: number, bpm: number): number {
   const b = sec / (60 / Math.max(bpm, 40))
@@ -177,6 +212,7 @@ export function hitsToNoteCode(
   hits: ImprovHit[],
   voice: string,
   bpm = 120,
+  takeSec?: number,
 ): string {
   if (hits.length === 0) return improvVoiceCode('c4', voice)
   const use = lastImprovPhrase(hits)
@@ -185,6 +221,10 @@ export function hitsToNoteCode(
   const anyLong = durs.some((d) => quantizeBeats(d, bpm) >= 2)
   const tokens: string[] = []
   const vels: number[] = []
+  const speeds: number[] = []
+  const stretches: number[] = []
+  let anySmear = false
+  const mic = voice.startsWith('jam_mic_') && takeSec != null
   for (let i = 0; i < use.length; i++) {
     const h = use[i]!
     if (i > 0 && h.at != null && use[i - 1]!.at != null) {
@@ -195,10 +235,24 @@ export function hitsToNoteCode(
       if (rest) {
         tokens.push(rest)
         vels.push(1)
+        speeds.push(1)
+        stretches.push(0)
       }
     }
     tokens.push(`${h.note}${stretchMark(durs[i]!, bpm)}`)
     vels.push(roundVel(h.velocity ?? 1))
+    const beats = quantizeBeats(durs[i]!, bpm)
+    const hold = Math.max(beats, 1) * (60 / Math.max(bpm, 40))
+    const sm =
+      mic && beats >= 2 ? smearFromHold(hold, takeSec!, h.note) : null
+    if (sm) {
+      anySmear = true
+      speeds.push(sm.speed)
+      stretches.push(sm.stretch)
+    } else {
+      speeds.push(1)
+      stretches.push(0)
+    }
   }
   let code = improvVoiceCode(tokens.join(' '), voice)
   const allDefault = vels.every((v) => Math.abs(v - 1) < 0.06)
@@ -208,7 +262,15 @@ export function hitsToNoteCode(
       ? `.velocity(${vels[0]})`
       : `.velocity("${vels.join(' ')}")`
   }
-  if (anyLong || tokens.some((t) => t.startsWith('~'))) code += '.clip(1)'
+  if (anySmear) {
+    const same =
+      speeds.every((s) => s === speeds[0]) &&
+      stretches.every((s) => s === stretches[0])
+    code += same
+      ? `.speed(${speeds[0]}).stretch(${stretches[0]})`
+      : `.speed("${speeds.join(' ')}").stretch("${stretches.join(' ')}")`
+  }
+  if (anyLong || anySmear || tokens.some((t) => t.startsWith('~'))) code += '.clip(1)'
   return code
 }
 
