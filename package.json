@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "deploy": "gh workflow run deploy.yml --repo drora/strudel-synth --ref main",
     "test:compose": "npx --yes tsx src/engine/compose-tracks.test.ts",
+    "test:all-code": "npx --yes tsx src/engine/all-code-smoke.test.ts",
     "test:improv-plate": "npx --yes tsx src/engine/improv-plate-smoke.test.ts",
     "test:kit-suggest": "npx --yes tsx src/engine/kit-suggest-smoke.test.ts",
     "test:kit-shuffle": "npx --yes tsx src/engine/kit-shuffle-smoke.test.ts",
