@@ -6,6 +6,7 @@ import {
   layoutImprovPads,
   hitsToNoteCode,
   applyImprovMixToCode,
+  bridgeImprovPhrase,
   IMPROV_MIX_DEFAULT,
   IMPROV_VOL_STEPS,
   IMPROV_VEL_STEPS,
@@ -179,7 +180,10 @@ export function JamImprovPlate({ onClose }: Props) {
                 type="button"
                 className="min-h-11 min-w-11 text-sm font-medium text-text-muted hover:text-text"
                 aria-label="Octave down"
-                onClick={() => setOctave((o) => Math.max(1, o - 1))}
+                onClick={() => {
+                  bridgeImprovPhrase(hitsRef.current)
+                  setOctave((o) => Math.max(1, o - 1))
+                }}
               >
                 −
               </button>
@@ -190,7 +194,10 @@ export function JamImprovPlate({ onClose }: Props) {
                 type="button"
                 className="min-h-11 min-w-11 text-sm font-medium text-text-muted hover:text-text"
                 aria-label="Octave up"
-                onClick={() => setOctave((o) => Math.min(7, o + 1))}
+                onClick={() => {
+                  bridgeImprovPhrase(hitsRef.current)
+                  setOctave((o) => Math.min(7, o + 1))
+                }}
               >
                 +
               </button>
