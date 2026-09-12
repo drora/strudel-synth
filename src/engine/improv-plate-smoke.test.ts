@@ -134,6 +134,7 @@ console.log('=== Improv plate smoke ===')
   assert.match(held, /note\("c4 g4@4"\)/)
   assert.match(held, /\.velocity\("0.4 1"\)/)
   assert.match(held, /\.clip\(1\)/)
+  assert.match(held, /\.slow\(1\.25\)/)
   const even = hitsToNoteCode(
     [
       { note: 'c4', cycle: 1, dur: 0.3, velocity: 0.85 },
@@ -162,6 +163,7 @@ console.log('=== Improv plate smoke ===')
   assert.match(code, /note\("c4 ~ eb4 ~@2 g4"\)/, code)
   assert.doesNotMatch(code, /c3/)
   assert.match(code, /\.velocity\("0.8 1 0.8 1 0.8"\)/)
+  assert.match(code, /\.slow\(1\.5\)/)
   const lone = hitsToNoteCode(
     [{ note: 'c4', cycle: 0, dur: 2.0, velocity: 1, at: t0 }],
     'sine',
@@ -169,6 +171,19 @@ console.log('=== Improv plate smoke ===')
   )
   assert.match(lone, /note\("c4@4"\)/)
   assert.match(lone, /clip/)
+  assert.doesNotMatch(lone, /slow/)
+  const sentence = hitsToNoteCode(
+    [
+      { note: 'c4', cycle: 0, dur: 1.0, velocity: 1, at: t0 },
+      { note: 'eb4', cycle: 0, dur: 1.0, velocity: 1, at: t0 + 1000 },
+      { note: 'g4', cycle: 0, dur: 1.0, velocity: 1, at: t0 + 2000 },
+      { note: 'c5', cycle: 0, dur: 1.0, velocity: 1, at: t0 + 3000 },
+    ],
+    'triangle',
+    120,
+  )
+  assert.match(sentence, /note\("c4@2 eb4@2 g4@2 c5@2"\)/)
+  assert.match(sentence, /\.slow\(2\)/)
   console.log('keep phrase+rests ok')
 }
 

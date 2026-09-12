@@ -173,6 +173,17 @@ function stretchMark(dur: number, bpm: number): string {
   return beats <= 1 ? '' : `@${beats}`
 }
 
+/** Mini-notation `@n` is relative weight; jam cycle is 4 beats. */
+export function tokenBeats(token: string): number {
+  const m = token.match(/@(\d+)$/)
+  return m ? Number(m[1]) : 1
+}
+
+export function phraseCycles(tokens: string[], beatsPerCycle = 4): number {
+  const total = tokens.reduce((n, tok) => n + tokenBeats(tok), 0)
+  return total / Math.max(beatsPerCycle, 1)
+}
+
 function restToken(gapSec: number, bpm: number): string | null {
   const beats = quantizeBeats(gapSec, bpm)
   if (beats <= 0) return null
@@ -270,7 +281,9 @@ export function hitsToNoteCode(
       ? `.speed(${speeds[0]}).stretch(${stretches[0]})`
       : `.speed("${speeds.join(' ')}").stretch("${stretches.join(' ')}")`
   }
-  if (anyLong || anySmear || tokens.some((t) => t.startsWith('~'))) code += '.clip(1)'
+  if (anyLong || anySmear || tokens.some((tok) => tok.startsWith('~'))) code += '.clip(1)'
+  const cycles = phraseCycles(tokens)
+  if (cycles > 1) code += `.slow(${round3(cycles)})`
   return code
 }
 
