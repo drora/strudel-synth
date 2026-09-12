@@ -13,6 +13,8 @@ import {
   walkTriadPcs,
   smearFromHold,
   noteTransposeRate,
+  isPadsKeepTrack,
+  setImprovVoiceInCode,
 } from './improv-plate'
 import { improvLookahead, markImprovVoiceWarm } from './improv-trigger'
 import { composeTracks } from './compose-tracks'
@@ -285,6 +287,20 @@ console.log('=== Improv plate smoke ===')
   )
   assert.doesNotMatch(synth, /speed/)
   console.log('rec smear keep ok')
+}
+
+{
+  assert.equal(isPadsKeepTrack({ name: 'Pads', code: 'note("c4").sound("sine")' }), true)
+  assert.equal(isPadsKeepTrack({ name: 'Mic 1', code: 's("jam_mic_2")' }), true)
+  assert.equal(isPadsKeepTrack({ name: 'Lead', code: 'note("c4").sound("sine")' }), false)
+  const rec = setImprovVoiceInCode('note("c4@2").sound("sine")', 'jam_mic_1')
+  assert.match(rec, /note\("c4@2"\)/)
+  assert.match(rec, /\.s\("jam_mic_1"\)/)
+  assert.doesNotMatch(rec, /\.sound\(/)
+  const kit = setImprovVoiceInCode('note("c4@2").s("jam_mic_1")', 'sawtooth')
+  assert.match(kit, /\.sound\("sawtooth"\)/)
+  assert.doesNotMatch(kit, /jam_mic/)
+  console.log('pads keep voice swap ok')
 }
 
 console.log('improv-plate-smoke.test.ts: ok')

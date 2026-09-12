@@ -7,7 +7,9 @@ import {
   matchSoundChoice,
   type SoundChoice,
 } from '../../engine/kits'
-import { soundChoicesForKit } from '../../engine/kit-sound-choices'
+import { soundChoicesForKit, improvSoundChoices } from '../../engine/kit-sound-choices'
+import { listMicSampleNames } from '../../engine/mic-sample'
+import { isPadsKeepTrack, setImprovVoiceInCode } from '../../engine/improv-plate'
 import {
   parseEffectValue,
   setEffectInCode,
@@ -52,7 +54,9 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
 
   if (!live) return null
 
-  const soundChoices = soundChoicesForKit(live.role, activeKit)
+  const soundChoices = isPadsKeepTrack(live)
+    ? improvSoundChoices(activeKit, listMicSampleNames())
+    : soundChoicesForKit(live.role, activeKit)
 
   const close = () => useJamStore.getState().setSoundTrackId(null)
 
@@ -74,7 +78,9 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
       code: live.code,
       label: `Sound · ${choice.label}`,
     })
-    const next = applySoundChoiceToCode(live.code, choice)
+    const next = isPadsKeepTrack(live) && choice.sound
+      ? setImprovVoiceInCode(live.code, choice.sound)
+      : applySoundChoiceToCode(live.code, choice)
     useSessionStore.getState().setCode(live.id, next)
     jam.touchTrack(live.id)
     jam.setLastPeek(`Sound · ${choice.label}`)
