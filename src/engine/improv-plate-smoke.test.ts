@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import {
   layoutImprovPads,
   improvVoiceCode,
+  improvVoiceHap,
   hitsToNoteCode,
   walkTriadPcs,
 } from './improv-plate'
@@ -93,6 +94,13 @@ console.log('=== Improv plate smoke ===')
   const mic = improvVoiceCode('eb4', 'jam_mic_1')
   assert.ok(mic.includes('s("jam_mic_') && mic.includes('note('), mic)
   console.log('voice code ok')
+}
+
+{
+  assert.deepEqual(improvVoiceHap('c4', 'sawtooth'), { s: 'sawtooth', note: 'c4' })
+  assert.deepEqual(improvVoiceHap('eb4', 'jam_mic_1'), { s: 'jam_mic_1', note: 'eb4' })
+  assert.deepEqual(improvVoiceHap('g4', 'piano:2'), { s: 'piano', note: 'g4', n: 2 })
+  console.log('voice hap ok')
 }
 
 // hits → note pattern
