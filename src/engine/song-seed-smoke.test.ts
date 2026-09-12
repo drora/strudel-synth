@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import {
   rollSeed,
   retargetSeed,
+  hydrateSeed,
   isLegalWalk,
   NEIGHBORS,
   WALK_PATTERNS,
@@ -15,7 +16,9 @@ import {
   type SongSeed,
   type WalkCenter,
 } from './song-seed'
-import { generateKitTracks, getKit, KITS } from './kits'
+import { generateKitTracks, KITS } from './kits'
+import { generateDrumRole } from './reshuffle-drums'
+import { rewriteSPatternSample } from './code-effects'
 import type { ScaleKind } from './kits-types'
 
 console.log('=== Song seed smoke ===')
@@ -171,6 +174,82 @@ console.log('  rollSeed degrees ∈ neighbors: ok')
     ['0min', '8maj', '3maj', '7maj'],
   )
   console.log('  example minor walk i→bVI→bIII→V: ok')
+}
+
+// PR B: seed carries kick clock + budget + mix
+{
+  const seed = rollSeed({
+    root: 'c',
+    scale: 'minor',
+    density: 'mid',
+    groove: 'four_on_floor',
+    fxBias: 'roomy',
+  })
+  assert.ok(seed.kickClock && seed.kickClock.length > 0, 'kickClock')
+  assert.ok(seed.budget && seed.budget.drums, 'budget')
+  assert.ok(seed.mix, 'mix')
+  assert.equal(seed.mix!.bassLpf, 360)
+  assert.equal(seed.mix!.kickLpf, 900)
+  const kit = KITS.find((k) => k.drumsBank === 'RolandTR909' && k.tracks.some((t) => t.role === 'bass')) ?? KITS[0]!
+  const tracks = generateKitTracks(kit, seed)
+  const bass = tracks.find((x) => x.role === 'bass')
+  if (bass) {
+    assert.ok(/lpf\(360\)/.test(bass.code), `bass mix lpf; got ${bass.code}`)
+    assert.ok(/\.gain\(/.test(bass.code), `bass mix gain; got ${bass.code}`)
+  }
+  const hats = tracks.find((x) => x.role === 'hihats')
+  if (hats) {
+    assert.ok(/\.gain\(/.test(hats.code), `hats mix gain; got ${hats.code}`)
+  }
+  console.log('  rollSeed clock+mix: ok')
+}
+
+// hydrate old persisted seeds
+{
+  const old: SongSeed = {
+    root: 'c',
+    scale: 'minor',
+    patternId: 'i_iv_v_i',
+    walk: [
+      { degree: 0, quality: 'min' },
+      { degree: 5, quality: 'min' },
+      { degree: 7, quality: 'min' },
+      { degree: 0, quality: 'min' },
+    ],
+  }
+  const h = hydrateSeed(old, { density: 'mid', groove: 'four_on_floor', fxBias: 'dry' })
+  assert.ok(h.kickClock)
+  assert.ok(h.budget)
+  assert.ok(h.mix)
+  assert.equal(h.mix!.bassLpf, 360)
+  console.log('  hydrateSeed fills clock/mix: ok')
+}
+
+// amen hats use amen voice, not leftover hh
+{
+  const seed = rollSeed({
+    root: 'c',
+    scale: 'minor',
+    groove: 'breakbeat',
+    density: 'mid',
+    fxBias: 'dry',
+  })
+  const hats = generateDrumRole('hihats', 'breakbeat', 'mid', 'dirt-amen', 'dry', undefined, seed)
+  assert.ok(/amencutup/.test(hats), `amen hats voice; got ${hats}`)
+  assert.ok(!/\bhh\b/.test(hats), `amen hats leftover hh; got ${hats}`)
+  const br = generateDrumRole('hihats', 'breakbeat', 'mid', 'clean-breaks', 'dry', undefined, seed)
+  assert.ok(/breaks/.test(br), `breaks hats voice; got ${br}`)
+  assert.ok(!/\bhh\b/.test(br), `breaks leftover hh; got ${br}`)
+  console.log('  amen/breaks hats voice: ok')
+}
+
+// pin only primary hit
+{
+  const out = rewriteSPatternSample('s("bd ~ sd cp")', 'tabla:3')
+  assert.equal(out, 's("tabla:3 ~ sd cp")')
+  const rests = rewriteSPatternSample('s("~ bd sd")', 'cp')
+  assert.equal(rests, 's("~ cp sd")')
+  console.log('  rewriteSPatternSample primary-only: ok')
 }
 
 console.log('ALL SONG-SEED CHECKS PASSED')

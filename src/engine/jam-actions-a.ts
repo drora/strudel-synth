@@ -78,6 +78,8 @@ export function applyKit(
     scale,
     vibe: kit.vibe,
     density: resolved.density,
+    groove: resolved.groove,
+    fxBias: resolved.fxBias,
   })
   const template = kitToTemplate(kit, seed)
   const session = useSessionStore.getState()
@@ -137,6 +139,8 @@ export function reshuffleUnlocked(): {
     scale: jam.songScale,
     vibe: activeKit?.vibe ?? jam.vibe,
     density: resolved?.density ?? activeKit?.shuffle.density ?? 'mid',
+    groove: resolved?.groove ?? 'four_on_floor',
+    fxBias: resolved?.fxBias ?? 'dry',
   })
   jam.setSongSeed(seed)
   const plan = planShuffleTargets(state.tracks)
@@ -186,6 +190,8 @@ export function reshuffleTrackById(
       scale: jam.songScale,
       vibe: activeKit?.vibe ?? jam.vibe,
       density: resolved?.density ?? 'mid',
+      groove: resolved?.groove ?? 'four_on_floor',
+      fxBias: resolved?.fxBias ?? 'dry',
     })
     jam.setSongSeed(seed)
   }

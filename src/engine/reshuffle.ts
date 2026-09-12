@@ -27,8 +27,10 @@ import { isMelodicRole, shiftNotesByOctaves } from './note-harmony'
 import {
   type SongSeed,
   rollSeed,
+  hydrateSeed,
   centerTriadNotes,
   centerMelodyNotes,
+  mixChain,
 } from './song-seed'
 
 const DRUM_ROLES: TrackRole[] = ['drums', 'hihats', 'fx']
@@ -106,8 +108,20 @@ function noteExpr(pattern: string, sound: string, suffix: string): string {
 }
 
 function ensureSeed(profile: ResolvedShuffleProfile, seed?: SongSeed | null): SongSeed {
-  if (seed) return seed
-  return rollSeed({ root: profile.root, scale: profile.scale, density: profile.density })
+  if (seed) {
+    return hydrateSeed(seed, {
+      density: profile.density,
+      groove: profile.groove,
+      fxBias: profile.fxBias,
+    })
+  }
+  return rollSeed({
+    root: profile.root,
+    scale: profile.scale,
+    density: profile.density,
+    groove: profile.groove,
+    fxBias: profile.fxBias,
+  })
 }
 
 function generateBassLine(profile: ResolvedShuffleProfile, seed: SongSeed): string {
@@ -132,6 +146,10 @@ function generateBassLine(profile: ResolvedShuffleProfile, seed: SongSeed): stri
       ? notes.join(' ~ ')
       : pick([notes.join(' '), `<${notes.join(' ')}>`])
   const synth = melodicSound(melodicSounds)
+  const mix = seed.mix
+  if (mix) {
+    return noteExpr(`"${spaced}"`, synth, mixChain('bass', mix))
+  }
   const lpf = fxBias === 'roomy' ? 250 + Math.floor(Math.random() * 200) : 350 + Math.floor(Math.random() * 550)
   const gain = densityGain(density, 'bass')
   const fx = fxSnippet(fxBias, 'bass')
@@ -202,6 +220,9 @@ function leadPatternFromSeed(seed: SongSeed, density: Density): string {
 function generateLeadLine(profile: ResolvedShuffleProfile, seed: SongSeed): string {
   const { melodicSounds, fxBias, density } = profile
   const synth = melodicSound(melodicSounds)
+  if (seed.mix) {
+    return noteExpr(leadPatternFromSeed(seed, density), synth, mixChain('lead', seed.mix))
+  }
   const fx = fxSnippet(fxBias === 'dry' ? 'delay' : fxBias, 'lead')
   const gain = densityGain(density, 'lead')
   return noteExpr(leadPatternFromSeed(seed, density), synth, `${fx}.gain(${gain})`)
@@ -218,6 +239,9 @@ function generatePadChord(profile: ResolvedShuffleProfile, seed: SongSeed): stri
   const gain = densityGain(density, 'pad')
   const attack = fxBias === 'roomy' || density === 'low' ? `.attack(${(0.3 + Math.random() * 0.7).toFixed(1)})` : ''
   const lpf = fxBias === 'filtered' ? `.lpf(${500 + Math.floor(Math.random() * 900)})` : pick(['', `.lpf(${1100 + Math.floor(Math.random() * 500)})`])
+  if (seed.mix) {
+    return noteExpr(`"<${chords.join(' ')}>"`, synth, `${attack}${mixChain('pad', seed.mix)}`)
+  }
   return noteExpr(`"<${chords.join(' ')}>"`, synth, `.room(${room})${attack}${lpf}.gain(${gain})`)
 }
 
@@ -246,6 +270,9 @@ function generateArp(profile: ResolvedShuffleProfile, seed: SongSeed): string {
   } else {
     pat = `"<${notes.slice(0, 6).join(' ')}>*${rate}"`
   }
+  if (seed.mix) {
+    return noteExpr(pat, synth, mixChain('arp', seed.mix))
+  }
   return noteExpr(pat, synth, `${fx}.gain(${gain})`)
 }
 
@@ -254,6 +281,9 @@ function generateVox(profile: ResolvedShuffleProfile, seed: SongSeed): string {
   const pool = seed.walk.flatMap((c) => centerMelodyNotes(seed.root, seed.scale, c, 4))
   const notes = pickN(pool, pick([2, 3]))
   const synth = melodicSound(melodicSounds)
+  if (seed.mix) {
+    return noteExpr(`"<${notes.join(' ')}>"`, synth, mixChain('vox', seed.mix))
+  }
   return noteExpr(`"<${notes.join(' ')}>"`, synth, `${fxSnippet(fxBias, 'lead')}.gain(0.18)`)
 }
 
@@ -289,14 +319,15 @@ function generateRaw(
   bank?: string | null,
   seed?: SongSeed | null,
 ): string {
-  const melodicSeed = DRUM_ROLES.includes(role) ? null : ensureSeed(profile, seed)
+  const song = ensureSeed(profile, seed)
+  const melodicSeed = song
   switch (role) {
     case 'drums':
-      return generateDrumRole('drums', profile.groove, profile.density, bank, profile.fxBias, profile.pinN)
+      return generateDrumRole('drums', profile.groove, profile.density, bank, profile.fxBias, profile.pinN, song)
     case 'hihats':
-      return generateDrumRole('hihats', profile.groove, profile.density, bank, profile.fxBias, profile.pinN)
+      return generateDrumRole('hihats', profile.groove, profile.density, bank, profile.fxBias, profile.pinN, song)
     case 'fx':
-      return generateDrumRole('fx', profile.groove, profile.density, bank, profile.fxBias, profile.pinN)
+      return generateDrumRole('fx', profile.groove, profile.density, bank, profile.fxBias, profile.pinN, song)
     case 'bass':
       return generateBassLine(profile, melodicSeed!)
     case 'lead':
@@ -418,6 +449,8 @@ export function generateKitTracks(kit: Kit, seed?: SongSeed): KitTrack[] {
       scale: profile.scale,
       vibe: kit.vibe,
       density: profile.density,
+      groove: profile.groove,
+      fxBias: profile.fxBias,
     })
   return kit.tracks.map((t) => ({
     name: t.name,

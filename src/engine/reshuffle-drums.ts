@@ -2,6 +2,8 @@ import type { TrackRole } from './types'
 import { setBankInCode, setNInCode } from './code-effects'
 import type { Density, FxBias, GrooveFamily } from './kits-types'
 import { DRUM_POOLS, HAT_POOLS, FX_POOLS } from './reshuffle-pools'
+import type { MixCard, SongSeed } from './song-seed'
+import { mixChain } from './song-seed'
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]!
@@ -72,7 +74,8 @@ function voicePattern(body: string, voice: DrumVoice, role: TrackRole): string {
       if (role === 'fx') {
         return pick(['~ amencutup:5 ~ amencutup:8', '~ amencutup:4 ~ amencutup:9', 'amencutup:3 ~ amencutup:6 ~'])
       }
-      return body
+      // Hats must use amen voice — never leftover hh.
+      return pick(['~ amencutup:3 ~ amencutup:7', 'amencutup:2 ~ amencutup:6 ~', '~ amencutup:8 ~ amencutup:10'])
     }
     case 'breaks': {
       if (role === 'drums') {
@@ -85,7 +88,7 @@ function voicePattern(body: string, voice: DrumVoice, role: TrackRole): string {
       if (role === 'fx') {
         return pick(['~ breaks157:2 ~ breaks157:4', '~ breaks165:5 ~ breaks165:7', 'breaks157:1 ~ breaks157:3 ~'])
       }
-      return body
+      return pick(['~ breaks165:3 ~ breaks165:6', 'breaks157:2 ~ breaks157:5 ~', '~ breaks165:7 ~ breaks165:2'])
     }
     case 'gretsch': {
       return body
@@ -196,12 +199,18 @@ function finishDrumLine(
   density: Density,
   bias: FxBias,
   pinN?: number,
+  mix?: MixCard | null,
 ): string {
   const voiced = voicePattern(body, voice, role)
   let line = `s("${voiced}")`
   const useBank = voice === 'bank' || voice === 'perc727'
   if (useBank && bank) line = setBankInCode(line, bank)
   if (pinN != null && useBank) line = setNInCode(line, pinN)
+
+  if (mix) {
+    line += mixChain(role, mix)
+    return line
+  }
 
   if (role === 'hihats') {
     line += hatGainPattern(density, bias)
@@ -220,6 +229,25 @@ function finishDrumLine(
   return line
 }
 
+
+function pickHatForKick(groove: GrooveFamily, density: Density, kick?: string): string {
+  const pool = HAT_POOLS[groove][density]
+  if (kick && /bd\*4|bd bd bd bd/.test(kick)) {
+    const off = pool.filter((p) => /~|oh|\*8|\*16|\(/.test(p))
+    if (off.length) return pick(off)
+  }
+  return pick(pool)
+}
+
+function pickFxForKick(groove: GrooveFamily, density: Density, kick?: string): string {
+  const pool = FX_POOLS[groove][density]
+  if (kick && /\bsd\b/.test(kick)) {
+    const noSd = pool.filter((p) => !/\bsd\b/.test(p))
+    if (noSd.length) return pick(noSd)
+  }
+  return pick(pool)
+}
+
 export function generateDrumRole(
   role: 'drums' | 'hihats' | 'fx',
   groove: GrooveFamily,
@@ -227,8 +255,14 @@ export function generateDrumRole(
   bank: string | null | undefined,
   bias: FxBias,
   pinN?: number,
+  seed?: SongSeed | null,
 ): string {
   const voice = bank ? resolveDrumVoice(bank) : 'bank'
-  const body = poolPick(groove, density, role)
-  return finishDrumLine(body, role, bank, voice, density, bias, pinN)
+  const budgetD = seed?.budget?.[role] ?? density
+  const kick = seed?.kickClock
+  let body: string
+  if (role === 'drums') body = kick ?? poolPick(groove, budgetD, 'drums')
+  else if (role === 'hihats') body = pickHatForKick(groove, budgetD, kick)
+  else body = pickFxForKick(groove, budgetD, kick)
+  return finishDrumLine(body, role, bank, voice, budgetD, bias, pinN, seed?.mix)
 }
