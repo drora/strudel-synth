@@ -7,6 +7,8 @@ import {
   layoutImprovPads,
   improvVoiceCode,
   improvVoiceHap,
+  improvVoiceHapWithMix,
+  applyImprovMixToCode,
   hitsToNoteCode,
   walkTriadPcs,
 } from './improv-plate'
@@ -135,6 +137,34 @@ console.log('=== Improv plate smoke ===')
   const emptyOv = composeTracks([], 120, 'silence')
   assert.equal((emptyOv.match(/\.gain\(/g) ?? []).length, 1)
   console.log('compose overlay ok')
+}
+
+{
+  const dry = improvVoiceHapWithMix('c4', 'sawtooth', { volume: 0.9 })
+  assert.equal(dry.gain, 0.9)
+  assert.equal(dry.lpf, undefined)
+  assert.equal(dry.room, undefined)
+  const wet = improvVoiceHapWithMix('c4', 'sawtooth', {
+    volume: 0.5,
+    lpf: 800,
+    room: 0.6,
+    delay: 0,
+    hpf: 20,
+  })
+  assert.equal(wet.gain, 0.5)
+  assert.equal(wet.lpf, 800)
+  assert.equal(wet.room, 0.6)
+  assert.equal(wet.delay, undefined)
+  assert.equal(wet.hpf, undefined)
+  const kept = applyImprovMixToCode('note("c4 eb4").sound("sine")', {
+    volume: 0.5,
+    lpf: 800,
+    room: 0.6,
+  })
+  assert.match(kept, /\.lpf\(800\)/)
+  assert.match(kept, /\.room\(0.6\)/)
+  assert.doesNotMatch(kept, /\.gain\(/)
+  console.log('pad mix ok')
 }
 
 console.log('improv-plate-smoke.test.ts: ok')

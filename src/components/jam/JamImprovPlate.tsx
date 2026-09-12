@@ -5,7 +5,13 @@ import { getKit } from '../../engine/kits'
 import {
   layoutImprovPads,
   hitsToNoteCode,
+  applyImprovMixToCode,
+  IMPROV_MIX_DEFAULT,
+  IMPROV_VOL_STEPS,
+  IMPROV_FX_CONTROLS,
+  isImprovFxOn,
   type ImprovHit,
+  type ImprovPadMix,
 } from '../../engine/improv-plate'
 import { improvSoundChoices } from '../../engine/kit-sound-choices'
 import { listMicSampleNames } from '../../engine/mic-sample'
@@ -37,6 +43,7 @@ export function JamImprovPlate({ onClose }: Props) {
 
   const [octave, setOctave] = useState(4)
   const [pressed, setPressed] = useState<number | null>(null)
+  const [mix, setMix] = useState<ImprovPadMix>(IMPROV_MIX_DEFAULT)
   const kit = kitId ? getKit(kitId) : undefined
   const voices = useMemo(
     () => improvSoundChoices(kit, listMicSampleNames()),
@@ -72,13 +79,13 @@ export function JamImprovPlate({ onClose }: Props) {
       if (!pad?.enabled || !pad.note) return
       activePadRef.current = slot
       setPressed(slot)
-      fireImprovNote(pad.note, voice)
+      fireImprovNote(pad.note, voice, mix)
       const playing = useSessionStore.getState().isPlaying
       const cycle = playing ? liveUpdateEngine.getCurrentCycle() : 0
       hitsRef.current = [...hitsRef.current, { note: pad.note, cycle }]
       setHitCount(hitsRef.current.length)
     },
-    [bySlot, voice],
+    [bySlot, voice, mix],
   )
 
   const padUp = useCallback(() => {
@@ -89,7 +96,7 @@ export function JamImprovPlate({ onClose }: Props) {
   const onKeep = useCallback(() => {
     const hits = hitsRef.current
     if (hits.length === 0) return
-    const code = hitsToNoteCode(hits, voice)
+    const code = applyImprovMixToCode(hitsToNoteCode(hits, voice), mix)
     const session = useSessionStore.getState()
     const jam = useJamStore.getState()
     const id = session.addTrack({
@@ -100,7 +107,7 @@ export function JamImprovPlate({ onClose }: Props) {
       muted: false,
       soloed: false,
       locked: false,
-      volume: 1,
+      volume: mix.volume,
       octave: 0,
       error: null,
     })
@@ -114,7 +121,7 @@ export function JamImprovPlate({ onClose }: Props) {
     if (session.isPlaying) {
       liveUpdateEngine.queueUpdate('immediate', 'jam')
     }
-  }, [voice])
+  }, [voice, mix])
 
   return (
     <div
@@ -240,6 +247,84 @@ export function JamImprovPlate({ onClose }: Props) {
               )
             })}
           </div>
+        </div>
+
+
+        <div className="shrink-0 px-3 pb-2 space-y-2 max-h-[28vh] overflow-y-auto">
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] uppercase tracking-wider text-text-muted">Vol</span>
+              <span className="text-[10px] text-text-muted tabular-nums">{mix.volume}</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={1.5}
+              step={0.05}
+              value={mix.volume}
+              onChange={(e) =>
+                setMix((m) => ({ ...m, volume: Number(e.target.value) }))
+              }
+              className="w-full accent-[var(--color-accent,#a78bfa)]"
+              aria-label="Pad volume"
+            />
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {IMPROV_VOL_STEPS.map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setMix((m) => ({ ...m, volume: v }))}
+                  className={`min-h-8 px-2 rounded-lg text-[11px] border ${
+                    Math.abs(mix.volume - v) < 0.001
+                      ? 'border-accent bg-accent/20 text-accent'
+                      : 'border-border text-text-muted'
+                  }`}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
+          {IMPROV_FX_CONTROLS.map((fx) => {
+            const current = mix[fx.key]
+            const on = isImprovFxOn(fx.key, current)
+            return (
+              <div key={fx.key}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] uppercase tracking-wider text-text-muted">
+                    {fx.label}
+                  </span>
+                  <span className="text-[10px] text-text-muted tabular-nums">
+                    {on ? current : '—'}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {fx.steps.map((v) => {
+                    const selected = on && current === v
+                    return (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() =>
+                          setMix((m) => ({
+                            ...m,
+                            [fx.key]: selected ? fx.off : v,
+                          }))
+                        }
+                        className={`min-h-8 px-2 rounded-lg text-[11px] border ${
+                          selected
+                            ? 'border-accent bg-accent/20 text-accent'
+                            : 'border-border text-text-muted'
+                        }`}
+                      >
+                        {v}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
         </div>
 
         <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-t border-border">

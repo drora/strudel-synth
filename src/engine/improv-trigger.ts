@@ -7,7 +7,7 @@
  */
 import { ensureAudioUnlocked } from './audio-context'
 import { initEngine } from './strudel'
-import { improvVoiceHap } from './improv-plate'
+import { improvVoiceHapWithMix, IMPROV_MIX_DEFAULT, type ImprovPadMix } from './improv-plate'
 
 type DoughFn = (
   value: Record<string, unknown>,
@@ -62,14 +62,14 @@ export async function warmImprovTrigger(): Promise<void> {
   return warming
 }
 
-async function shoot(note: string, voice: string, duration: number) {
+async function shoot(note: string, voice: string, mix: ImprovPadMix, duration: number) {
   if (!dough || !getCtx) return
   const ac = getCtx()
   const resumeP = ac.resume()
   if (initAudioFn) void initAudioFn()
   await resumeP
 
-  let hap: Record<string, unknown> = { ...improvVoiceHap(note, voice), gain: 0.9 }
+  let hap: Record<string, unknown> = improvVoiceHapWithMix(note, voice, mix)
   const want = String(hap.s ?? '')
   if (!(getSoundFn && want && getSoundFn(want)) && getSoundFn?.('sawtooth')) {
     hap = { ...hap, s: 'sawtooth' }
@@ -80,11 +80,16 @@ async function shoot(note: string, voice: string, duration: number) {
 }
 
 /** Fire a one-shot. Works with the jam stopped. Safe from pointerdown. */
-export function fireImprovNote(note: string, voice: string, duration = 0.45): void {
+export function fireImprovNote(
+  note: string,
+  voice: string,
+  mix: ImprovPadMix = IMPROV_MIX_DEFAULT,
+  duration = 0.45,
+): void {
   void ensureAudioUnlocked()
   if (dough && getCtx) {
-    void shoot(note, voice, duration)
+    void shoot(note, voice, mix, duration)
     return
   }
-  void warmImprovTrigger().then(() => shoot(note, voice, duration))
+  void warmImprovTrigger().then(() => shoot(note, voice, mix, duration))
 }
