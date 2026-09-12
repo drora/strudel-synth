@@ -25,6 +25,8 @@ export type ImprovHit = {
   /** Hold length in seconds. */
   dur?: number
   velocity?: number
+  /** performance.now() at finger down — starts the phrase, measures gaps. */
+  at?: number
 }
 
 /** Pitch-classes of walk triad tones (same math as walkTriadPcs in kit-suggest-pools). */
@@ -117,41 +119,88 @@ export function improvVoiceCode(note: string, voice: string): string {
   return `note("${note}").sound("${voice}")`
 }
 
-/**
- * One-cycle-ish pattern from recent pad hits.
- * Prefers last ~1–2 cycles; else last 8 notes in order.
- */
-function stretchMark(dur: number, minDur: number): string {
-  const r = Math.max(dur, 0.05) / Math.max(minDur, 0.05)
-  if (r < 1.45) return ''
-  if (r < 2.4) return '@2'
-  if (r < 3.4) return '@3'
-  return '@4'
+const PHRASE_GAP_SEC = 1.6
+
+/** 0 = too small, else 1/2/3/4/6/8 beats at song tempo. */
+export function quantizeBeats(sec: number, bpm: number): number {
+  const b = sec / (60 / Math.max(bpm, 40))
+  if (b < 0.7) return 0
+  if (b < 1.4) return 1
+  if (b < 2.4) return 2
+  if (b < 3.4) return 3
+  if (b < 5) return 4
+  if (b < 7) return 6
+  return 8
+}
+
+function stretchMark(dur: number, bpm: number): string {
+  const beats = quantizeBeats(dur, bpm)
+  return beats <= 1 ? '' : `@${beats}`
+}
+
+function restToken(gapSec: number, bpm: number): string | null {
+  const beats = quantizeBeats(gapSec, bpm)
+  if (beats <= 0) return null
+  return beats === 1 ? '~' : `~@${beats}`
 }
 
 function roundVel(v: number): number {
   return Math.round(Math.min(1.5, Math.max(0.05, v)) * 20) / 20
 }
 
+/** Last phrase only — a long silence means “I started a new sequence.” */
+export function lastImprovPhrase(hits: ImprovHit[]): ImprovHit[] {
+  if (hits.length === 0) return []
+  const src = hits.slice(-16)
+  const timed = src.every((h) => h.at != null)
+  if (!timed) {
+    const lastCycle = src[src.length - 1]!.cycle
+    const windowed = src.filter((h) => h.cycle >= lastCycle - 1)
+    return (windowed.length > 0 ? windowed : src).slice(-8)
+  }
+  let start = 0
+  for (let i = 1; i < src.length; i++) {
+    const prev = src[i - 1]!
+    const cur = src[i]!
+    const prevEnd = (prev.at ?? 0) + (prev.dur ?? 0.25) * 1000
+    const gap = ((cur.at ?? prevEnd) - prevEnd) / 1000
+    if (gap >= PHRASE_GAP_SEC) start = i
+  }
+  return src.slice(start).slice(-8)
+}
+
 /**
- * One-cycle-ish pattern from recent pad hits.
- * Hold length → mini `@` stretches; velocity → `.velocity(...)`.
+ * Phrase from the first note you played (no leading rest).
+ * Hold → `@`; gaps after that → `~`; velocity → `.velocity(...)`.
  */
-export function hitsToNoteCode(hits: ImprovHit[], voice: string): string {
+export function hitsToNoteCode(
+  hits: ImprovHit[],
+  voice: string,
+  bpm = 120,
+): string {
   if (hits.length === 0) return improvVoiceCode('c4', voice)
-  const lastCycle = hits[hits.length - 1]!.cycle
-  const windowed = hits.filter((h) => h.cycle >= lastCycle - 1)
-  const use =
-    windowed.length > 0 ? windowed.slice(-8) : hits.slice(-8)
+  const use = lastImprovPhrase(hits)
+  if (use.length === 0) return improvVoiceCode('c4', voice)
   const durs = use.map((h) => h.dur ?? 0.25)
-  const minDur = Math.min(...durs)
-  const anyLong = durs.some((d) => d / minDur >= 1.45)
-  const tokens = use.map((h, i) => {
-    const mark = anyLong ? stretchMark(durs[i]!, minDur) : ''
-    return `${h.note}${mark}`
-  })
+  const anyLong = durs.some((d) => quantizeBeats(d, bpm) >= 2)
+  const tokens: string[] = []
+  const vels: number[] = []
+  for (let i = 0; i < use.length; i++) {
+    const h = use[i]!
+    if (i > 0 && h.at != null && use[i - 1]!.at != null) {
+      const prev = use[i - 1]!
+      const prevEnd = prev.at! + (prev.dur ?? 0.25) * 1000
+      const gap = (h.at - prevEnd) / 1000
+      const rest = restToken(gap, bpm)
+      if (rest) {
+        tokens.push(rest)
+        vels.push(1)
+      }
+    }
+    tokens.push(`${h.note}${stretchMark(durs[i]!, bpm)}`)
+    vels.push(roundVel(h.velocity ?? 1))
+  }
   let code = improvVoiceCode(tokens.join(' '), voice)
-  const vels = use.map((h) => roundVel(h.velocity ?? 1))
   const allDefault = vels.every((v) => Math.abs(v - 1) < 0.06)
   if (!allDefault) {
     const same = vels.every((v) => v === vels[0])
@@ -159,7 +208,7 @@ export function hitsToNoteCode(hits: ImprovHit[], voice: string): string {
       ? `.velocity(${vels[0]})`
       : `.velocity("${vels.join(' ')}")`
   }
-  if (anyLong) code += '.clip(1)'
+  if (anyLong || tokens.some((t) => t.startsWith('~'))) code += '.clip(1)'
   return code
 }
 

@@ -103,16 +103,17 @@ export function JamImprovPlate({ onClose }: Props) {
     const dur = Math.max(0.05, (performance.now() - pending.at) / 1000)
     hitsRef.current = [
       ...hitsRef.current,
-      { note: pending.note, cycle: pending.cycle, dur, velocity: pending.velocity },
+      { note: pending.note, cycle: pending.cycle, dur, velocity: pending.velocity, at: pending.at },
     ]
     setHitCount(hitsRef.current.length)
   }, [])
 
   const onKeep = useCallback(() => {
+    if (pendingRef.current) padUp()
     const hits = hitsRef.current
     if (hits.length === 0) return
-    const code = applyImprovMixToCode(hitsToNoteCode(hits, voice), mix)
     const session = useSessionStore.getState()
+    const code = applyImprovMixToCode(hitsToNoteCode(hits, voice, session.bpm), mix)
     const jam = useJamStore.getState()
     const id = session.addTrack({
       name: 'Pads',
@@ -136,7 +137,7 @@ export function JamImprovPlate({ onClose }: Props) {
     if (session.isPlaying) {
       liveUpdateEngine.queueUpdate('immediate', 'jam')
     }
-  }, [voice, mix])
+  }, [voice, mix, padUp])
 
   return (
     <div
