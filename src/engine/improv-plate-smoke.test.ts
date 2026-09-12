@@ -124,9 +124,10 @@ console.log('=== Improv plate smoke ===')
   const held = hitsToNoteCode(
     [
       { note: 'c4', cycle: 1, dur: 0.2, velocity: 0.4 },
-      { note: 'g4', cycle: 1.2, dur: 0.8, velocity: 1 },
+      { note: 'g4', cycle: 1.2, dur: 2.0, velocity: 1 },
     ],
     'sine',
+    120,
   )
   assert.match(held, /note\("c4 g4@4"\)/)
   assert.match(held, /\.velocity\("0.4 1"\)/)
@@ -142,6 +143,31 @@ console.log('=== Improv plate smoke ===')
   assert.match(even, /\.velocity\(0.85\)/)
   assert.doesNotMatch(even, /clip/)
   console.log('keep hold+velocity ok')
+}
+
+{
+  const t0 = 10_000
+  const code = hitsToNoteCode(
+    [
+      { note: 'c3', cycle: 0, dur: 0.2, velocity: 1, at: 0 },
+      { note: 'c4', cycle: 0, dur: 0.25, velocity: 0.8, at: t0 },
+      { note: 'eb4', cycle: 0, dur: 0.25, velocity: 0.8, at: t0 + 750 },
+      { note: 'g4', cycle: 0, dur: 0.25, velocity: 0.8, at: t0 + 2000 },
+    ],
+    'sine',
+    120,
+  )
+  assert.match(code, /note\("c4 ~ eb4 ~@2 g4"\)/, code)
+  assert.doesNotMatch(code, /c3/)
+  assert.match(code, /\.velocity\("0.8 1 0.8 1 0.8"\)/)
+  const lone = hitsToNoteCode(
+    [{ note: 'c4', cycle: 0, dur: 2.0, velocity: 1, at: t0 }],
+    'sine',
+    120,
+  )
+  assert.match(lone, /note\("c4@4"\)/)
+  assert.match(lone, /clip/)
+  console.log('keep phrase+rests ok')
 }
 
 // composeTracks overlay
