@@ -6,7 +6,7 @@ import type { ScaleKind } from './kits-types'
 import { SCALE_DEGREES, NOTE_NAMES, rootIndex } from './note-harmony'
 import { noteAt } from './kit-suggest-core'
 import type { WalkCenter } from './song-seed'
-import { setEffectInCode } from './code-effects'
+import { parseEffectValue, setEffectInCode } from './code-effects'
 
 export type ImprovPad = {
   /** 1–8 logical slot (bottom-left = 1 … top-right = 8). */
@@ -100,6 +100,18 @@ export function layoutImprovPads(
 }
 
 /** SuperDough hap for an instant pad hit (no jam re-eval). */
+const SOFT_VOX = /^(hmm|speechless|breath|diphone|yeah|mouth|kurt)(:\d+)?$/
+
+export function isSoftVoxSound(voice: string): boolean {
+  return SOFT_VOX.test(voice)
+}
+
+export function bakeVoxAttack(code: string, voice: string): string {
+  if (!isSoftVoxSound(voice)) return code
+  if (parseEffectValue(code, 'attack') != null) return code
+  return setEffectInCode(code, 'attack', 0.08)
+}
+
 export function improvVoiceHap(
   note: string,
   voice: string,
@@ -108,6 +120,7 @@ export function improvVoiceHap(
   if (sliced) {
     return { s: sliced[1]!, note, n: Number(sliced[2]) }
   }
+  if (isSoftVoxSound(voice)) return { s: voice, note, n: 0 }
   return { s: voice, note }
 }
 
@@ -225,9 +238,9 @@ export function hitsToNoteCode(
   bpm = 120,
   takeSec?: number,
 ): string {
-  if (hits.length === 0) return improvVoiceCode('c4', voice)
+  if (hits.length === 0) return bakeVoxAttack(improvVoiceCode('c4', voice), voice)
   const use = lastImprovPhrase(hits)
-  if (use.length === 0) return improvVoiceCode('c4', voice)
+  if (use.length === 0) return bakeVoxAttack(improvVoiceCode('c4', voice), voice)
   const durs = use.map((h) => h.dur ?? 0.25)
   const anyLong = durs.some((d) => quantizeBeats(d, bpm) >= 2)
   const tokens: string[] = []
@@ -284,7 +297,7 @@ export function hitsToNoteCode(
   if (anyLong || anySmear || tokens.some((tok) => tok.startsWith('~'))) code += '.clip(1)'
   const cycles = phraseCycles(tokens)
   if (cycles > 1) code += `.slow(${round3(cycles)})`
-  return code
+  return bakeVoxAttack(code, voice)
 }
 
 
@@ -368,15 +381,19 @@ export function setImprovVoiceInCode(code: string, sound: string): string {
   if (sound.startsWith('jam_mic_')) {
     next = next.replace(/\.sound\(\s*["'][^"']+["']\s*\)/, '')
     if (/\.s\(\s*["'][^"']+["']\s*\)/.test(next)) {
-      return next.replace(/\.s\(\s*["'][^"']+["']\s*\)/, `.s("${sound}")`)
+      next = next.replace(/\.s\(\s*["'][^"']+["']\s*\)/, `.s("${sound}")`)
+    } else {
+      next = next.trimEnd() + `.s("${sound}")`
     }
-    return next.trimEnd() + `.s("${sound}")`
+    return next
   }
   next = next.replace(/\.s\(\s*["']jam_mic_[^"']+["']\s*\)/, '')
   if (/\.sound\(/.test(next)) {
-    return next.replace(/\.sound\(\s*["'][^"']+["']\s*\)/, `.sound("${sound}")`)
+    next = next.replace(/\.sound\(\s*["'][^"']+["']\s*\)/, `.sound("${sound}")`)
+  } else {
+    next = next.trimEnd() + `.sound("${sound}")`
   }
-  return next.trimEnd() + `.sound("${sound}")`
+  return bakeVoxAttack(next, sound)
 }
 
 export { NOTE_NAMES, noteAt, SCALE_DEGREES }

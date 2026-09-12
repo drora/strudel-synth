@@ -107,7 +107,19 @@ console.log('=== Improv plate smoke ===')
   assert.deepEqual(improvVoiceHap('c4', 'sawtooth'), { s: 'sawtooth', note: 'c4' })
   assert.deepEqual(improvVoiceHap('eb4', 'jam_mic_1'), { s: 'jam_mic_1', note: 'eb4' })
   assert.deepEqual(improvVoiceHap('g4', 'piano:2'), { s: 'piano', note: 'g4', n: 2 })
+  assert.deepEqual(improvVoiceHap('c4', 'hmm'), { s: 'hmm', note: 'c4', n: 0 })
   console.log('voice hap ok')
+}
+
+{
+  const kept = hitsToNoteCode(
+    [{ note: 'c4', cycle: 1, dur: 0.4, at: 1000 }],
+    'hmm',
+    120,
+  )
+  assert.match(kept, /\.sound\("hmm"\)/)
+  assert.match(kept, /\.attack\(0\.08\)/)
+  console.log('soft vox keep attack ok')
 }
 
 // hits → note pattern

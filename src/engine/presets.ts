@@ -64,7 +64,7 @@ export const ROLE_PRESETS: Record<TrackRole, RolePreset> = {
     label: 'Vox',
     icon: '🎤',
     color: ROLE_COLORS.vox,
-    defaultCode: 's("mouth").room(0.3).lpf(4000)',
+    defaultCode: 's("hmm").attack(0.08).clip(1).room(0.3)',
   },
   custom: {
     role: 'custom',

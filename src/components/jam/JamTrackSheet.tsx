@@ -78,9 +78,16 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
       code: live.code,
       label: `Sound · ${choice.label}`,
     })
-    const next = isPadsKeepTrack(live) && choice.sound
+    let next = isPadsKeepTrack(live) && choice.sound
       ? setImprovVoiceInCode(live.code, choice.sound)
       : applySoundChoiceToCode(live.code, choice)
+    if (
+      live.role === 'vox' &&
+      choice.sound &&
+      parseEffectValue(next, 'attack') == null
+    ) {
+      next = setEffectInCode(next, 'attack', 0.08)
+    }
     useSessionStore.getState().setCode(live.id, next)
     jam.touchTrack(live.id)
     jam.setLastPeek(`Sound · ${choice.label}`)

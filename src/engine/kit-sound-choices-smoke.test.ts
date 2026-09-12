@@ -125,4 +125,12 @@ assert.ok(
 const drums110 = soundChoicesForKit('drums', kit110)
 assert.ok(drums110[0]?.bank === 'BossDR110', 'DR-110 drums still prioritize catalog tile')
 
-console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, nobank dirt, bank fallback, match/apply')
+const vox = SOUND_CHOICES.vox
+assert.deepEqual(
+  vox.map((c) => c.sound),
+  ['hmm', 'speechless', 'breath', 'diphone'],
+  'vox tiles are real vocals, not mouth/yeah/auto',
+)
+assert.ok(!vox.some((c) => ['mouth', 'yeah', 'auto'].includes(c.sound ?? '')))
+
+console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, nobank dirt, bank fallback, match/apply, vox vocals')
