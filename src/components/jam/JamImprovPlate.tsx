@@ -8,6 +8,7 @@ import {
   applyImprovMixToCode,
   IMPROV_MIX_DEFAULT,
   IMPROV_VOL_STEPS,
+  IMPROV_VEL_STEPS,
   IMPROV_FX_CONTROLS,
   isImprovFxOn,
   type ImprovHit,
@@ -16,7 +17,7 @@ import {
 import { improvSoundChoices } from '../../engine/kit-sound-choices'
 import { listMicSampleNames } from '../../engine/mic-sample'
 import { liveUpdateEngine } from '../../engine/live-update'
-import { fireImprovNote, warmImprovTrigger, preloadImprovVoice } from '../../engine/improv-trigger'
+import { startImprovNote, stopImprovNote, warmImprovTrigger, preloadImprovVoice, padVelocity } from '../../engine/improv-trigger'
 import { ROLE_COLORS } from '../../engine/types'
 
 interface Props {
@@ -72,25 +73,39 @@ export function JamImprovPlate({ onClose }: Props) {
   const hitsRef = useRef<ImprovHit[]>([])
   const [hitCount, setHitCount] = useState(0)
   const activePadRef = useRef<number | null>(null)
+  const pendingRef = useRef<{ note: string; cycle: number; at: number; velocity: number } | null>(null)
+
+  useEffect(() => () => stopImprovNote(), [])
 
   const padDown = useCallback(
-    (slot: number) => {
+    (slot: number, ev: React.PointerEvent) => {
       const pad = bySlot.get(slot)
       if (!pad?.enabled || !pad.note) return
+      ev.currentTarget.setPointerCapture(ev.pointerId)
       activePadRef.current = slot
       setPressed(slot)
-      fireImprovNote(pad.note, voice, mix)
+      const vel = padVelocity(ev.pressure, ev.pointerType, mix.velocity)
+      startImprovNote(pad.note, voice, mix, vel)
       const playing = useSessionStore.getState().isPlaying
       const cycle = playing ? liveUpdateEngine.getCurrentCycle() : 0
-      hitsRef.current = [...hitsRef.current, { note: pad.note, cycle }]
-      setHitCount(hitsRef.current.length)
+      pendingRef.current = { note: pad.note, cycle, at: performance.now(), velocity: vel }
     },
     [bySlot, voice, mix],
   )
 
   const padUp = useCallback(() => {
+    stopImprovNote()
+    const pending = pendingRef.current
+    pendingRef.current = null
     activePadRef.current = null
     setPressed(null)
+    if (!pending) return
+    const dur = Math.max(0.05, (performance.now() - pending.at) / 1000)
+    hitsRef.current = [
+      ...hitsRef.current,
+      { note: pending.note, cycle: pending.cycle, dur, velocity: pending.velocity },
+    ]
+    setHitCount(hitsRef.current.length)
   }, [])
 
   const onKeep = useCallback(() => {
@@ -141,7 +156,7 @@ export function JamImprovPlate({ onClose }: Props) {
               Improv · {songRoot} {songScale}
             </div>
             <div className="text-[10px] text-text-muted truncate">
-              Tap pads · Keep → vox · monophonic
+              Hold pads · Keep writes @ + velocity
             </div>
           </div>
           <div className="flex items-center gap-1.5">
@@ -217,7 +232,7 @@ export function JamImprovPlate({ onClose }: Props) {
                   disabled={dim}
                   onPointerDown={(e) => {
                     e.preventDefault()
-                    padDown(slot)
+                    padDown(slot, e)
                   }}
                   onPointerUp={padUp}
                   className={`aspect-square rounded-2xl border text-sm font-semibold select-none touch-none transition-shadow ${
@@ -276,6 +291,28 @@ export function JamImprovPlate({ onClose }: Props) {
                   onClick={() => setMix((m) => ({ ...m, volume: v }))}
                   className={`min-h-8 px-2 rounded-lg text-[11px] border ${
                     Math.abs(mix.volume - v) < 0.001
+                      ? 'border-accent bg-accent/20 text-accent'
+                      : 'border-border text-text-muted'
+                  }`}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] uppercase tracking-wider text-text-muted">Vel</span>
+              <span className="text-[10px] text-text-muted tabular-nums">{mix.velocity}</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {IMPROV_VEL_STEPS.map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setMix((m) => ({ ...m, velocity: v }))}
+                  className={`min-h-8 px-2 rounded-lg text-[11px] border ${
+                    Math.abs(mix.velocity - v) < 0.001
                       ? 'border-accent bg-accent/20 text-accent'
                       : 'border-border text-text-muted'
                   }`}

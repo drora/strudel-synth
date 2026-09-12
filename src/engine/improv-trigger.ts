@@ -1,16 +1,17 @@
 /**
  * Instant pad hits via SuperDough. Does not re-evaluate the jam stack.
  *
- * SuperDough 1.3 takes an *absolute* AudioContext time. Import from
- * @strudel/web (same specifier as initEngine) so we share the jam's
- * soundMap, context, and output bus.
- *
- * Warm (registered synths + already-heard samples) schedule ~20ms ahead.
- * Cold samples get a longer lead so SuperDough does not skip "still loading".
+ * Hold: start on pointerdown, release on pointerup (our gain envelope).
+ * Keep bakes hold `@` stretches + `.velocity(...)`.
  */
 import { ensureAudioUnlocked } from './audio-context'
 import { initEngine } from './strudel'
-import { improvVoiceHapWithMix, IMPROV_MIX_DEFAULT, type ImprovPadMix } from './improv-plate'
+import {
+  improvVoiceHapWithMix,
+  IMPROV_MIX_DEFAULT,
+  isImprovFxOn,
+  type ImprovPadMix,
+} from './improv-plate'
 
 type DoughFn = (
   value: Record<string, unknown>,
@@ -19,7 +20,21 @@ type DoughFn = (
 ) => Promise<unknown> | unknown
 type CtxFn = () => AudioContext
 type InitAudioFn = () => Promise<void>
-type GetSoundFn = (s: string) => { onTrigger?: unknown } | undefined
+type OnTrigger = (
+  t: number,
+  value: Record<string, unknown>,
+  onended: () => void,
+  cps: number,
+) => Promise<{ node: AudioNode; stop?: (end: number) => void } | void> | { node: AudioNode; stop?: (end: number) => void } | void
+type GetSoundFn = (s: string) => { onTrigger?: OnTrigger } | undefined
+type Orbit = {
+  getReverb: (...args: unknown[]) => unknown
+  getDelay: (time?: number, fb?: number, t?: number) => unknown
+  sendReverb: (node: AudioNode, amount: number) => unknown
+  sendDelay: (node: AudioNode, amount: number) => unknown
+  connectToOutput: (node: AudioNode) => void
+}
+type GetCtrlFn = () => { getOrbit: (n: number, ch?: number[]) => Orbit }
 
 const SYNTH_VOICES = new Set([
   'triangle',
@@ -36,6 +51,8 @@ const SYNTH_VOICES = new Set([
 
 const WARM_LEAD = 0.02
 const COLD_LEAD = 0.12
+const HOLD_SEC = 32
+const RELEASE_SEC = 0.09
 
 const warmed = new Set<string>(SYNTH_VOICES)
 
@@ -43,7 +60,10 @@ let dough: DoughFn | null = null
 let getCtx: CtxFn | null = null
 let initAudioFn: InitAudioFn | null = null
 let getSoundFn: GetSoundFn | null = null
+let getCtrl: GetCtrlFn | null = null
 let warming: Promise<void> | null = null
+let token = 0
+let live: { gain: GainNode; stop?: (end: number) => void } | null = null
 
 async function loadJamDough(): Promise<void> {
   const mod = await import('@strudel/web')
@@ -51,6 +71,7 @@ async function loadJamDough(): Promise<void> {
   getCtx = mod.getAudioContext as CtxFn
   initAudioFn = mod.initAudio as InitAudioFn
   getSoundFn = mod.getSound as GetSoundFn
+  getCtrl = mod.getSuperdoughAudioController as GetCtrlFn
   if (typeof mod.registerSynthSounds === 'function') {
     mod.registerSynthSounds()
   }
@@ -62,6 +83,21 @@ export function improvLookahead(sound: string): number {
 
 export function markImprovVoiceWarm(sound: string): void {
   if (sound) warmed.add(sound.toLowerCase())
+}
+
+export function padVelocity(
+  pressure: number,
+  pointerType: string,
+  slider: number,
+): number {
+  const s = slider
+  if (pointerType === 'pen' && pressure > 0) {
+    return Math.min(1.5, Math.max(0.05, pressure * s))
+  }
+  if (pointerType === 'touch' && pressure > 0 && pressure !== 0.5) {
+    return Math.min(1.5, Math.max(0.05, pressure * s))
+  }
+  return s
 }
 
 export async function warmImprovTrigger(): Promise<void> {
@@ -104,30 +140,137 @@ function resolveHap(
   return hap
 }
 
-/** Sync hot path — no await before schedule. */
-function shootNow(
+function fadeLive(ac: AudioContext) {
+  const cur = live
+  live = null
+  if (!cur) return
+  const now = ac.currentTime
+  try {
+    const g = cur.gain.gain
+    const v = Math.max(g.value, 0.001)
+    g.cancelScheduledValues(now)
+    g.setValueAtTime(v, now)
+    g.exponentialRampToValueAtTime(0.0001, now + RELEASE_SEC)
+    cur.stop?.(now + RELEASE_SEC + 0.02)
+  } catch {
+    /* */
+  }
+}
+
+export function stopImprovNote(): void {
+  token += 1
+  if (getCtx) fadeLive(getCtx())
+}
+
+async function beginHold(
+  mine: number,
   note: string,
   voice: string,
   mix: ImprovPadMix,
-  duration: number,
-  silent = false,
-): void {
-  if (!dough || !getCtx) return
+  velocity: number,
+): Promise<void> {
+  if (!getCtx || !getSoundFn) return
   const ac = getCtx()
   if (ac.state !== 'running') {
     void ac.resume()
     if (initAudioFn) void initAudioFn()
   }
   const hap = resolveHap(note, voice, mix)
-  if (silent) hap.gain = 0
+  hap.duration = HOLD_SEC
+  hap.sustain = 1
+  hap.attack = 0.005
+  hap.release = RELEASE_SEC
+  hap.velocity = velocity
   const s = String(hap.s ?? '')
+  const sound = getSoundFn(s)
   const t = ac.currentTime + improvLookahead(s)
-  // cut:1 steals the previous pad so overlaps don't smear
-  hap.cut = 1
-  void Promise.resolve(dough(hap, t, duration)).then(() => markImprovVoiceWarm(s))
+  if (!sound?.onTrigger) {
+    if (dough) void dough({ ...hap, gain: (mix.volume || 0.9) * velocity, cut: 1 }, t, 0.45)
+    return
+  }
+  const handle = await sound.onTrigger(t, hap, () => {}, 0.5)
+  if (mine !== token || !handle?.node) {
+    try {
+      handle?.stop?.(ac.currentTime)
+    } catch {
+      /* */
+    }
+    return
+  }
+
+  let node: AudioNode = handle.node
+  if (isImprovFxOn('lpf', mix.lpf) && mix.lpf != null) {
+    const f = ac.createBiquadFilter()
+    f.type = 'lowpass'
+    f.frequency.value = mix.lpf
+    node.connect(f)
+    node = f
+  }
+  if (isImprovFxOn('hpf', mix.hpf) && mix.hpf != null) {
+    const f = ac.createBiquadFilter()
+    f.type = 'highpass'
+    f.frequency.value = mix.hpf
+    node.connect(f)
+    node = f
+  }
+
+  const gain = ac.createGain()
+  const amp = Math.max(0.001, (mix.volume || 0.9) * velocity)
+  gain.gain.setValueAtTime(0.0001, t)
+  gain.gain.exponentialRampToValueAtTime(amp, t + 0.012)
+  node.connect(gain)
+
+  try {
+    const orbit = getCtrl?.().getOrbit(1, [1, 2])
+    orbit?.connectToOutput(gain)
+    if (orbit && isImprovFxOn('room', mix.room) && mix.room != null) {
+      orbit.getReverb()
+      orbit.sendReverb(gain, mix.room)
+    }
+    if (orbit && isImprovFxOn('delay', mix.delay) && mix.delay != null) {
+      orbit.getDelay(0.25, 0.45, t)
+      orbit.sendDelay(gain, mix.delay)
+    }
+  } catch {
+    gain.connect(ac.destination)
+  }
+
+  live = { gain, stop: handle.stop }
+  markImprovVoiceWarm(s)
 }
 
-/** Silent prime so the next audible tap can use the 20ms lead. */
+export function startImprovNote(
+  note: string,
+  voice: string,
+  mix: ImprovPadMix = IMPROV_MIX_DEFAULT,
+  velocity = mix.velocity,
+): void {
+  stopImprovNote()
+  const mine = token
+  const go = () => {
+    if (mine !== token) return
+    void beginHold(mine, note, voice, mix, velocity)
+  }
+  if (dough && getCtx) {
+    if (getCtx().state !== 'running') void ensureAudioUnlocked()
+    go()
+    return
+  }
+  void ensureAudioUnlocked()
+  void warmImprovTrigger().then(go)
+}
+
+/** @deprecated tap alias — hold uses start/stop */
+export function fireImprovNote(
+  note: string,
+  voice: string,
+  mix: ImprovPadMix = IMPROV_MIX_DEFAULT,
+  duration = 0.45,
+): void {
+  startImprovNote(note, voice, mix, mix.velocity)
+  void duration
+}
+
 export function preloadImprovVoice(voice: string): void {
   if (!voice) return
   const key = voice.split(':')[0]!.toLowerCase()
@@ -136,22 +279,10 @@ export function preloadImprovVoice(voice: string): void {
     void warmImprovTrigger().then(() => preloadImprovVoice(voice))
     return
   }
-  shootNow('c4', voice, { ...IMPROV_MIX_DEFAULT, volume: 0 }, 0.04, true)
-}
-
-/** Fire a one-shot. Works with the jam stopped. Safe from pointerdown. */
-export function fireImprovNote(
-  note: string,
-  voice: string,
-  mix: ImprovPadMix = IMPROV_MIX_DEFAULT,
-  duration = 0.45,
-): void {
-  if (dough && getCtx) {
-    const ac = getCtx()
-    if (ac.state !== 'running') void ensureAudioUnlocked()
-    shootNow(note, voice, mix, duration)
-    return
-  }
-  void ensureAudioUnlocked()
-  void warmImprovTrigger().then(() => shootNow(note, voice, mix, duration))
+  const ac = getCtx()
+  const hap = resolveHap('c4', voice, { ...IMPROV_MIX_DEFAULT, volume: 0 })
+  hap.gain = 0
+  const s = String(hap.s ?? '')
+  const t = ac.currentTime + improvLookahead(s)
+  void Promise.resolve(dough!(hap, t, 0.04)).then(() => markImprovVoiceWarm(s))
 }
