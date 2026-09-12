@@ -37,7 +37,7 @@ src/
 | Kits / vibes / sound choices / kit browser | `engine/kits.ts` + `kits-data-{a..f}.ts`, `kits-types.ts`, `kit-browser.ts`, `reshuffle.ts` (profile pools) |
 | Kit-aware Code autocomplete | `engine/kit-suggest.ts` → `components/editor/strudel-autocomplete.ts` (active `kitId` + track role + song root/scale) |
 | Sample registry / prebake | `engine/samples.ts`, `engine/strudel.ts` |
-| Mic → sample → track | `engine/mic-sample.ts`, `components/jam/JamMicRec.tsx` |
+| Mic → sample → track | `engine/mic-sample.ts`, `components/jam/JamMicRec.tsx` — new vox track; do not pop Sound |
 | Loop phase (BPM ring + chip ticks) | `hooks/useLoopPhase.ts`, `JamPhaseRing`, `JamTrackChip`, `liveUpdateEngine` |
 | A/B arrangement punch | `store/jam-store.ts` (`stashVariant` / `punchVariant` / `toggleAb`), `JamABToggle` |
 | FX in code | `engine/code-effects.ts` |
