@@ -1,4 +1,5 @@
 import { useSessionStore } from '../store/session-store'
+import { useJamStore } from '../store/jam-store'
 import { useUIStore } from '../store/ui-store'
 import {
   composeTracks,
@@ -36,7 +37,8 @@ export async function startPlayback(): Promise<StartPlaybackResult> {
 
     const latest = useSessionStore.getState()
     latest.setPlaying(true)
-    const code = composeTracks(latest.tracks, latest.bpm)
+    const overlay = useJamStore.getState().improvHold ?? 'silence'
+    const code = composeTracks(latest.tracks, latest.bpm, overlay)
     await evaluateCode(code)
     // Epoch after evaluate so wall/audio clocks align with audible start
     liveUpdateEngine.markPlayStarted()

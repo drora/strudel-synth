@@ -13,6 +13,7 @@ import { useUIStore } from '../store/ui-store'
 export type MicRecState = 'idle' | 'arming' | 'recording' | 'processing' | 'error'
 
 let micCounter = 0
+const registeredMicNames: string[] = []
 let activeStream: MediaStream | null = null
 let activeRecorder: MediaRecorder | null = null
 let chunks: BlobPart[] = []
@@ -196,6 +197,7 @@ export async function startMicRecording(opts?: {
     const name = `jam_mic_${micCounter}`
     try {
       await registerBlobAsSample(name, blob)
+      registeredMicNames.push(name)
       assignSampleToTrack(name)
       onState('idle')
       return name
@@ -231,4 +233,9 @@ function cleanupStream() {
     activeStream = null
   }
   chunks = []
+}
+
+/** Names of jam_mic_* samples successfully registered this session. */
+export function listMicSampleNames(): string[] {
+  return [...registeredMicNames]
 }

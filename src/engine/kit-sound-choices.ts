@@ -193,3 +193,47 @@ export function soundChoicesForKit(role: TrackRole, kit: Kit | null | undefined)
 
   return SOUND_CHOICES[role] ?? SOUND_CHOICES.custom
 }
+
+const IMPROV_ROLES: TrackRole[] = ['lead', 'pad', 'arp', 'vox', 'custom', 'bass']
+
+/**
+ * Melodic voice tiles for the improv plate: kit melodicSounds first, then unique
+ * SOUND_CHOICES for lead/pad/arp/vox/custom/bass. Caller may append mic names.
+ * No drums/hats/fx.
+ */
+export function improvSoundChoices(
+  kit: Kit | null | undefined,
+  micNames: string[] = [],
+): SoundChoice[] {
+  const out: SoundChoice[] = []
+  const seen = new Set<string>()
+
+  const pushSound = (sound: string, label?: string, id?: string) => {
+    if (!sound || seen.has(sound)) return
+    seen.add(sound)
+    out.push(tile(id ?? `improv-${sound}`, label ?? sound, sound))
+  }
+
+  if (kit) {
+    const profile = resolveShuffleProfile(kit)
+    for (const s of profile.melodicSounds ?? []) {
+      pushSound(s)
+    }
+  }
+
+  for (const role of IMPROV_ROLES) {
+    const globals = SOUND_CHOICES[role] ?? []
+    for (const c of globals) {
+      if (!c.sound) continue
+      if (seen.has(c.sound)) continue
+      seen.add(c.sound)
+      out.push(c)
+    }
+  }
+
+  for (const name of micNames) {
+    pushSound(name, `Rec ${name.replace(/^jam_mic_/, '')}`, name)
+  }
+
+  return out
+}
