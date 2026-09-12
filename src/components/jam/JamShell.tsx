@@ -190,6 +190,14 @@ export function JamShell() {
                 />
               ))}
               <JamAddTrack />
+              <button
+                type="button"
+                onClick={() => j.setShowImprovPlate(true)}
+                className="shrink-0 w-[7.25rem] h-[2.75rem] px-2.5 rounded-lg text-[11px] font-medium border border-border bg-bg-elevated text-text-muted hover:text-text box-border"
+                title="Improv pads — hold notes over the jam, Keep as vox"
+              >
+                Pads
+              </button>
             </div>
           </div>
         </div>
@@ -234,14 +242,6 @@ export function JamShell() {
             title="Deterministic pattern transforms — not Shuffle, not Spice"
           >
             Mutate
-          </button>
-          <button
-            type="button"
-            onClick={() => j.setShowImprovPlate(true)}
-            className="min-h-11 px-3 rounded-xl text-xs font-medium bg-bg-elevated border border-border"
-            title="Improv pads — hold notes over the jam, Keep as vox"
-          >
-            Pads
           </button>
           <button
             type="button"
