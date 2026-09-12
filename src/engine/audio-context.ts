@@ -205,23 +205,3 @@ export async function resumeAudioContext(): Promise<void> {
 export function isAudioSyncedToStrudel(): boolean {
   return strudelSynced || !!resolveStrudelAudioContext()
 }
-
-type AudioSessionLike = { type: string }
-
-/**
- * After getUserMedia, phones stay in voice/SCO mode (built-in speaker).
- * Stop the mic first. Do not setSinkId or play HTML audio — that muted Rec playback.
- */
-export async function restoreMediaRoute(): Promise<void> {
-  try {
-    const session = (navigator as Navigator & { audioSession?: AudioSessionLike }).audioSession
-    if (session) session.type = 'playback'
-  } catch {
-    /* */
-  }
-  try {
-    await resumeContext(getAudioContext())
-  } catch {
-    /* */
-  }
-}
