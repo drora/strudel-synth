@@ -63,10 +63,10 @@ export const MELODIC_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = 
     { id: 'wt-digital', label: 'WT digital', sound: 'wt_digital' },
   ],
   vox: [
-    { id: 'mouth', label: 'Mouth', sound: 'mouth' },
-    { id: 'yeah', label: 'Yeah', sound: 'yeah' },
     { id: 'hmm', label: 'Hmm', sound: 'hmm' },
-    { id: 'auto', label: 'Auto', sound: 'auto' },
+    { id: 'speechless', label: 'Speech', sound: 'speechless' },
+    { id: 'breath', label: 'Breath', sound: 'breath' },
+    { id: 'diphone', label: 'Diphone', sound: 'diphone' },
   ],
   custom: [
     { id: 'saw', label: 'Saw', sound: 'sawtooth' },

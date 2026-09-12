@@ -257,10 +257,11 @@ async function beginHold(
   const hap = resolveHap(note, voice, mix)
   hap.duration = HOLD_SEC
   hap.sustain = 1
-  hap.attack = 0.005
+  const s = String(hap.s ?? '')
+  const vox = /^(hmm|speechless|breath|diphone|yeah|mouth|kurt)$/.test(s)
+  hap.attack = vox ? 0.06 : 0.005
   hap.release = RELEASE_SEC
   hap.velocity = velocity
-  const s = String(hap.s ?? '')
   const sound = getSoundFn(s)
   const t = ac.currentTime + improvLookahead(s)
   if (!sound?.onTrigger) {
@@ -299,7 +300,7 @@ async function beginHold(
   const gain = ac.createGain()
   const amp = Math.max(0.001, (mix.volume || 0.9) * velocity)
   gain.gain.setValueAtTime(0.0001, t)
-  gain.gain.exponentialRampToValueAtTime(amp, t + 0.012)
+  gain.gain.exponentialRampToValueAtTime(amp, t + (vox ? 0.04 : 0.012))
   node.connect(gain)
 
   try {
