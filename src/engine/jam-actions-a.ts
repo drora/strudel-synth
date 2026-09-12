@@ -74,17 +74,21 @@ export function applyKit(
   if (!kit) return { ok: false, error: `Unknown kit: ${id}` }
   const resolved = resolveShuffleProfile(kit)
   const jam = useJamStore.getState()
-  // First paint / New kit: randomizeRoot → new home + scale (full pools, not kit C-minor).
-  // Picker / reload with hasPickedKit: keep jam.songRoot; scale from kit.
+  // First kit of choice (randomizeRoot): new home + scale from full pools.
+  // After that (picker / New kit / hasPickedKit): keep current root AND scale.
   // Bare apply (no flags, never picked): kit profile root + scale.
-  const root = opts?.randomizeRoot
-    ? randomSongRoot(jam.songRoot)
-    : (opts?.fromPicker || jam.hasPickedKit)
-      ? (jam.songRoot || resolved.root)
-      : resolved.root
-  const scale = opts?.randomizeRoot
-    ? randomSongScale(jam.songScale)
-    : resolved.scale
+  let root: string
+  let scale: typeof resolved.scale
+  if (opts?.randomizeRoot) {
+    root = randomSongRoot(jam.songRoot)
+    scale = randomSongScale(jam.songScale)
+  } else if (opts?.fromPicker || jam.hasPickedKit) {
+    root = jam.songRoot || resolved.root
+    scale = jam.songScale || resolved.scale
+  } else {
+    root = resolved.root
+    scale = resolved.scale
+  }
   const seed = rollSeed({
     root,
     scale,
@@ -388,6 +392,14 @@ export function setSongHarmony(
       : `Key · ${root} ${scale}`,
   )
   return { ok: true, root, scale, remapped }
+}
+
+/** Dice: new root + scale (avoid current), remap unlocked melodic lanes. */
+export function rollSongHarmony(): { ok: true; root: string; scale: ScaleKind; remapped: number } {
+  const jam = useJamStore.getState()
+  return setSongHarmony(randomSongRoot(jam.songRoot), randomSongScale(jam.songScale), {
+    remap: true,
+  })
 }
 
 export function setTrackOctave(

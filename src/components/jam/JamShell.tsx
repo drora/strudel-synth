@@ -19,7 +19,7 @@ import { useJamShell } from './useJamShell'
 import { JamTrackChip } from './JamTrackChip'
 import { drumsBankShortName } from '../../engine/kit-browser'
 import { CODE_ALL, isCodeAllOpen } from '../../engine/all-code'
-import { setSongHarmony } from '../../engine/jam-actions'
+import { setSongHarmony, rollSongHarmony } from '../../engine/jam-actions'
 import { SONG_ROOTS, SONG_SCALES, SONG_SCALE_LABELS } from '../../engine/note-harmony'
 import { walkConcertNames } from '../../engine/song-seed'
 import type { ScaleKind } from '../../engine/kits'
@@ -151,6 +151,15 @@ export function JamShell() {
               ))}
             </select>
           </label>
+          <button
+            type="button"
+            className="min-h-11 min-w-11 rounded-xl border border-border bg-bg-elevated text-base leading-none text-text-muted hover:text-accent shrink-0"
+            title="Random root + scale"
+            aria-label="Random root and scale"
+            onClick={() => rollSongHarmony()}
+          >
+            {'\u2684'}
+          </button>
         </div>
 
         <div className="flex items-center gap-2 min-h-9">
