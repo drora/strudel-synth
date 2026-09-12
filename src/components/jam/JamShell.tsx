@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useJamStore } from '../../store/jam-store'
 import { useSessionStore } from '../../store/session-store'
 import { useUIStore } from '../../store/ui-store'
@@ -17,6 +18,7 @@ import { drumsBankShortName } from '../../engine/kit-browser'
 import { resolveCodeOpenTrackId } from '../../engine/last-touched'
 import { setSongHarmony } from '../../engine/jam-actions'
 import { SONG_ROOTS, SONG_SCALES, SONG_SCALE_LABELS } from '../../engine/note-harmony'
+import { walkConcertNames } from '../../engine/song-seed'
 import type { ScaleKind } from '../../engine/kits'
 
 function openCodeForTrack(trackId: string | null | undefined) {
@@ -28,6 +30,11 @@ function openCodeForTrack(trackId: string | null | undefined) {
 export function JamShell() {
   const j = useJamShell()
   const codeTrackId = useJamStore((s) => s.codeTrackId)
+  const songSeed = useJamStore((s) => s.songSeed)
+  const walkChips = useMemo(
+    () => (songSeed ? walkConcertNames(songSeed) : []),
+    [songSeed],
+  )
   const codeTrack = j.tracks.find((t) => t.id === codeTrackId)
 
   return (
@@ -143,6 +150,22 @@ export function JamShell() {
             </select>
           </label>
         </div>
+
+        {walkChips.length > 0 && (
+          <div
+            className="flex flex-wrap items-center gap-1.5"
+            aria-label="Chord walk"
+          >
+            {walkChips.map((label, i) => (
+              <span
+                key={`${label}-${i}`}
+                className="shrink-0 min-h-8 px-2.5 rounded-full text-[11px] font-medium border border-border bg-bg-elevated text-text-muted"
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+        )}
 
         <div className="flex flex-col items-center py-2">
           <JamPhaseRing bpm={j.bpm} isPlaying={j.isPlaying} />

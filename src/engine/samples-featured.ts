@@ -45,4 +45,9 @@ export const FEATURED_BANKS: string[] = [
   'MFB512',
   'SakataDPM48',
   'ViscoSpaceDrum',
+  'KorgDDM110',
+  'YamahaTG33',
+  'RolandD110',
+  'KorgT3',
+  'KorgKRZ',
 ]

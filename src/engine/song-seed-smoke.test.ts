@@ -15,6 +15,7 @@ import {
   centerMelodyNotes,
   buildMixCard,
   randomSongRoot,
+  walkConcertNames,
   type SongSeed,
   type WalkCenter,
   type MixCard,
@@ -432,6 +433,47 @@ console.log('  rollSeed degrees ∈ neighbors: ok')
     `lead missing walk tones; code=${lead}`,
   )
   console.log(`  add-track lead on F mixolydian seed: ${lead}`)
+}
+
+
+// PR E: walk chips = concert names (not Roman numerals)
+{
+  const seed: SongSeed = {
+    root: 'c',
+    scale: 'minor',
+    patternId: 'i_bVI_bIII_V',
+    walk: [
+      { degree: 0, quality: 'min' },
+      { degree: 8, quality: 'maj' },
+      { degree: 3, quality: 'maj' },
+      { degree: 7, quality: 'maj' },
+    ],
+  }
+  assert.deepEqual(walkConcertNames(seed), ['Cm', 'Ab', 'Eb', 'G'])
+  const withMinV: SongSeed = {
+    ...seed,
+    patternId: 'i_bVI_bIII_v',
+    walk: [
+      { degree: 0, quality: 'min' },
+      { degree: 8, quality: 'maj' },
+      { degree: 3, quality: 'maj' },
+      { degree: 7, quality: 'min' },
+    ],
+  }
+  assert.deepEqual(walkConcertNames(withMinV), ['Cm', 'Ab', 'Eb', 'Gm'])
+  const fMaj: SongSeed = {
+    root: 'f',
+    scale: 'major',
+    patternId: 'I_V_vi_IV',
+    walk: [
+      { degree: 0, quality: 'maj' },
+      { degree: 7, quality: 'maj' },
+      { degree: 9, quality: 'min' },
+      { degree: 5, quality: 'maj' },
+    ],
+  }
+  assert.deepEqual(walkConcertNames(fMaj), ['F', 'C', 'Dm', 'Bb'])
+  console.log('  PR E walkConcertNames chips: ok')
 }
 
 console.log('ALL SONG-SEED CHECKS PASSED')
