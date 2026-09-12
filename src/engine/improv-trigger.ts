@@ -3,6 +3,7 @@
  *
  * Hold: start on pointerdown, release on pointerup (our gain envelope).
  * Keep bakes hold `@` stretches + `.velocity(...)`.
+ * Rec (jam_mic_*) stays dry for the take, then smears at hold÷take.
  */
 import { ensureAudioUnlocked } from './audio-context'
 import { initEngine } from './strudel'
@@ -10,8 +11,10 @@ import {
   improvVoiceHapWithMix,
   IMPROV_MIX_DEFAULT,
   isImprovFxOn,
+  noteTransposeRate,
   type ImprovPadMix,
 } from './improv-plate'
+import { micSampleDuration } from './mic-sample'
 
 type DoughFn = (
   value: Record<string, unknown>,
@@ -140,6 +143,82 @@ function resolveHap(
   return hap
 }
 
+function attachSmearVocoder(ac: AudioContext, node: AudioNode): AudioWorkletNode | null {
+  try {
+    const pv = new AudioWorkletNode(ac, 'phase-vocoder-processor')
+    const pf = pv.parameters.get('pitchFactor')
+    if (pf) pf.value = 0
+    node.connect(pv)
+    return pv
+  } catch {
+    return null
+  }
+}
+
+const SMEAR_KEYS = [0, 0.25, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 12, 16]
+
+async function startMicSmear(
+  mine: number,
+  ac: AudioContext,
+  sound: { onTrigger?: OnTrigger },
+  hap: Record<string, unknown>,
+  note: string,
+  t0: number,
+  take: number,
+  bus: AudioNode,
+): Promise<void> {
+  if (!sound.onTrigger) return
+  const trans = noteTransposeRate(note)
+  const takeWall = take / Math.max(trans, 0.05)
+  const smearAt = t0 + Math.max(0.08, takeWall - 0.025)
+  const remain = Math.max(1, HOLD_SEC - (smearAt - t0))
+  const smearHap: Record<string, unknown> = {
+    ...hap,
+    loop: 1,
+    clip: 1,
+    duration: remain,
+    sustain: 1,
+    speed: 1,
+  }
+  const handle = await sound.onTrigger(smearAt, smearHap, () => {}, 0.5)
+  if (mine !== token || !handle?.node) {
+    try {
+      handle?.stop?.(ac.currentTime)
+    } catch {
+      /* */
+    }
+    return
+  }
+  let node: AudioNode = handle.node
+  const pv = attachSmearVocoder(ac, node)
+  if (pv) node = pv
+  node.connect(bus)
+  const src = (handle as { nodes?: { source?: { playbackRate: AudioParam }[] } }).nodes
+    ?.source?.[0]
+  const pf = pv?.parameters.get('pitchFactor')
+  if (src) {
+    for (const dt of SMEAR_KEYS) {
+      const when = smearAt + dt
+      const r = Math.max(1, (when - t0) / take)
+      try {
+        src.playbackRate.setValueAtTime(Math.max(0.015, trans / r), when)
+        pf?.setValueAtTime(r - 1, when)
+      } catch {
+        /* */
+      }
+    }
+  }
+  const cur = live
+  if (cur && mine === token) {
+    const a = cur.stop
+    const b = handle.stop
+    cur.stop = (end) => {
+      a?.(end)
+      b?.(end)
+    }
+  }
+}
+
 function fadeLive(ac: AudioContext) {
   const cur = live
   live = null
@@ -198,7 +277,10 @@ async function beginHold(
     return
   }
 
-  let node: AudioNode = handle.node
+  const bus = ac.createGain()
+  bus.gain.value = 1
+  handle.node.connect(bus)
+  let node: AudioNode = bus
   if (isImprovFxOn('lpf', mix.lpf) && mix.lpf != null) {
     const f = ac.createBiquadFilter()
     f.type = 'lowpass'
@@ -237,6 +319,12 @@ async function beginHold(
 
   live = { gain, stop: handle.stop }
   markImprovVoiceWarm(s)
+  if (s.startsWith('jam_mic_')) {
+    const take = micSampleDuration(s)
+    if (take && take > 0.05) {
+      void startMicSmear(mine, ac, sound, hap, String(hap.note ?? note), t, take, bus)
+    }
+  }
 }
 
 export function startImprovNote(
