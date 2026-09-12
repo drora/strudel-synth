@@ -63,6 +63,7 @@ function resolveKitSuggestCtx(): {
     harmony: {
       root: jam.songRoot,
       scale: jam.songScale,
+      walk: jam.songSeed?.walk,
     },
   }
 }

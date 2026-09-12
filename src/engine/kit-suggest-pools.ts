@@ -14,8 +14,31 @@ import {
   extractHits,
   voiceSampleHints,
 } from './kit-suggest-core'
+import { rootIndex } from './note-harmony'
+import { centerMelodyNotes, type WalkCenter } from './song-seed'
 
-function suggestNotes(profile: ResolvedShuffleProfile, role: TrackRole | null | undefined): KitSuggestion[] {
+/** Pitch-classes of walk triad tones (root, 3rd, 5th per center). */
+function walkTriadPcs(root: string, walk: WalkCenter[]): { walk: Set<number>; home: Set<number> } {
+  const r = rootIndex(root)
+  const walkPcs = new Set<number>()
+  const homePcs = new Set<number>()
+  for (const c of walk) {
+    const base = (r + c.degree) % 12
+    const third = c.quality === 'maj' ? 4 : 3
+    const pcs = [base, (base + third) % 12, (base + 7) % 12]
+    for (const pc of pcs) {
+      walkPcs.add(pc)
+      if (c.degree === 0) homePcs.add(pc)
+    }
+  }
+  return { walk: walkPcs, home: homePcs }
+}
+
+function suggestNotes(
+  profile: ResolvedShuffleProfile,
+  role: TrackRole | null | undefined,
+  walk?: WalkCenter[] | null,
+): KitSuggestion[] {
   const degs = SCALE_DEGREES[profile.scale]
   const preferredOct =
     role === 'bass' ? [1, 2, 3]
@@ -24,18 +47,31 @@ function suggestNotes(profile: ResolvedShuffleProfile, role: TrackRole | null | 
     : [3, 4, 5]
   const out: KitSuggestion[] = []
   const seen = new Set<string>()
+  const r = rootIndex(profile.root)
+  const triad = walk && walk.length > 0 ? walkTriadPcs(profile.root, walk) : null
 
   for (const oct of preferredOct) {
     for (let i = 0; i < degs.length; i++) {
-      const label = noteAt(profile.root, degs[i]!, oct)
+      const deg = degs[i]!
+      const label = noteAt(profile.root, deg, oct)
       if (seen.has(label)) continue
       seen.add(label)
-      const boost = 70 - i - (preferredOct.indexOf(oct) * 3)
+      const pc = (r + deg) % 12
+      let boost = 70 - i - (preferredOct.indexOf(oct) * 3)
+      let detail = `${profile.root} ${profile.scale}`
+      let info = `Song scale · ${profile.root} ${profile.scale}`
+      if (triad?.walk.has(pc)) {
+        // Soft +25 band; ignore scale-index so bVII isn't buried under I at later octaves
+        boost = 70 + 25 - (preferredOct.indexOf(oct) * 3)
+        if (triad.home.has(pc)) boost += 3
+        detail = 'walk'
+        info = `Song walk · ${profile.root} ${profile.scale}`
+      }
       out.push({
         label,
         type: 'text',
-        detail: `${profile.root} ${profile.scale}`,
-        info: `Song scale · ${profile.root} ${profile.scale}`,
+        detail,
+        info,
         boost: Math.max(40, boost),
       })
       // Aliases (cs/db/…) stay in chromatic pool; dedupeNotesByPitch collapses by pitch.
@@ -83,11 +119,29 @@ function suggestDrumHits(kit: Kit, profile: ResolvedShuffleProfile, role: TrackR
 function melodicMotifPool(
   profile: ResolvedShuffleProfile,
   role: TrackRole | null | undefined,
+  walk?: WalkCenter[] | null,
 ): string[] {
   const degs = SCALE_DEGREES[profile.scale]
   const oct = role === 'bass' ? 2 : role === 'arp' ? 3 : 4
-  // Stable degree order for filling — sample which notes, not chaotic reordering of the scale itself
-  const ns = degs.slice(0, Math.min(7, degs.length)).map((d) => noteAt(profile.root, d, oct))
+  // Prefer walk triad/melody tones when a song walk is present; else scale degrees
+  let ns: string[]
+  if (walk && walk.length > 0) {
+    const seen = new Set<string>()
+    ns = []
+    for (const c of walk) {
+      for (const n of centerMelodyNotes(profile.root, profile.scale, c, oct)) {
+        if (seen.has(n)) continue
+        seen.add(n)
+        ns.push(n)
+      }
+    }
+    if (ns.length === 0) {
+      ns = degs.slice(0, Math.min(7, degs.length)).map((d) => noteAt(profile.root, d, oct))
+    }
+  } else {
+    // Stable degree order for filling — sample which notes, not chaotic reordering of the scale itself
+    ns = degs.slice(0, Math.min(7, degs.length)).map((d) => noteAt(profile.root, d, oct))
+  }
   const pickDegs = sampleN(ns, Math.min(6, ns.length))
   const [a, b, c, d, e, f] = [
     pickDegs[0] ?? ns[0]!,
@@ -134,9 +188,10 @@ function melodicMotifPool(
 function suggestMelodicPatternFragments(
   profile: ResolvedShuffleProfile,
   role: TrackRole | null | undefined,
+  walk?: WalkCenter[] | null,
 ): KitSuggestion[] {
   const density = profile.density
-  const shapes = sampleN(melodicMotifPool(profile, role), 6)
+  const shapes = sampleN(melodicMotifPool(profile, role, walk), 6)
   return shapes.map((p, i) => ({
     label: p,
     type: 'text' as const,
@@ -149,9 +204,10 @@ function suggestMelodicPatternFragments(
 function suggestPatternFragments(
   profile: ResolvedShuffleProfile,
   role: TrackRole | null | undefined,
+  walk?: WalkCenter[] | null,
 ): KitSuggestion[] {
   if (role && !DRUM_ROLES.includes(role)) {
-    return suggestMelodicPatternFragments(profile, role)
+    return suggestMelodicPatternFragments(profile, role, walk)
   }
   const pools = poolsForRole(role)
   const patterns = pools[profile.groove][profile.density]
@@ -230,10 +286,11 @@ function suggestScaleNames(profile: ResolvedShuffleProfile): KitSuggestion[] {
   }))
 }
 
-/** Optional song-level root/scale — mirrors jam-actions songAwareShuffle. */
+/** Optional song-level root/scale/walk — mirrors jam-actions songAwareShuffle. */
 export type KitSuggestHarmony = {
   root: string
   scale: ScaleKind
+  walk?: WalkCenter[]
 }
 
 /**
@@ -255,21 +312,22 @@ export function suggestFromKitProfile(
     ? { ...base, root: harmony.root, scale: harmony.scale }
     : base
 
+  const walk = harmony?.walk
   switch (context) {
     case 'note':
       // Single-pitch labels only — multi-token motifs belong in pattern / s( sample contexts
-      return suggestNotes(profile, role)
+      return suggestNotes(profile, role, walk)
     case 'sample': {
       if (!role || DRUM_ROLES.includes(role)) {
         return [
           ...suggestDrumHits(kit, profile, role),
-          ...suggestPatternFragments(profile, role),
+          ...suggestPatternFragments(profile, role, walk),
         ]
       }
       // Melodic s("…"): sounds first, plus sampled motif neighbors (not for note())
       return [
         ...suggestMelodicSounds(profile, role),
-        ...suggestMelodicPatternFragments(profile, role),
+        ...suggestMelodicPatternFragments(profile, role, walk),
       ]
     }
     case 'sound':
@@ -277,7 +335,7 @@ export function suggestFromKitProfile(
     case 'bank':
       return suggestBanks(kit)
     case 'pattern':
-      return suggestPatternFragments(profile, role)
+      return suggestPatternFragments(profile, role, walk)
     case 'scale':
       return suggestScaleNames(profile)
     default:

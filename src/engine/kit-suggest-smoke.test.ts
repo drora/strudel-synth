@@ -251,4 +251,46 @@ for (const kit of [punch!, dusty!]) {
   console.log(`  PR C mixolydian F notes: ${labels.join(', ')}`)
 }
 
+
+// Song walk soft-rank: F mixolydian I → bVII → I boosts walk triad tones
+{
+  const song = {
+    root: 'f',
+    scale: 'mixolydian' as const,
+    walk: [
+      { degree: 0, quality: 'maj' as const },
+      { degree: 10, quality: 'maj' as const },
+      { degree: 0, quality: 'maj' as const },
+    ],
+  }
+  // Walk triads: F–A–C and Eb–G–Bb. Scale-only D (deg 2) is not in those triads.
+  const sugs = suggestFromKitProfile(punch!, 'lead', 'note', song)
+  const ranked = [...sugs].sort((a, b) => b.boost - a.boost)
+  const top5 = ranked.slice(0, 5).map((s) => `${s.label}(${s.boost})`)
+  const top8 = ranked.slice(0, 8)
+  const top4 = ranked.slice(0, 4)
+  const top8Pcs = top8.map((s) => s.label.replace(/\d+$/, '').toLowerCase())
+  assert.ok(top8Pcs.includes('f'), `top must include F; got ${top8.map((s) => s.label).join(', ')}`)
+  assert.ok(top8Pcs.includes('eb'), `top must include Eb (bVII); got ${top8.map((s) => s.label).join(', ')}`)
+  assert.ok(
+    ranked.some((s) => s.detail === 'walk' || (s.info ?? '').includes('Song walk')),
+    'walk tones tagged walk / Song walk',
+  )
+  // Scale-only D (deg 2) must not outrank walk triads in the head of the list
+  assert.ok(
+    !top4.some((s) => /^d\d/i.test(s.label)),
+    `D must not be in top 4; top4=${top4.map((s) => s.label).join(', ')}`,
+  )
+  const dSug = ranked.find((s) => /^d\d/i.test(s.label))
+  const walkMin = Math.min(...ranked.filter((s) => s.detail === 'walk').map((s) => s.boost))
+  if (dSug) {
+    assert.ok(
+      (dSug.boost ?? 0) < walkMin,
+      `D boost ${dSug.boost} must be below walk min ${walkMin}`,
+    )
+  }
+  // Without walk, C-minor kit notes keep prior behavior (covered by earlier asserts)
+  console.log(`  song walk F mixo top5: ${top5.join(', ')}`)
+}
+
 console.log('ALL CHECKS PASSED')
