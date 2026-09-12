@@ -382,8 +382,9 @@ console.log('  rollSeed degrees ∈ neighbors: ok')
   console.log('  PR D mix feel swing/euclid/duck: ok')
 }
 
-// First kit of choice: applyKit(..., { randomizeRoot: true }) rolls root+scale.
-// Later kit changes keep jam.songRoot + jam.songScale. Dice = rollSongHarmony.
+// Each visit first generate: freshStart empty → applyKit(..., { randomizeRoot: true }).
+// hasPickedKit does not gate that (it is persisted). Later kit changes keep the pair.
+// Dice = rollSongHarmony.
 {
   assert.ok(SONG_ROOTS.includes('f'))
   assert.ok(SONG_ROOTS.length >= 12)

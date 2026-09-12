@@ -74,8 +74,9 @@ export function applyKit(
   if (!kit) return { ok: false, error: `Unknown kit: ${id}` }
   const resolved = resolveShuffleProfile(kit)
   const jam = useJamStore.getState()
-  // First kit of choice (randomizeRoot): new home + scale from full pools.
+  // First generate this visit (freshStart empty → randomizeRoot): new home + scale.
   // After that (picker / New kit / hasPickedKit): keep current root AND scale.
+  // hasPickedKit is persisted (picker stays closed) — do NOT use it to skip the visit roll.
   // Bare apply (no flags, never picked): kit profile root + scale.
   let root: string
   let scale: typeof resolved.scale
@@ -328,7 +329,7 @@ export function freshStartJam(): FreshStartResult {
       KITS[0]
     if (preferred) {
       randomKit = !persisted
-      applyKit(preferred.id, { randomizeRoot: !jam.hasPickedKit })
+      applyKit(preferred.id, { randomizeRoot: true })
       kitName = preferred.name
     }
     // applyKit already generated — do not reshuffle again.
