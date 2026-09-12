@@ -215,4 +215,40 @@ for (const kit of [punch!, dusty!]) {
   console.log(`  song harmony note: ${labels.join(', ')} (kit was ${kitRoot})`)
 }
 
+
+// PR C: song harmony mixolydian F — note suggestions follow SCALE_DEGREES
+{
+  const MIXO = new Set([0, 2, 4, 5, 7, 9, 10])
+  const NAMES = ['c', 'c#', 'd', 'eb', 'e', 'f', 'f#', 'g', 'ab', 'a', 'bb', 'b']
+  const song = { root: 'f', scale: 'mixolydian' as const }
+  const sugs = suggestFromKitProfile(punch!, 'lead', 'note', song)
+  assert.ok(sugs.length > 0)
+  const labels = top(sugs, 8).filter((l) => notePitchKey(l)).slice(0, 7)
+  for (const lab of labels) {
+    const m = lab.match(/^([a-g][#b]?)(\d+)$/i)
+    assert.ok(m, `parseable mixo note ${lab}`)
+    const idx = NAMES.indexOf(m![1]!.toLowerCase())
+    const root = NAMES.indexOf('f')
+    assert.ok(MIXO.has((idx - root + 12) % 12), `${lab} in F mixolydian`)
+  }
+  assert.ok(labels.some((l) => /^f\d/i.test(l)), 'F root among mixo notes')
+  // Full in-scale set includes b7 (eb); maj7 (e natural) must not appear
+  const allPcs = sugs.filter((s) => notePitchKey(s.label)).map((s) => s.label.replace(/\d+$/, '').toLowerCase())
+  assert.ok(allPcs.includes('eb'), 'mixo b7 (eb) in F mixolydian suggestions')
+  assert.ok(!allPcs.includes('e'), 'maj7 e not in F mixolydian')
+  assert.ok(allPcs.includes('bb'), 'mixo 4th bb present')
+  // scale aliases include mixo / harmonic_minor spellings
+  const scaleSugs = suggestFromKitProfile(punch!, 'lead', 'scale', song)
+  assert.ok(scaleSugs.some((s) => s.label === 'mixolydian' || s.label === 'mixo'))
+  const harm = suggestFromKitProfile(punch!, 'lead', 'scale', { root: 'a', scale: 'harmonic_minor' })
+  assert.ok(harm.some((s) => /harmonic/.test(s.label)))
+  // motif neighbors for new scales are non-empty (degree-driven, not missing)
+  for (const scale of ['mixolydian', 'phrygian', 'lydian', 'harmonic_minor'] as const) {
+    const motifs = suggestFromKitProfile(punch!, 'lead', 'pattern', { root: 'f', scale })
+    assert.ok(motifs.length > 0, `${scale} melodic motifs`)
+    assert.ok(motifs.every((m) => (m.detail ?? '').includes(scale) || (m.info ?? '').includes('fragment')))
+  }
+  console.log(`  PR C mixolydian F notes: ${labels.join(', ')}`)
+}
+
 console.log('ALL CHECKS PASSED')

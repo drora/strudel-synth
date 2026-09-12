@@ -25,6 +25,7 @@ import { getSchedulerCycle } from './strudel'
 import type { TrackRole } from './types'
 import { queueLive, queueLiveImmediate } from './jam-actions-a'
 import { applySpiceToTracks } from './spice'
+import { walkConcertNames } from './song-seed'
 
 export function punchAb(slot: AbSlot) {
   useJamStore.getState().punchVariant(slot)
@@ -214,6 +215,13 @@ export function getJamStateSnapshot() {
     vibe: jam.vibe,
     songRoot: jam.songRoot,
     songScale: jam.songScale,
+    songWalk: jam.songSeed
+      ? {
+          walk: jam.songSeed.walk,
+          patternId: jam.songSeed.patternId,
+          concertNames: walkConcertNames(jam.songSeed),
+        }
+      : null,
     lockKit: jam.lockKit,
     hasPickedKit: jam.hasPickedKit,
     ab: {
