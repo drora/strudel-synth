@@ -251,7 +251,7 @@ export function TrackCodePane({ track, isActive, focusMode = false }: TrackCodeP
                   setMenuOpen(true)
                 }}
                 className={`${touchUpdate} font-medium transition-colors ${updateBtnClass}`}
-                title={`Update (${effectiveQuant}) — right-click or ▾ for quantization`}
+                title={`Save (${effectiveQuant}) — right-click or ▾ for quantization`}
               >
                 {updateStatus === 'queued'
                   ? `Queued ·${quantShort}`
@@ -259,7 +259,7 @@ export function TrackCodePane({ track, isActive, focusMode = false }: TrackCodeP
                     ? 'Dirty'
                     : updateStatus === 'applied'
                       ? 'Applied'
-                      : `Update ·${quantShort}`}
+                      : 'Save'}
               </button>
 
               <button

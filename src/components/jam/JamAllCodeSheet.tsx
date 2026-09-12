@@ -132,7 +132,7 @@ export function JamAllCodeSheet() {
               onClick={() => void handleEvaluate()}
               className={`min-h-11 px-3 rounded-xl text-xs font-medium border border-border ${updateCls}`}
             >
-              {status === 'queued' ? 'Queued' : status === 'dirty' ? 'Dirty' : 'Update'}
+              {status === 'queued' ? 'Queued' : status === 'dirty' ? 'Dirty' : 'Save'}
             </button>
             <button
               type="button"
