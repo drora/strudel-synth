@@ -2,7 +2,7 @@
  * Mic → buffer → Strudel sample bank → track code.
  * Handles iOS unlock + getUserMedia; quantizes start/stop to cycle when playing.
  */
-import { ensureAudioUnlocked, getAudioContext } from './audio-context'
+import { ensureAudioUnlocked, getAudioContext, restoreMediaRoute } from './audio-context'
 import { initEngine } from './strudel'
 import { liveUpdateEngine } from './live-update'
 import { ROLE_COLORS, type TrackRole } from './types'
@@ -11,6 +11,13 @@ import { useJamStore } from '../store/jam-store'
 import { useUIStore } from '../store/ui-store'
 
 export type MicRecState = 'idle' | 'arming' | 'recording' | 'processing' | 'error'
+
+/** Processing off — AGC/echo on phones steal Bluetooth A2DP for the voice route. */
+export const MIC_AUDIO_CONSTRAINTS: MediaTrackConstraints = {
+  echoCancellation: false,
+  noiseSuppression: false,
+  autoGainControl: false,
+}
 
 let micCounter = 0
 const registeredMicNames: string[] = []
@@ -145,11 +152,7 @@ export async function startMicRecording(opts?: {
   }
 
   const stream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      echoCancellation: false,
-      noiseSuppression: false,
-      autoGainControl: true,
-    },
+    audio: MIC_AUDIO_CONSTRAINTS,
   })
   activeStream = stream
   mimeType = pickMimeType()
@@ -157,6 +160,7 @@ export async function startMicRecording(opts?: {
   if (typeof MediaRecorder === 'undefined') {
     stream.getTracks().forEach((t) => t.stop())
     activeStream = null
+    void restoreMediaRoute()
     onState('error', 'MediaRecorder not supported')
     throw new Error('MediaRecorder unsupported')
   }
@@ -179,7 +183,8 @@ export async function startMicRecording(opts?: {
 
   const stop = async (): Promise<string | null> => {
     if (!activeRecorder || activeRecorder.state === 'inactive') {
-      cleanupStream()
+      releaseMicTracks()
+      await restoreMediaRoute()
       onState('idle')
       return null
     }
@@ -199,7 +204,8 @@ export async function startMicRecording(opts?: {
       }
     })
 
-    cleanupStream()
+    releaseMicTracks()
+    await restoreMediaRoute()
 
     if (blob.size < 64) {
       onState('error', 'Recording too short')
@@ -239,13 +245,18 @@ export function isMicRecording(): boolean {
   return !!activeRecorder && activeRecorder.state === 'recording'
 }
 
-function cleanupStream() {
+function releaseMicTracks() {
   activeRecorder = null
   if (activeStream) {
     activeStream.getTracks().forEach((t) => t.stop())
     activeStream = null
   }
   chunks = []
+}
+
+function cleanupStream() {
+  releaseMicTracks()
+  void restoreMediaRoute()
 }
 
 /** Names of jam_mic_* samples successfully registered this session. */

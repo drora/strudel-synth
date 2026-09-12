@@ -205,3 +205,49 @@ export async function resumeAudioContext(): Promise<void> {
 export function isAudioSyncedToStrudel(): boolean {
   return strudelSynced || !!resolveStrudelAudioContext()
 }
+
+type AudioSessionLike = { type: string }
+type CtxWithSink = AudioContext & {
+  sinkId?: string
+  setSinkId?: (id: string) => Promise<void>
+}
+
+const SILENT_WAV =
+  'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA='
+
+/**
+ * After getUserMedia, phones stay in voice/SCO mode (built-in speaker)
+ * instead of A2DP (Bluetooth speaker). Stop the mic first, then call this.
+ */
+export async function restoreMediaRoute(): Promise<void> {
+  try {
+    const session = (navigator as Navigator & { audioSession?: AudioSessionLike }).audioSession
+    if (session) session.type = 'playback'
+  } catch {
+    /* */
+  }
+  try {
+    const ctx = getAudioContext() as CtxWithSink
+    await resumeContext(ctx)
+    if (typeof ctx.setSinkId === 'function') {
+      try {
+        await ctx.setSinkId('')
+      } catch {
+        /* */
+      }
+    }
+  } catch {
+    /* */
+  }
+  if (typeof Audio === 'undefined') return
+  try {
+    const a = new Audio(SILENT_WAV)
+    a.setAttribute('playsinline', '')
+    await a.play().catch(() => {})
+    a.pause()
+    a.removeAttribute('src')
+    a.load()
+  } catch {
+    /* */
+  }
+}
