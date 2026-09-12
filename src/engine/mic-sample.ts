@@ -12,11 +12,11 @@ import { useUIStore } from '../store/ui-store'
 
 export type MicRecState = 'idle' | 'arming' | 'recording' | 'processing' | 'error'
 
-/** Processing off — AGC/echo on phones steal Bluetooth A2DP for the voice route. */
+/** Echo/NS off so the take stays dry. AGC on — off made mobile takes silent. */
 export const MIC_AUDIO_CONSTRAINTS: MediaTrackConstraints = {
   echoCancellation: false,
   noiseSuppression: false,
-  autoGainControl: false,
+  autoGainControl: true,
 }
 
 let micCounter = 0
@@ -184,8 +184,8 @@ export async function startMicRecording(opts?: {
   const stop = async (): Promise<string | null> => {
     if (!activeRecorder || activeRecorder.state === 'inactive') {
       releaseMicTracks()
-      await restoreMediaRoute()
       onState('idle')
+      void restoreMediaRoute()
       return null
     }
     onState('processing')
@@ -205,10 +205,10 @@ export async function startMicRecording(opts?: {
     })
 
     releaseMicTracks()
-    await restoreMediaRoute()
 
     if (blob.size < 64) {
       onState('error', 'Recording too short')
+      void restoreMediaRoute()
       return null
     }
 
@@ -219,6 +219,7 @@ export async function startMicRecording(opts?: {
       registeredMicNames.push(name)
       assignSampleToTrack(name)
       onState('idle')
+      void restoreMediaRoute()
       return name
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
