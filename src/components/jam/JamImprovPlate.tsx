@@ -108,6 +108,15 @@ export function JamImprovPlate({ onClose }: Props) {
     setHitCount(hitsRef.current.length)
   }, [])
 
+  const onClear = useCallback(() => {
+    stopImprovNote()
+    pendingRef.current = null
+    activePadRef.current = null
+    setPressed(null)
+    hitsRef.current = []
+    setHitCount(0)
+  }, [])
+
   const onKeep = useCallback(() => {
     if (pendingRef.current) padUp()
     const hits = hitsRef.current
@@ -160,7 +169,7 @@ export function JamImprovPlate({ onClose }: Props) {
               Improv · {songRoot} {songScale}
             </div>
             <div className="text-[10px] text-text-muted truncate">
-              Hold pads · Rec smears past the take
+              Hold pads · Clear drops the take
             </div>
           </div>
           <div className="flex items-center gap-1.5">
@@ -369,6 +378,14 @@ export function JamImprovPlate({ onClose }: Props) {
         </div>
 
         <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-t border-border">
+          <button
+            type="button"
+            disabled={hitCount === 0}
+            onClick={onClear}
+            className="min-h-11 px-3 rounded-xl text-xs font-semibold bg-bg text-text-muted border border-border disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Clear
+          </button>
           <button
             type="button"
             disabled={hitCount === 0}

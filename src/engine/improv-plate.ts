@@ -356,4 +356,27 @@ export function applyImprovMixToCode(
   return out
 }
 
+/** Keep names the lane Pads; Rec takes also carry jam_mic_ in code. */
+export function isPadsKeepTrack(track: { name?: string; code: string }): boolean {
+  if (track.name === 'Pads') return true
+  return /jam_mic_/.test(track.code)
+}
+
+/** Swap Pads / Rec voice without leaving a leftover .s() or .sound(). */
+export function setImprovVoiceInCode(code: string, sound: string): string {
+  let next = code
+  if (sound.startsWith('jam_mic_')) {
+    next = next.replace(/\.sound\(\s*["'][^"']+["']\s*\)/, '')
+    if (/\.s\(\s*["'][^"']+["']\s*\)/.test(next)) {
+      return next.replace(/\.s\(\s*["'][^"']+["']\s*\)/, `.s("${sound}")`)
+    }
+    return next.trimEnd() + `.s("${sound}")`
+  }
+  next = next.replace(/\.s\(\s*["']jam_mic_[^"']+["']\s*\)/, '')
+  if (/\.sound\(/.test(next)) {
+    return next.replace(/\.sound\(\s*["'][^"']+["']\s*\)/, `.sound("${sound}")`)
+  }
+  return next.trimEnd() + `.sound("${sound}")`
+}
+
 export { NOTE_NAMES, noteAt, SCALE_DEGREES }
