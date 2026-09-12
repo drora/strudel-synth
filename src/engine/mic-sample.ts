@@ -131,10 +131,12 @@ export async function startMicRecording(opts?: {
   const quantize = opts?.quantize !== false
 
   onState('arming')
-  // Second Rec re-ran unlock + initEngine (silent buffer into the live graph) and
-  // reopened the mic during the cycle wait. That hops BT → speaker on any browser.
+  // Re-unlock / initEngine into a live graph hops BT off JBL. Skip whenever
+  // Play is on, or SuperDough is already up (running or just interrupted by Rec).
+  const st = getAudioContextState()
   const alreadyLive =
-    isAudioSyncedToStrudel() && getAudioContextState() === 'running'
+    useSessionStore.getState().isPlaying ||
+    (isAudioSyncedToStrudel() && (st === 'running' || (st as string) === 'interrupted'))
   if (!alreadyLive) {
     await ensureAudioUnlocked()
     await initEngine()
