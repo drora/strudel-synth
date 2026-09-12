@@ -1,1 +1,50 @@
-PLACEHOLDER_WILL_REPLACE
+{
+  "name": "strudel-studio",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "deploy": "gh workflow run deploy.yml --repo drora/strudel-synth --ref main",
+    "test:compose": "npx --yes tsx src/engine/compose-tracks.test.ts",
+    "test:kit-suggest": "npx --yes tsx src/engine/kit-suggest-smoke.test.ts",
+    "test:kit-shuffle": "npx --yes tsx src/engine/kit-shuffle-smoke.test.ts",
+    "test:kit-sound-choices": "npx --yes tsx src/engine/kit-sound-choices-smoke.test.ts",
+    "test:code-effects": "npx --yes tsx src/engine/code-effects.test.ts",
+    "test:spice": "npx --yes tsx src/engine/spice-smoke.test.ts",
+    "test:last-touched": "npx --yes tsx src/engine/last-touched-smoke.test.ts",
+    "test:note-harmony": "npx --yes tsx src/engine/note-harmony-smoke.test.ts",
+    "test:mutate": "npx --yes tsx src/engine/mutate-smoke.test.ts",
+    "test:jam-lock": "npx --yes tsx src/engine/jam-lock-shuffle-smoke.test.ts",
+    "test:webmcp": "npx --yes tsx src/engine/webmcp-tools-smoke.test.ts",
+    "test:song-seed": "npx --yes tsx src/engine/song-seed-smoke.test.ts"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.18.0",
+    "@codemirror/lang-javascript": "^6.2.0",
+    "@codemirror/language": "^6.10.0",
+    "@codemirror/lint": "^6.9.5",
+    "@codemirror/state": "^6.5.0",
+    "@codemirror/view": "^6.36.0",
+    "@strudel/core": "^1.2.0",
+    "@strudel/mini": "^1.2.0",
+    "@strudel/tonal": "^1.2.0",
+    "@strudel/web": "^1.2.0",
+    "codemirror": "^6.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0"
+  }
+}
