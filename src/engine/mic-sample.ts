@@ -184,22 +184,31 @@ export async function startMicRecording(opts?: {
       return null
     }
     onState('processing')
-    if (quantize) await waitForCycleBoundary()
 
+    const rec = activeRecorder
+    if (!rec) {
+      cleanupStream()
+      onState('idle')
+      return null
+    }
     const blob = await new Promise<Blob>((resolve, reject) => {
-      const rec = activeRecorder!
       rec.onstop = () => {
-        resolve(new Blob(chunks, { type: mimeType }))
+        const parts = chunks.slice()
+        cleanupStream()
+        resolve(new Blob(parts, { type: mimeType }))
       }
-      rec.onerror = () => reject(new Error('MediaRecorder error'))
+      rec.onerror = () => {
+        cleanupStream()
+        reject(new Error('MediaRecorder error'))
+      }
       try {
+        rec.requestData()
         rec.stop()
       } catch (err) {
+        cleanupStream()
         reject(err)
       }
     })
-
-    cleanupStream()
 
     if (blob.size < 64) {
       onState('error', 'Recording too short')
@@ -239,12 +248,23 @@ export function isMicRecording(): boolean {
   return !!activeRecorder && activeRecorder.state === 'recording'
 }
 
-function cleanupStream() {
-  activeRecorder = null
-  if (activeStream) {
-    activeStream.getTracks().forEach((t) => t.stop())
-    activeStream = null
+function stopTracks(stream: MediaStream | null | undefined) {
+  if (!stream) return
+  for (const t of stream.getTracks()) {
+    try {
+      t.stop()
+    } catch {
+      /* already ended */
+    }
   }
+}
+
+function cleanupStream() {
+  const rec = activeRecorder
+  activeRecorder = null
+  stopTracks(activeStream)
+  stopTracks(rec?.stream)
+  activeStream = null
   chunks = []
 }
 
