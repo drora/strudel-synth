@@ -102,7 +102,7 @@ export function useJamShell() {
   const onNewKit = () => {
     const pool = filteredKits.length > 0 ? filteredKits : kits
     const pick = pickRandomKit(pool, kitId)
-    // Footer New kit MAY leave C — randomize song home.
+    // Footer New kit: new home + scale (not kit C-minor).
     if (pick) applyKitAction(pick.id, { randomizeRoot: true })
   }
 

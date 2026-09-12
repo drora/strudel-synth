@@ -4,7 +4,7 @@
  */
 import type { Density, FxBias, GrooveFamily, ScaleKind, VibeId } from './kits-types'
 import type { TrackRole } from './types'
-import { NOTE_NAMES, SONG_ROOTS, SCALE_DEGREES, rootIndex } from './note-harmony'
+import { NOTE_NAMES, SONG_ROOTS, SONG_SCALES, SCALE_DEGREES, rootIndex } from './note-harmony'
 import { DRUM_POOLS } from './reshuffle-pools'
 
 export type WalkCenter = {
@@ -351,8 +351,14 @@ export function retargetSeed(seed: SongSeed, root: string, scale: ScaleKind): So
   }
 }
 
-export function randomSongRoot(): string {
-  return pick([...SONG_ROOTS])
+export function randomSongRoot(avoid?: string): string {
+  const pool = avoid ? SONG_ROOTS.filter((r) => r !== avoid) : [...SONG_ROOTS]
+  return pick(pool.length ? [...pool] : [...SONG_ROOTS])
+}
+
+export function randomSongScale(avoid?: ScaleKind): ScaleKind {
+  const pool = avoid ? SONG_SCALES.filter((s) => s !== avoid) : [...SONG_SCALES]
+  return pick(pool.length ? pool : [...SONG_SCALES])
 }
 
 
