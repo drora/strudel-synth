@@ -24,6 +24,12 @@ import type {
 import { resolveShuffleProfile } from './kits-types'
 import { generateDrumRole, resolveDrumVoice } from './reshuffle-drums'
 import { isMelodicRole, shiftNotesByOctaves } from './note-harmony'
+import {
+  type SongSeed,
+  rollSeed,
+  centerTriadNotes,
+  centerMelodyNotes,
+} from './song-seed'
 
 const DRUM_ROLES: TrackRole[] = ['drums', 'hihats', 'fx']
 
@@ -40,6 +46,8 @@ export interface ReshuffleOpts {
   vibe?: Kit['vibe']
   /** Melodic octave offset applied after generate (track.octave). */
   octaveOffset?: number
+  /** Shared song walk — melodic roles must follow when present. */
+  seed?: SongSeed | null
 }
 
 function pick<T>(arr: T[]): T {
@@ -53,51 +61,6 @@ function pickN<T>(arr: T[], n: number): T[] {
     ;[copy[i], copy[j]] = [copy[j]!, copy[i]!]
   }
   return copy.slice(0, n)
-}
-
-const SCALE_DEGREES: Record<ScaleKind, number[]> = {
-  minor: [0, 2, 3, 5, 7, 8, 10],
-  major: [0, 2, 4, 5, 7, 9, 11],
-  dorian: [0, 2, 3, 5, 7, 9, 10],
-  pentatonic: [0, 3, 5, 7, 10],
-}
-
-const NOTE_NAMES = ['c', 'c#', 'd', 'eb', 'e', 'f', 'f#', 'g', 'ab', 'a', 'bb', 'b']
-
-function rootIndex(root: string): number {
-  const r = root.toLowerCase().replace('♯', '#').replace('♭', 'b')
-  const idx = NOTE_NAMES.indexOf(r)
-  if (idx >= 0) return idx
-  const flat = r.replace('#', '')
-  const map: Record<string, number> = { db: 1, d: 2, eb: 3, e: 4, f: 5, gb: 6, g: 7, ab: 8, a: 9, bb: 10, b: 11, c: 0 }
-  return map[flat] ?? 0
-}
-
-function noteAt(root: string, degree: number, octave: number): string {
-  const semis = (rootIndex(root) + degree + 120) % 12
-  return `${NOTE_NAMES[semis]}${octave}`
-}
-
-function scaleNotes(root: string, scale: ScaleKind, octave: number, count: number): string[] {
-  const degs = SCALE_DEGREES[scale]
-  const out: string[] = []
-  for (let i = 0; i < count; i++) {
-    const deg = degs[i % degs.length]!
-    const oct = octave + Math.floor(i / degs.length)
-    out.push(noteAt(root, deg, oct))
-  }
-  return out
-}
-
-function chordAt(root: string, scale: ScaleKind, degreeIndex: number, octave: number): string {
-  const degs = SCALE_DEGREES[scale]
-  const parts = [0, 2, 4].map((off) => {
-    const idx = degreeIndex + off
-    const octBump = Math.floor(idx / degs.length)
-    const deg = degs[((idx % degs.length) + degs.length) % degs.length]!
-    return noteAt(root, deg, octave + octBump)
-  })
-  return `[${parts.join(',')}]`
 }
 
 function fxSnippet(bias: FxBias, role: TrackRole): string {
@@ -142,126 +105,114 @@ function noteExpr(pattern: string, sound: string, suffix: string): string {
   return `note(${pattern}).sound("${sound}")${suffix}`
 }
 
-function generateBassLine(profile: ResolvedShuffleProfile): string {
-  const { root, scale, melodicSounds, fxBias, density } = profile
-  const notes = pickN(scaleNotes(root, scale, 2, 7), pick([3, 4, 5]))
-  const lined = notes.map((n, i) => (i === 0 && Math.random() < 0.35 ? n.replace(/\d$/, (d) => String(Math.max(1, +d - 1))) : n))
-  const spaced = density === 'low' || Math.random() < 0.45
-    ? lined.join(' ~ ')
-    : pick([lined.join(' '), `<${lined.join(' ')}>`])
+function ensureSeed(profile: ResolvedShuffleProfile, seed?: SongSeed | null): SongSeed {
+  if (seed) return seed
+  return rollSeed({ root: profile.root, scale: profile.scale, density: profile.density })
+}
+
+function generateBassLine(profile: ResolvedShuffleProfile, seed: SongSeed): string {
+  const { melodicSounds, fxBias, density } = profile
+  const notes: string[] = []
+  for (const c of seed.walk) {
+    const triad = centerTriadNotes(seed.root, c, 2)
+    const root = triad[0]!
+    // Sometimes fifth
+    if (Math.random() < 0.35) {
+      notes.push(root, triad[2] ?? root)
+    } else {
+      notes.push(root)
+    }
+  }
+  // First note may drop to octave 1
+  if (notes.length && Math.random() < 0.35) {
+    notes[0] = notes[0]!.replace(/(\d+)$/, (_, d) => String(Math.max(1, Number(d) - 1)))
+  }
+  const spaced =
+    density === 'low' || Math.random() < 0.45
+      ? notes.join(' ~ ')
+      : pick([notes.join(' '), `<${notes.join(' ')}>`])
   const synth = melodicSound(melodicSounds)
   const lpf = fxBias === 'roomy' ? 250 + Math.floor(Math.random() * 200) : 350 + Math.floor(Math.random() * 550)
   const gain = densityGain(density, 'bass')
   const fx = fxSnippet(fxBias, 'bass')
   const lpq = fxBias === 'filtered' && Math.random() < 0.5 ? `.lpq(${6 + Math.floor(Math.random() * 8)})` : ''
-  const pat = spaced.startsWith('<') ? `"${spaced}"` : `"${spaced}"`
-  return noteExpr(pat, synth, `.lpf(${lpf})${lpq}.gain(${gain})${fx}`)
+  return noteExpr(`"${spaced}"`, synth, `.lpf(${lpf})${lpq}.gain(${gain})${fx}`)
 }
 
-/** Build a lead note-pattern body (quoted) with multiple rhythmic families. */
-function leadPatternQuoted(notes: string[], density: Density): string {
-  type Fam =
-    | 'held'
-    | 'syncopated'
-    | 'call_response'
-    | 'euclidean'
-    | 'motif'
-    | 'plain'
-    | 'classic'
+/** Lead note-pattern from walk centers; cap *2 (no *3/*4). */
+function leadPatternFromSeed(seed: SongSeed, density: Density): string {
+  type Fam = 'held' | 'motif' | 'rests' | 'plain' | 'sync'
   const weights: Fam[] =
     density === 'low'
-      ? ['held', 'held', 'syncopated', 'motif', 'plain', 'held', 'classic']
+      ? ['held', 'held', 'rests', 'motif', 'plain']
       : density === 'high'
-        ? ['euclidean', 'call_response', 'syncopated', 'motif', 'classic', 'euclidean', 'plain', 'call_response']
-        : ['held', 'syncopated', 'call_response', 'euclidean', 'motif', 'plain', 'classic', 'syncopated']
+        ? ['motif', 'sync', 'plain', 'motif', 'rests']
+        : ['held', 'motif', 'rests', 'plain', 'sync', 'held']
   const fam = pick(weights)
-  const take = (n: number) => pickN(notes, Math.min(n, notes.length))
+  const centers = seed.walk
+  const tone = (c: (typeof centers)[0], oct = 4) =>
+    pick(centerMelodyNotes(seed.root, seed.scale, c, oct))
 
   switch (fam) {
     case 'held': {
-      const few = take(pick([2, 2, 3]))
+      const few = centers.slice(0, Math.min(3, centers.length)).map((c) => tone(c))
       const body = pick([
         few.join(' ~ '),
         `${few[0]} ~ ~ ${few[1] ?? few[0]}`,
         `<${few.join(' ~ ')}>`,
         `<${few.join(' ')}>`,
       ])
-      const mul = pick(['', '', '', '*0.5'])
-      return `"${body}${body.startsWith('<') ? mul : ''}"`
+      return `"${body}"`
     }
-    case 'syncopated': {
-      const ns = take(pick([3, 4]))
+    case 'rests': {
+      const ns = centers.map((c) => tone(c))
       const body = pick([
         `~ ${ns.join(' ~ ')}`,
         `<~ ${ns.join(' ')}>`,
-        `${ns[0]} ~ ${ns.slice(1).join(' ~ ')} ~`,
-        `<${ns[0]} ~ ${ns.slice(1).join(' ~ ')}>`,
+        `${ns[0]} ~ ${ns.slice(1).join(' ~ ')}`,
       ])
-      const mul = density === 'high' ? pick(['', '*2', '']) : pick(['', '', '*2'])
+      const mul = density === 'high' ? pick(['', '*2']) : ''
       return `"${body}${body.startsWith('<') ? mul : ''}"`
-    }
-    case 'call_response': {
-      const ns = take(pick([5, 6, 7, 8]))
-      const mid = Math.ceil(ns.length / 2)
-      const body = pick([
-        `<${ns.join(' ')}>`,
-        `${ns.join(' ')}`,
-        `<${ns.slice(0, mid).join(' ')} ~ ${ns.slice(mid).join(' ')}>`,
-        `${ns.slice(0, mid).join(' ')} ~ ${ns.slice(mid).join(' ')}`,
-      ])
-      const mul = density === 'high' ? pick(['', '*2', '']) : pick(['', ''])
-      return `"${body}${body.startsWith('<') ? mul : ''}"`
-    }
-    case 'euclidean': {
-      const ns = take(pick([2, 3, 4]))
-      const rate = density === 'high' ? pick(['*3', '*4', '*2', '*3']) : density === 'low' ? pick(['*1', '*2', '*1']) : pick(['*2', '*3', '*1', '*4'])
-      return `"<${ns.join(' ')}>${rate}"`
     }
     case 'motif': {
-      const [a, b, c] = take(3)
-      const aa = a!
-      const bb = b ?? a!
-      const cc = c ?? b ?? a!
+      const cycle = [...centers, ...centers].slice(0, 4)
+      const ns = cycle.map((c) => tone(c))
       const body = pick([
-        `<${aa} ~ ${aa} ${bb}>`,
-        `<${aa} ${bb} ${aa} ~>`,
-        `<${aa} ${bb} ~ ${aa}>`,
-        `${aa} ~ ${aa} ${bb}`,
-        `<${aa} ~ ${bb} ${aa} ${cc}>`,
+        `<${ns[0]} ~ ${ns[0]} ${ns[1]}>`,
+        `<${ns[0]} ${ns[1]} ${ns[0]} ~>`,
+        `<${ns.join(' ')}>`,
       ])
       const mul = density === 'high' ? pick(['', '*2']) : pick(['', ''])
-      return `"${body}${body.startsWith('<') ? mul : ''}"`
+      return `"${body}${mul}"`
     }
-    case 'plain': {
-      const ns = take(density === 'high' ? pick([4, 5, 6]) : pick([3, 4]))
-      return `"${ns.join(' ')}"`
+    case 'sync': {
+      const ns = centers.map((c) => tone(c))
+      const body = `<~ ${ns.join(' ')}>`
+      return `"${body}${pick(['', '*2'])}"`
     }
-    case 'classic':
+    case 'plain':
     default: {
-      const ns = take(pick([3, 4, 5]))
-      const mul =
-        density === 'high' ? pick(['*2', '*4', '*2', '*3'])
-        : density === 'low' ? pick(['', '', '*2'])
-        : pick(['*2', '', '*2', '*3'])
+      const ns = centers.map((c) => tone(c))
+      const mul = density === 'high' ? pick(['', '*2']) : ''
       return `"<${ns.join(' ')}>${mul}"`
     }
   }
 }
 
-function generateLeadLine(profile: ResolvedShuffleProfile): string {
-  const { root, scale, melodicSounds, fxBias, density } = profile
-  const pool = scaleNotes(root, scale, 4, 8)
-  const notes = pickN(pool, Math.min(pool.length, pick([4, 5, 6, 7, 8])))
+function generateLeadLine(profile: ResolvedShuffleProfile, seed: SongSeed): string {
+  const { melodicSounds, fxBias, density } = profile
   const synth = melodicSound(melodicSounds)
   const fx = fxSnippet(fxBias === 'dry' ? 'delay' : fxBias, 'lead')
   const gain = densityGain(density, 'lead')
-  return noteExpr(leadPatternQuoted(notes, density), synth, `${fx}.gain(${gain})`)
+  return noteExpr(leadPatternFromSeed(seed, density), synth, `${fx}.gain(${gain})`)
 }
 
-function generatePadChord(profile: ResolvedShuffleProfile): string {
-  const { root, scale, melodicSounds, fxBias, density } = profile
-  const degIdx = pickN([0, 1, 2, 3, 4], pick([2, 3]))
-  const chords = degIdx.map((d) => chordAt(root, scale, d, 3))
+function generatePadChord(profile: ResolvedShuffleProfile, seed: SongSeed): string {
+  const { melodicSounds, fxBias, density } = profile
+  const chords = seed.walk.map((c) => {
+    const parts = centerTriadNotes(seed.root, c, 3)
+    return `[${parts.join(',')}]`
+  })
   const synth = melodicSound(melodicSounds.filter((s) => s !== 'square').concat(melodicSounds).slice(0, 6))
   const room = fxBias === 'roomy' ? (0.7 + Math.random() * 0.25).toFixed(2) : (0.3 + Math.random() * 0.35).toFixed(2)
   const gain = densityGain(density, 'pad')
@@ -270,37 +221,38 @@ function generatePadChord(profile: ResolvedShuffleProfile): string {
   return noteExpr(`"<${chords.join(' ')}>"`, synth, `.room(${room})${attack}${lpf}.gain(${gain})`)
 }
 
-function generateArp(profile: ResolvedShuffleProfile): string {
-  const { root, scale, melodicSounds, fxBias, density } = profile
-  const notes = pickN(scaleNotes(root, scale, 3, 8), pick([4, 5, 6]))
-  const rate = density === 'high' ? pick([6, 8, 8]) : density === 'low' ? pick([4, 4, 6]) : pick([4, 6, 8])
+function generateArp(profile: ResolvedShuffleProfile, seed: SongSeed): string {
+  const { melodicSounds, fxBias, density } = profile
+  const notes: string[] = []
+  for (const c of seed.walk) {
+    notes.push(...pickN(centerMelodyNotes(seed.root, seed.scale, c, 3), pick([2, 3])))
+  }
+  const rate = density === 'high' ? pick([2, 4, 4]) : density === 'low' ? pick([2, 2]) : pick([2, 4])
   const synth = melodicSound(melodicSounds)
   const fx = fxBias === 'delay' || fxBias === 'roomy'
     ? pick(['.delay(0.5).delaytime(0.125)', '.delay(0.35).delaytime(0.0625)', '.room(0.4)'])
     : pick(['.delay(0.25).delaytime(0.125)', '.room(0.3)', ''])
   const gain = densityGain(density, 'arp')
-  // Light variety: sparse rests / slower / syncopated start — still in-scale
   const fam =
-    density === 'low' ? pick(['classic', 'sparse', 'sparse', 'sync'])
-    : density === 'high' ? pick(['classic', 'classic', 'busy', 'sync'])
-    : pick(['classic', 'sparse', 'sync', 'classic'])
+    density === 'low' ? pick(['classic', 'sparse', 'sparse'])
+    : density === 'high' ? pick(['classic', 'classic', 'sync'])
+    : pick(['classic', 'sparse', 'sync'])
   let pat: string
   if (fam === 'sparse') {
     const few = notes.slice(0, pick([3, 4]))
-    pat = `"<${few.join(' ~ ')}>*${pick([2, 4, rate])}"`
+    pat = `"<${few.join(' ~ ')}>*${pick([2, 4])}"`
   } else if (fam === 'sync') {
     pat = `"<~ ${notes.slice(0, 4).join(' ')}>*${rate}"`
-  } else if (fam === 'busy') {
-    pat = `"<${notes.join(' ')}>*${pick([8, 6, 3])}"`
   } else {
-    pat = `"<${notes.join(' ')}>*${rate}"`
+    pat = `"<${notes.slice(0, 6).join(' ')}>*${rate}"`
   }
   return noteExpr(pat, synth, `${fx}.gain(${gain})`)
 }
 
-function generateVox(profile: ResolvedShuffleProfile): string {
-  const { root, scale, melodicSounds, fxBias } = profile
-  const notes = pickN(scaleNotes(root, scale, 4, 6), 3)
+function generateVox(profile: ResolvedShuffleProfile, seed: SongSeed): string {
+  const { melodicSounds, fxBias } = profile
+  const pool = seed.walk.flatMap((c) => centerMelodyNotes(seed.root, seed.scale, c, 4))
+  const notes = pickN(pool, pick([2, 3]))
   const synth = melodicSound(melodicSounds)
   return noteExpr(`"<${notes.join(' ')}>"`, synth, `${fxSnippet(fxBias, 'lead')}.gain(0.18)`)
 }
@@ -335,7 +287,9 @@ function generateRaw(
   currentCode: string,
   profile: ResolvedShuffleProfile,
   bank?: string | null,
+  seed?: SongSeed | null,
 ): string {
+  const melodicSeed = DRUM_ROLES.includes(role) ? null : ensureSeed(profile, seed)
   switch (role) {
     case 'drums':
       return generateDrumRole('drums', profile.groove, profile.density, bank, profile.fxBias, profile.pinN)
@@ -344,15 +298,15 @@ function generateRaw(
     case 'fx':
       return generateDrumRole('fx', profile.groove, profile.density, bank, profile.fxBias, profile.pinN)
     case 'bass':
-      return generateBassLine(profile)
+      return generateBassLine(profile, melodicSeed!)
     case 'lead':
-      return generateLeadLine(profile)
+      return generateLeadLine(profile, melodicSeed!)
     case 'pad':
-      return generatePadChord(profile)
+      return generatePadChord(profile, melodicSeed!)
     case 'arp':
-      return generateArp(profile)
+      return generateArp(profile, melodicSeed!)
     case 'vox':
-      return generateVox(profile)
+      return generateVox(profile, melodicSeed!)
     default:
       return currentCode
   }
@@ -426,7 +380,7 @@ export function reshuffleTrack(
     getBankFromCode(currentCode) ??
     (DRUM_ROLES.includes(role) ? 'RolandTR909' : null)
 
-  let next = generateRaw(role, currentCode, profile, DRUM_ROLES.includes(role) ? bank : null)
+  let next = generateRaw(role, currentCode, profile, DRUM_ROLES.includes(role) ? bank : null, opts?.seed)
 
   if (pinned) {
     next = applyPinnedSound(next, pinned)
@@ -454,12 +408,20 @@ export function reshuffleTrack(
 }
 
 /** Build fresh KitTrack[] from layout + shuffle profile (every call regenerates). */
-export function generateKitTracks(kit: Kit): KitTrack[] {
+export function generateKitTracks(kit: Kit, seed?: SongSeed): KitTrack[] {
   const profile = resolveShuffleProfile(kit)
   const bank = kit.drumsBank
+  const song =
+    seed ??
+    rollSeed({
+      root: profile.root,
+      scale: profile.scale,
+      vibe: kit.vibe,
+      density: profile.density,
+    })
   return kit.tracks.map((t) => ({
     name: t.name,
     role: t.role,
-    code: generateRaw(t.role, '', profile, DRUM_ROLES.includes(t.role) ? bank : null),
+    code: generateRaw(t.role, '', profile, DRUM_ROLES.includes(t.role) ? bank : null, song),
   }))
 }
