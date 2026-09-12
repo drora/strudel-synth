@@ -2,7 +2,7 @@
  * Mic → buffer → Strudel sample bank → track code.
  * Handles iOS unlock + getUserMedia; quantizes start/stop to cycle when playing.
  */
-import { ensureAudioUnlocked, getAudioContext, getAudioContextState, isAudioSyncedToStrudel, restoreMediaRoute } from './audio-context'
+import { ensureAudioUnlocked, getAudioContext, getAudioContextState, isAudioSyncedToStrudel } from './audio-context'
 import { initEngine } from './strudel'
 import { liveUpdateEngine } from './live-update'
 import { ROLE_COLORS, type TrackRole } from './types'
@@ -187,7 +187,6 @@ export async function startMicRecording(opts?: {
   const stop = async (): Promise<string | null> => {
     if (!activeRecorder || activeRecorder.state === 'inactive') {
       await cleanupStream()
-      void restoreMediaRoute()
       onState('idle')
       return null
     }
@@ -196,7 +195,6 @@ export async function startMicRecording(opts?: {
     const rec = activeRecorder
     if (!rec) {
       await cleanupStream()
-      void restoreMediaRoute()
       onState('idle')
       return null
     }
@@ -224,7 +222,6 @@ export async function startMicRecording(opts?: {
 
     if (blob.size < 64) {
       onState('error', 'Recording too short')
-      void restoreMediaRoute()
       return null
     }
 
@@ -235,7 +232,6 @@ export async function startMicRecording(opts?: {
       registeredMicNames.push(name)
       assignSampleToTrack(name)
       onState('idle')
-      void restoreMediaRoute()
       return name
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -250,7 +246,7 @@ export async function startMicRecording(opts?: {
     } catch {
       /* ignore */
     }
-    void cleanupStream().then(() => restoreMediaRoute())
+    void cleanupStream()
     onState('idle')
   }
 
