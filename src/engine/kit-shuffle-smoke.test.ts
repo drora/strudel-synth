@@ -115,7 +115,7 @@ function leadShapeKey(code: string): string {
   return [hasRest ? '~' : 'norest', hasAngle ? '<>' : 'flat', mul].join('|')
 }
 
-// Lead pattern families: 30 regenerations → >3 distinct shapes
+// Lead pattern families: 30 regenerations → >2 distinct shapes (seed walk; *2 max)
 {
   const kit = KITS.find((k) => k.tracks.some((t) => t.role === 'lead')) ?? KITS[0]!
   const shapes = new Set<string>()
@@ -133,7 +133,8 @@ function leadShapeKey(code: string): string {
   }
   console.log(`lead shapes (${shapes.size}): ${[...shapes].join(' · ')}`)
   for (const s of samples) console.log(`  ${s}`)
-  assert.ok(shapes.size > 3, `expected >3 lead shapes, got ${shapes.size}: ${[...shapes]}`)
+  // Seed-based leads: held / motif / rests / *2 — no *3/*4 machine-gun required.
+  assert.ok(shapes.size > 2, `expected >2 lead shapes, got ${shapes.size}: ${[...shapes]}`)
 }
 
 
@@ -148,6 +149,20 @@ function leadShapeKey(code: string): string {
     })
     assert.equal(primarySSample(next), 'tabla:3', `tabla primary pin; got ${next}`)
     assert.ok(!getBank(next), `tabla should not gain .bank(); got ${next}`)
+  }
+
+  // Recorded / one-shot sample on a melodic role: keep s(), never note()+synth
+  {
+    const mic = 's("jam_mic_1")'
+    for (const density of ['low', 'mid', 'high'] as const) {
+      const next = reshuffleTrack('vox', mic, {
+        shuffle: { groove: 'sparse', density, melodicSounds: ['sawtooth'] },
+      })
+      assert.ok(/^\s*s\(/.test(next), `mic stays s(); got ${next}`)
+      assert.ok(next.includes('jam_mic_1'), `mic sample pinned; got ${next}`)
+      assert.ok(!/\bnote\(/.test(next), `mic must not become note(); got ${next}`)
+      assert.ok(!/\.sound\(/.test(next), `mic must not become .sound(); got ${next}`)
+    }
   }
 
   const bankCur = 's("bd sd hh cp").bank("RolandTR909").n(1).gain(1.05)'
