@@ -63,6 +63,12 @@ const BANK_SHORT: Record<string, string> = {
   'vcsl-keys': 'VCSL Keys',
   'vcsl-organ': 'VCSL Organ',
   'dirt-tabla': 'Tabla',
+  // PR E leftover CDN
+  KorgDDM110: 'DDM-110',
+  YamahaTG33: 'TG-33',
+  RolandD110: 'D-110',
+  KorgT3: 'T3',
+  KorgKRZ: 'KRZ',
 }
 
 export type TempoBand = 'slow' | 'mid' | 'fast'

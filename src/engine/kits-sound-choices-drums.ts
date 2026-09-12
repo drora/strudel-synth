@@ -49,6 +49,11 @@ export const DRUM_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = {
     { id: 'rhythmac', label: 'RhythmAce', bank: 'RhythmAce' },
     { id: 'ms404', label: 'MS-404', bank: 'DoepferMS404' },
     { id: 'sctom', label: 'SC Tom', bank: 'SequentialCircuitsTom' },
+    { id: 'ddm110', label: 'DDM-110', bank: 'KorgDDM110' },
+    { id: 'tg33', label: 'TG-33', bank: 'YamahaTG33' },
+    { id: 'd110', label: 'D-110', bank: 'RolandD110' },
+    { id: 't3', label: 'T3', bank: 'KorgT3' },
+    { id: 'krz', label: 'KRZ', bank: 'KorgKRZ' },
   ],
   hihats: [
     { id: '909', label: '909 hats', bank: 'RolandTR909' },
@@ -84,6 +89,11 @@ export const DRUM_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = {
     { id: 'kr55', label: 'KR-55 hats', bank: 'KorgKR55' },
     { id: 'rhythmac', label: 'RhythmAce hats', bank: 'RhythmAce' },
     { id: 'ms404', label: 'MS-404 hats', bank: 'DoepferMS404' },
+    { id: 'ddm110', label: 'DDM-110 hats', bank: 'KorgDDM110' },
+    { id: 'tg33', label: 'TG-33 hats', bank: 'YamahaTG33' },
+    { id: 'd110', label: 'D-110 hats', bank: 'RolandD110' },
+    { id: 't3', label: 'T3 hats', bank: 'KorgT3' },
+    { id: 'krz', label: 'KRZ hats', bank: 'KorgKRZ' },
   ],
   fx: [
     { id: '909', label: '909 clap', bank: 'RolandTR909' },
@@ -121,5 +131,10 @@ export const DRUM_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = {
     { id: 'rhythmac', label: 'RhythmAce snare', bank: 'RhythmAce' },
     { id: 'ms404', label: 'MS-404 snare', bank: 'DoepferMS404' },
     { id: 'sctom', label: 'SC Tom', bank: 'SequentialCircuitsTom' },
+    { id: 'ddm110', label: 'DDM-110 clap', bank: 'KorgDDM110' },
+    { id: 'tg33', label: 'TG-33 clap', bank: 'YamahaTG33' },
+    { id: 'd110', label: 'D-110 snare', bank: 'RolandD110' },
+    { id: 't3', label: 'T3 rim', bank: 'KorgT3' },
+    { id: 'krz', label: 'KRZ snare', bank: 'KorgKRZ' },
   ]
 }

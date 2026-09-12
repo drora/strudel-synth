@@ -355,6 +355,21 @@ export function randomSongRoot(): string {
   return pick([...SONG_ROOTS])
 }
 
+
+/** Display spelling for a walk center root (concert pitch in song key). */
+export function formatConcertChord(root: string, center: WalkCenter): string {
+  const pc = (rootIndex(root) + center.degree) % 12
+  const raw = NOTE_NAMES[pc]!
+  const display =
+    raw.length === 1 ? raw.toUpperCase() : raw[0]!.toUpperCase() + raw.slice(1)
+  return center.quality === 'min' ? `${display}m` : display
+}
+
+/** Short concert-name chips for songSeed.walk (e.g. Cm · Ab · Eb · G). */
+export function walkConcertNames(seed: Pick<SongSeed, 'root' | 'walk'>): string[] {
+  return seed.walk.map((c) => formatConcertChord(seed.root, c))
+}
+
 export function centerTriadNotes(root: string, center: WalkCenter, octave: number): string[] {
   const base = (rootIndex(root) + center.degree) % 12
   const third = center.quality === 'maj' ? 4 : 3
