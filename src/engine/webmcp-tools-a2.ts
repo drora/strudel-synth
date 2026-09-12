@@ -51,7 +51,7 @@ export function registerWebMcpToolsA2(register: WebMcpRegister) {
   })
   register({
     name: 'add_track',
-    description: "Add a new track. If no code provided, generate from the current song seed. Explicit code is used as-is.",
+    description: "Add a track (role + optional name/code). Without code, generates a seed-aware pattern from the current song seed / root / scale (same as Jam + Track). Explicit code is used as-is.",
     inputSchema: {
       type: 'object',
       properties: {

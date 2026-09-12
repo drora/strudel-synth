@@ -24,13 +24,14 @@ import {
   getKitDetail,
 } from './jam-actions'
 import { SONG_ROOTS, SONG_SCALES } from './note-harmony'
+import { walkConcertNames } from './song-seed'
 import type { ScaleKind } from './kits-types'
 
 export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'get_session',
     description:
-      'Get the full current Strudel Studio session + Jam state: tracks (name, role, code, muted, soloed, volume, locked, octave), BPM, playback, kitId, songRoot/songScale, songWalk, A/B active, and cheap phase. Always call this first.',
+      'Get the full current Strudel Studio session + Jam state: tracks (name, role, code, muted, soloed, volume, locked, octave), BPM, playback, kitId, songRoot/songScale, songWalk (centers + patternId + concertNames chips), A/B active, and cheap phase. Always call this first.',
     inputSchema: { type: 'object', properties: {} },
     annotations: { readOnlyHint: true },
     execute: () => {
@@ -46,7 +47,11 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
         songRoot: jam.songRoot,
         songScale: jam.songScale,
         songWalk: jam.songSeed
-          ? { walk: jam.songSeed.walk, patternId: jam.songSeed.patternId }
+          ? {
+              walk: jam.songSeed.walk,
+              patternId: jam.songSeed.patternId,
+              concertNames: walkConcertNames(jam.songSeed),
+            }
           : null,
         lockKit: jam.lockKit,
         ab: {
@@ -77,7 +82,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'get_jam_state',
     description:
-      'Jam-only snapshot: kitId, vibe, lockKit, A/B slots, activeVariant, lastPeek, undoDepth, soundTrackId/codeTrackId.',
+      'Jam-only snapshot: kitId, vibe, songRoot/songScale, songWalk (centers + concertNames), lockKit, A/B slots, activeVariant, lastPeek, undoDepth, soundTrackId/codeTrackId.',
     inputSchema: { type: 'object', properties: {} },
     annotations: { readOnlyHint: true },
     execute: () => ok('get_jam_state', {}, getJamStateSnapshot(), 'Jam state'),
@@ -193,7 +198,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'set_song_harmony',
     description:
-      'Set song root + scale (same as Jam key/scale controls). Remaps existing note() melodic lanes like the UI (skips locked / non-melodic). get_session already exposes songRoot/songScale.',
+      'Set song root + scale (same as Jam key/scale controls). Scales: minor/major/dorian/pentatonic/mixolydian/phrygian/lydian/harmonic_minor. Remaps existing note() melodic lanes like the UI (skips locked / non-melodic). get_session exposes songRoot/songScale + songWalk.',
     inputSchema: {
       type: 'object',
       properties: {
