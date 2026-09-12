@@ -6,7 +6,7 @@ export type GrooveFamily = 'four_on_floor' | 'breakbeat' | 'halftime' | 'sparse'
 
 export type Density = 'low' | 'mid' | 'high'
 
-export type ScaleKind = 'minor' | 'major' | 'dorian' | 'pentatonic'
+export type ScaleKind = 'minor' | 'major' | 'dorian' | 'pentatonic' | 'mixolydian' | 'phrygian' | 'lydian' | 'harmonic_minor'
 
 export type FxBias = 'dry' | 'roomy' | 'filtered' | 'delay'
 

@@ -21,6 +21,16 @@ export type MixCard = {
   bassLpf: number
   kickLpf: number | null
   leadLpf: number | null
+  /** Subdivision for Strudel `.swing(n)` (e.g. 4 / 8); false = off */
+  swing?: number | false
+  /** Also apply swing on arp when swing is set */
+  swingArp?: boolean
+  /** `.euclid(k, n)` pulses; false = off */
+  euclid?: [number, number] | false
+  /** Role that receives euclid (hats preferred) */
+  euclidRole?: 'hihats' | 'arp'
+  /** Sidechain bass from kick: drums `.duck(2)` + bass `.orbit(2)` */
+  duck?: boolean
 }
 
 export type SongSeed = {
@@ -34,6 +44,10 @@ export type SongSeed = {
   mix?: MixCard
 }
 
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]!
+}
+
 export function buildBudget(density: Density): Partial<Record<TrackRole, Density>> {
   if (density === 'high') {
     return { drums: 'mid', hihats: 'high', fx: 'mid', bass: 'mid', lead: 'low', pad: 'low', arp: 'mid' }
@@ -44,7 +58,11 @@ export function buildBudget(density: Density): Partial<Record<TrackRole, Density
   return { drums: 'mid', hihats: 'mid', fx: 'mid', bass: 'mid', lead: 'mid', pad: 'low', arp: 'mid' }
 }
 
-export function buildMixCard(bias: FxBias): MixCard {
+export function buildMixCard(
+  bias: FxBias,
+  groove: GrooveFamily = 'four_on_floor',
+  density: Density = 'mid',
+): MixCard {
   const gain: MixCard['gain'] = {
     drums: 1.0, hihats: 0.32, fx: 0.55, bass: 0.6, pad: 0.26, lead: 0.2, arp: 0.2, vox: 0.18,
   }
@@ -68,22 +86,80 @@ export function buildMixCard(bias: FxBias): MixCard {
     leadLpf = 1400
     kickLpf = 2000
   }
-  return { gain, pan, room, delay, bassLpf, kickLpf, leadLpf }
+
+  // Feel / richer FX (existing Strudel methods only)
+  const swingLike = groove === 'breakbeat' || groove === 'halftime'
+  const fourSwing =
+    groove === 'four_on_floor' && density !== 'low' && Math.random() < 1 / 3
+  let swing: number | false = false
+  let swingArp = false
+  if (swingLike || fourSwing) {
+    // Real Strudel `.swing(n)` takes a subdivision (not 0–1 amount).
+    swing = pick([4, 8, 8])
+    swingArp = Math.random() < 0.45
+  }
+
+  let euclid: [number, number] | false = false
+  let euclidRole: 'hihats' | 'arp' | undefined
+  if (Math.random() < 0.4 || bias === 'roomy') {
+    euclid = pick([[3, 8], [5, 8], [3, 16]] as [number, number][])
+    euclidRole = Math.random() < 0.7 ? 'hihats' : 'arp'
+  }
+
+  const duck = Math.random() < 0.45
+
+  return {
+    gain, pan, room, delay, bassLpf, kickLpf, leadLpf,
+    swing, swingArp, euclid, euclidRole, duck,
+  }
+}
+
+/** Fill missing feel fields on an older mix card without clobbering set values. */
+function ensureMixFeel(
+  mix: MixCard,
+  groove: GrooveFamily,
+  density: Density,
+  bias: FxBias,
+): MixCard {
+  if (
+    mix.swing !== undefined &&
+    mix.euclid !== undefined &&
+    mix.duck !== undefined
+  ) {
+    return mix
+  }
+  const rolled = buildMixCard(bias, groove, density)
+  return {
+    ...mix,
+    swing: mix.swing !== undefined ? mix.swing : rolled.swing,
+    swingArp: mix.swingArp !== undefined ? mix.swingArp : rolled.swingArp,
+    euclid: mix.euclid !== undefined ? mix.euclid : rolled.euclid,
+    euclidRole: mix.euclidRole !== undefined ? mix.euclidRole : rolled.euclidRole,
+    duck: mix.duck !== undefined ? mix.duck : rolled.duck,
+  }
 }
 
 export function hydrateSeed(
   seed: SongSeed,
   opts?: { density?: Density; groove?: GrooveFamily; fxBias?: FxBias },
 ): SongSeed {
-  if (seed.kickClock && seed.budget && seed.mix) return seed
   const density = opts?.density ?? 'mid'
   const groove = opts?.groove ?? 'four_on_floor'
   const fxBias = opts?.fxBias ?? 'dry'
+  const mixReady =
+    seed.mix &&
+    seed.mix.swing !== undefined &&
+    seed.mix.euclid !== undefined &&
+    seed.mix.duck !== undefined
+  if (seed.kickClock && seed.budget && mixReady) return seed
+  const mix = seed.mix
+    ? ensureMixFeel(seed.mix, groove, density, fxBias)
+    : buildMixCard(fxBias, groove, density)
   return {
     ...seed,
     kickClock: seed.kickClock ?? pick(DRUM_POOLS[groove][density]),
     budget: seed.budget ?? buildBudget(density),
-    mix: seed.mix ?? buildMixCard(fxBias),
+    mix,
   }
 }
 
@@ -101,6 +177,17 @@ export function mixChain(role: TrackRole, mix?: MixCard | null): string {
   if (role === 'bass') s += `.lpf(${mix.bassLpf})`
   if (role === 'drums' && mix.kickLpf != null) s += `.lpf(${mix.kickLpf})`
   if ((role === 'lead' || role === 'pad') && mix.leadLpf != null) s += `.lpf(${mix.leadLpf})`
+
+  // Richer feel FX (Strudel natives)
+  if (role === 'drums' && mix.duck) s += `.duck(2).duckattack(0.12)`
+  if (role === 'bass' && mix.duck) s += `.orbit(2)`
+  if (role === 'hihats' && mix.swing) s += `.swing(${mix.swing})`
+  if (role === 'arp' && mix.swing && mix.swingArp) s += `.swing(${mix.swing})`
+  if (mix.euclid) {
+    const [k, n] = mix.euclid
+    const target = mix.euclidRole ?? 'hihats'
+    if (role === target) s += `.euclid(${k},${n})`
+  }
   return s
 }
 
@@ -108,7 +195,9 @@ type WalkPattern = { id: string; centers: WalkCenter[] }
 
 const I: WalkCenter = { degree: 0, quality: 'min' }
 const Imaj: WalkCenter = { degree: 0, quality: 'maj' }
+const bII: WalkCenter = { degree: 1, quality: 'maj' }
 const ii: WalkCenter = { degree: 2, quality: 'min' }
+const II: WalkCenter = { degree: 2, quality: 'maj' }
 const bIII: WalkCenter = { degree: 3, quality: 'maj' }
 const iv: WalkCenter = { degree: 5, quality: 'min' }
 const IV: WalkCenter = { degree: 5, quality: 'maj' }
@@ -130,10 +219,15 @@ export const NEIGHBORS: Record<ScaleKind, WalkCenter[]> = {
     { degree: 7, quality: 'min' },
     { degree: 10, quality: 'maj' },
   ],
+  mixolydian: [Imaj, IV, bVII, V, ii, v],
+  phrygian: [I, bII, bVII, bIII, iv, bVI],
+  lydian: [Imaj, II, V, vi],
+  harmonic_minor: [I, V, iv, bVI, bIII],
 }
 
 /**
  * Walk patterns. Minor cadence V (maj @ 7) only as last center.
+ * Harmonic minor treats maj V as native (allowed anywhere).
  * [i V i] encoded as ending on V so the loop pulls back to i.
  */
 export const WALK_PATTERNS: Record<ScaleKind, WalkPattern[]> = {
@@ -162,10 +256,26 @@ export const WALK_PATTERNS: Record<ScaleKind, WalkPattern[]> = {
     { id: 'i_bVII_v_i', centers: [I, bVII, v, I] },
     { id: 'i_iv_v_i', centers: [I, iv, v, I] },
   ],
-}
-
-function pick<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)]!
+  mixolydian: [
+    { id: 'I_bVII_I', centers: [Imaj, bVII, Imaj] },
+    { id: 'I_IV_bVII_I', centers: [Imaj, IV, bVII, Imaj] },
+    { id: 'I_bVII_IV_I', centers: [Imaj, bVII, IV, Imaj] },
+  ],
+  phrygian: [
+    { id: 'i_bII_i', centers: [I, bII, I] },
+    { id: 'i_bVII_i', centers: [I, bVII, I] },
+    { id: 'i_bII_bVII_i', centers: [I, bII, bVII, I] },
+  ],
+  lydian: [
+    { id: 'I_II_I', centers: [Imaj, II, Imaj] },
+    { id: 'I_V_I', centers: [Imaj, V, Imaj] },
+    { id: 'I_II_V_I', centers: [Imaj, II, V, Imaj] },
+  ],
+  harmonic_minor: [
+    { id: 'i_V_i', centers: [I, V, I] },
+    { id: 'i_iv_V_i', centers: [I, iv, V, I] },
+    { id: 'i_bVI_V_i', centers: [I, bVI, V, I] },
+  ],
 }
 
 function weightPatterns(
@@ -207,7 +317,7 @@ export function rollSeed(opts: {
     patternId: pat.id,
     kickClock: pick(kickPool),
     budget: buildBudget(density),
-    mix: buildMixCard(opts.fxBias ?? 'dry'),
+    mix: buildMixCard(opts.fxBias ?? 'dry', groove, density),
   }
 }
 
@@ -322,17 +432,26 @@ export function isLegalWalk(scale: ScaleKind, walk: WalkCenter[]): boolean {
   const allowed = NEIGHBORS[scale]
   const key = (c: WalkCenter) => `${c.degree}:${c.quality}`
   const ok = new Set(allowed.map(key))
+  /** Scales where maj V is a normal (or native) neighbor — allowed anywhere. */
+  const majVAnywhere = new Set<ScaleKind>([
+    'major',
+    'mixolydian',
+    'lydian',
+    'harmonic_minor',
+  ])
   for (let i = 0; i < walk.length; i++) {
     const c = walk[i]!
     if (!ok.has(key(c))) return false
-    // Cadence V (maj @ 7) is special only in minor — must be last.
-    // On major, V is a normal dominant neighbor.
-    if (scale === 'minor' && c.quality === 'maj' && c.degree === 7) {
+    const isMajV = c.quality === 'maj' && c.degree === 7
+    if (!isMajV) continue
+    // Cadence V (maj @ 7) is special only in natural minor — must be last.
+    if (scale === 'minor') {
       if (i !== walk.length - 1) return false
+      continue
     }
-    if (scale !== 'minor' && scale !== 'major' && c.quality === 'maj' && c.degree === 7) {
-      return false // no maj V on dorian/pentatonic
-    }
+    if (majVAnywhere.has(scale)) continue
+    // no maj V on dorian / pentatonic / phrygian
+    return false
   }
   return true
 }

@@ -13,13 +13,19 @@ import {
   WALK_PATTERNS,
   centerTriadNotes,
   centerMelodyNotes,
+  buildMixCard,
+  randomSongRoot,
   type SongSeed,
   type WalkCenter,
+  type MixCard,
 } from './song-seed'
 import { generateKitTracks, KITS } from './kits'
 import { generateDrumRole } from './reshuffle-drums'
+import { reshuffleTrack } from './reshuffle'
 import { rewriteSPatternSample } from './code-effects'
+import { ROLE_PRESETS } from './presets'
 import type { ScaleKind } from './kits-types'
+import { SONG_ROOTS, SONG_SCALES } from './note-harmony'
 
 console.log('=== Song seed smoke ===')
 
@@ -90,7 +96,7 @@ console.log('  rollSeed degrees ∈ neighbors: ok')
   }
   // dorian/pentatonic never get maj V
   for (let i = 0; i < 30; i++) {
-    for (const scale of ['dorian', 'pentatonic'] as ScaleKind[]) {
+    for (const scale of ['dorian', 'pentatonic', 'phrygian'] as ScaleKind[]) {
       const seed = rollSeed({ root: 'c', scale })
       assert.ok(!seed.walk.some((c) => c.quality === 'maj' && c.degree === 7))
     }
@@ -250,6 +256,182 @@ console.log('  rollSeed degrees ∈ neighbors: ok')
   const rests = rewriteSPatternSample('s("~ bd sd")', 'cp')
   assert.equal(rests, 's("~ cp sd")')
   console.log('  rewriteSPatternSample primary-only: ok')
+}
+
+
+// PR D: new scales appear; walks legal; old scales still legal
+{
+  const expected = [
+    'minor', 'major', 'dorian', 'pentatonic',
+    'mixolydian', 'phrygian', 'lydian', 'harmonic_minor',
+  ]
+  assert.deepEqual([...SONG_SCALES], expected)
+  for (const scale of expected as ScaleKind[]) {
+    assert.ok(WALK_PATTERNS[scale]?.length >= 3, `${scale} walks`)
+    assert.ok(NEIGHBORS[scale]?.length >= 3, `${scale} neighbors`)
+    for (let i = 0; i < 30; i++) {
+      const seed = rollSeed({ root: 'c', scale })
+      assert.ok(isLegalWalk(scale, seed.walk), `${scale} ${seed.patternId}`)
+    }
+  }
+  // Walk ids locked for new scales
+  assert.deepEqual(
+    WALK_PATTERNS.mixolydian.map((p) => p.id),
+    ['I_bVII_I', 'I_IV_bVII_I', 'I_bVII_IV_I'],
+  )
+  assert.deepEqual(
+    WALK_PATTERNS.phrygian.map((p) => p.id),
+    ['i_bII_i', 'i_bVII_i', 'i_bII_bVII_i'],
+  )
+  assert.deepEqual(
+    WALK_PATTERNS.lydian.map((p) => p.id),
+    ['I_II_I', 'I_V_I', 'I_II_V_I'],
+  )
+  assert.deepEqual(
+    WALK_PATTERNS.harmonic_minor.map((p) => p.id),
+    ['i_V_i', 'i_iv_V_i', 'i_bVI_V_i'],
+  )
+  console.log('  PR D scales + walk ids: ok')
+}
+
+// PR D: harmonic_minor maj V allowed not-only-last
+{
+  const midV: WalkCenter[] = [
+    { degree: 0, quality: 'min' },
+    { degree: 7, quality: 'maj' },
+    { degree: 0, quality: 'min' },
+  ]
+  assert.ok(isLegalWalk('harmonic_minor', midV), 'harmonic_minor V mid')
+  assert.ok(!isLegalWalk('minor', midV), 'natural minor V mid illegal')
+  let sawNonLast = false
+  for (let i = 0; i < 60; i++) {
+    const seed = rollSeed({ root: 'c', scale: 'harmonic_minor' })
+    const idx = seed.walk.findIndex((c) => c.quality === 'maj' && c.degree === 7)
+    if (idx >= 0 && idx !== seed.walk.length - 1) sawNonLast = true
+    assert.ok(isLegalWalk('harmonic_minor', seed.walk), seed.patternId)
+  }
+  // i_V_i has V in the middle
+  const pat = WALK_PATTERNS.harmonic_minor.find((p) => p.id === 'i_V_i')!
+  assert.equal(pat.centers[1]!.degree, 7)
+  assert.equal(pat.centers[1]!.quality, 'maj')
+  assert.ok(isLegalWalk('harmonic_minor', pat.centers))
+  console.log(`  harmonic_minor V anywhere (sawNonLast=${sawNonLast}): ok`)
+}
+
+// PR D: mix feel emits .swing( / .euclid( / .duck( on expected roles
+{
+  const baseMix = (): MixCard => ({
+    ...buildMixCard('dry', 'four_on_floor', 'mid'),
+    swing: false,
+    swingArp: false,
+    euclid: false,
+    duck: false,
+  })
+
+  const kit =
+    KITS.find((k) => k.drumsBank === 'RolandTR909' && k.tracks.some((t) => t.role === 'bass')) ??
+    KITS[0]!
+
+  // swing on hats
+  {
+    const seed = rollSeed({ root: 'c', scale: 'minor', groove: 'halftime', density: 'mid' })
+    seed.mix = { ...baseMix(), swing: 8, swingArp: false, room: { hihats: 0.35 }, kickLpf: 900 }
+    const hats = generateDrumRole('hihats', 'halftime', 'mid', kit.drumsBank, 'roomy', undefined, seed)
+    assert.ok(/\.swing\(8\)/.test(hats), `swing hats; got ${hats}`)
+  }
+  // euclid on hats
+  {
+    const seed = rollSeed({ root: 'c', scale: 'minor', groove: 'four_on_floor', density: 'mid' })
+    seed.mix = {
+      ...baseMix(),
+      euclid: [3, 8],
+      euclidRole: 'hihats',
+    }
+    const hats = generateDrumRole('hihats', 'four_on_floor', 'mid', kit.drumsBank, 'dry', undefined, seed)
+    assert.ok(/\.euclid\(3,8\)/.test(hats), `euclid hats; got ${hats}`)
+  }
+  // duck on drums + orbit on bass
+  {
+    const seed = rollSeed({
+      root: 'c',
+      scale: 'minor',
+      groove: 'four_on_floor',
+      density: 'mid',
+      fxBias: 'dry',
+    })
+    seed.mix = { ...baseMix(), duck: true }
+    const drums = generateDrumRole('drums', 'four_on_floor', 'mid', kit.drumsBank, 'dry', undefined, seed)
+    assert.ok(/\.duck\(2\)/.test(drums), `duck drums; got ${drums}`)
+    const tracks = generateKitTracks(kit, seed)
+    const bass = tracks.find((t) => t.role === 'bass')
+    assert.ok(bass && /\.orbit\(2\)/.test(bass.code), `bass orbit; got ${bass?.code}`)
+  }
+  // euclid on arp via generateKitTracks
+  {
+    const seed = rollSeed({ root: 'c', scale: 'dorian', groove: 'four_on_floor', density: 'mid' })
+    seed.mix = { ...baseMix(), euclid: [5, 8], euclidRole: 'arp' }
+    const kitArp = KITS.find((k) => k.tracks.some((t) => t.role === 'arp')) ?? kit
+    const tracks = generateKitTracks(kitArp, seed)
+    const arp = tracks.find((t) => t.role === 'arp')
+    if (arp) {
+      assert.ok(/\.euclid\(5,8\)/.test(arp.code), `euclid arp; got ${arp.code}`)
+    }
+  }
+  console.log('  PR D mix feel swing/euclid/duck: ok')
+}
+
+// PR D: applyKit first-paint root is randomSongRoot() from SONG_ROOTS
+// (freshStartJam empty + !hasPickedKit → applyKit(..., { randomizeRoot: true })).
+// Picker / hasPickedKit reload keep jam.songRoot — see jam-actions-a applyKit.
+{
+  assert.ok(SONG_ROOTS.includes('f'))
+  assert.ok(SONG_ROOTS.length >= 12)
+  const seen = new Set<string>()
+  for (let i = 0; i < 60; i++) {
+    const r = randomSongRoot()
+    assert.ok((SONG_ROOTS as readonly string[]).includes(r), `root ${r}`)
+    seen.add(r)
+  }
+  assert.ok(seen.size >= 2, `randomSongRoot variety ${seen.size}`)
+  console.log(`  applyKit root pool randomSongRoot (${seen.size} of ${SONG_ROOTS.length}): ok`)
+}
+
+// PR D: + Track / addJamTrack generate follows current seed (not ROLE_PRESETS C-minor)
+{
+  const seed: SongSeed = {
+    root: 'f',
+    scale: 'mixolydian',
+    patternId: 'I_bVII_I',
+    walk: [
+      { degree: 0, quality: 'maj' },
+      { degree: 10, quality: 'maj' },
+      { degree: 0, quality: 'maj' },
+    ],
+  }
+  const lead = reshuffleTrack('lead', '', {
+    seed,
+    shuffle: {
+      groove: 'four_on_floor',
+      density: 'mid',
+      root: 'f',
+      scale: 'mixolydian',
+    },
+  })
+  const preset = ROLE_PRESETS.lead.defaultCode
+  assert.notEqual(lead, preset, `lead still preset: ${lead}`)
+  assert.ok(!lead.includes('c4 eb4 g4 bb4'), `lead still C-minor preset phrase: ${lead}`)
+  const pcs = notePcs(lead)
+  assert.ok(pcs.length > 0, `lead has notes: ${lead}`)
+  const allowed = centerPcs(seed)
+  const walkTones = new Set(['f', 'a', 'c', 'eb', 'g', 'bb', 'd'])
+  for (const pc of pcs) {
+    assert.ok(allowed.has(pc), `lead note ${pc} not in seed; code=${lead}; allowed=${[...allowed]}`)
+  }
+  assert.ok(
+    pcs.some((pc) => walkTones.has(pc)),
+    `lead missing walk tones; code=${lead}`,
+  )
+  console.log(`  add-track lead on F mixolydian seed: ${lead}`)
 }
 
 console.log('ALL SONG-SEED CHECKS PASSED')

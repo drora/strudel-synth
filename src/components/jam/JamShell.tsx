@@ -16,7 +16,7 @@ import { JamTrackChip } from './JamTrackChip'
 import { drumsBankShortName } from '../../engine/kit-browser'
 import { resolveCodeOpenTrackId } from '../../engine/last-touched'
 import { setSongHarmony } from '../../engine/jam-actions'
-import { SONG_ROOTS, SONG_SCALES } from '../../engine/note-harmony'
+import { SONG_ROOTS, SONG_SCALES, SONG_SCALE_LABELS } from '../../engine/note-harmony'
 import type { ScaleKind } from '../../engine/kits'
 
 function openCodeForTrack(trackId: string | null | undefined) {
@@ -126,7 +126,7 @@ export function JamShell() {
               Scale
             </span>
             <select
-              className="flex-1 min-h-9 bg-transparent text-sm outline-none capitalize"
+              className="flex-1 min-h-9 bg-transparent text-sm outline-none"
               value={j.songScale}
               aria-label="Song scale"
               onChange={(e) =>
@@ -137,7 +137,7 @@ export function JamShell() {
             >
               {SONG_SCALES.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {SONG_SCALE_LABELS[s]}
                 </option>
               ))}
             </select>

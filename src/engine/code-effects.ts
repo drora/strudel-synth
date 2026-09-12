@@ -10,6 +10,7 @@ export const PINNABLE_EFFECTS = new Set([
   'hpenv', 'hpa', 'hpd', 'hps', 'hpr',
   'fm', 'fmh', 'fmenv', 'fmdecay', 'fmattack', 'fmrelease', 'fmsustain',
   'speed', 'begin', 'end', 'orbit', 'duck', 'duckattack', 'duckorbit',
+  'swing', 'euclid',
   'sound', 'bank',
 ])
 

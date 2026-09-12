@@ -305,7 +305,7 @@ function resolveProfile(opts?: ReshuffleOpts): ResolvedShuffleProfile {
     groove: pick(['four_on_floor', 'breakbeat', 'halftime', 'sparse'] as GrooveFamily[]),
     density: pick(['low', 'mid', 'high'] as Density[]),
     root: 'c',
-    scale: pick(['minor', 'major', 'dorian', 'pentatonic'] as ScaleKind[]),
+    scale: pick(['minor', 'major', 'dorian', 'pentatonic', 'mixolydian', 'phrygian', 'lydian', 'harmonic_minor'] as ScaleKind[]),
     melodicSounds: ['sawtooth', 'square', 'triangle', 'sine'],
     fxBias: pick(['dry', 'roomy', 'filtered', 'delay'] as FxBias[]),
     pinN: undefined,

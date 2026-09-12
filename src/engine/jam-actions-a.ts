@@ -9,7 +9,9 @@ import { pickRandomKit } from './kit-browser'
 import { reshuffleTrack } from './reshuffle'
 import { resolveShuffleProfile } from './kits-types'
 import type { ScaleKind } from './kits-types'
-import { rollSeed, retargetSeed, randomSongRoot, type SongSeed } from './song-seed'
+import { rollSeed, retargetSeed, hydrateSeed, randomSongRoot, type SongSeed } from './song-seed'
+import { ROLE_PRESETS } from './presets'
+import type { TrackRole } from './types'
 import {
   clampTrackOctave,
   isMelodicRole,
@@ -71,7 +73,14 @@ export function applyKit(
   const kit = getKit(id)
   if (!kit) return { ok: false, error: `Unknown kit: ${id}` }
   const resolved = resolveShuffleProfile(kit)
-  const root = opts?.randomizeRoot ? randomSongRoot() : resolved.root
+  const jam = useJamStore.getState()
+  // First paint: randomizeRoot. Picker / reload with hasPickedKit: keep jam.songRoot.
+  // Bare apply (no flags, never picked): kit profile root.
+  const root = opts?.randomizeRoot
+    ? randomSongRoot()
+    : (opts?.fromPicker || jam.hasPickedKit)
+      ? (jam.songRoot || resolved.root)
+      : resolved.root
   const scale = resolved.scale
   const seed = rollSeed({
     root,
@@ -85,7 +94,6 @@ export function applyKit(
   const session = useSessionStore.getState()
   const preserveBpm = session.isPlaying
   session.loadTemplate(template, { preserveBpm })
-  const jam = useJamStore.getState()
   jam.setKitId(kit.id)
   jam.setVibe(kit.vibe)
   jam.setSongRoot(root)
@@ -211,6 +219,64 @@ export function reshuffleTrackById(
   return { ok: true, trackId: track.id, name: track.name }
 }
 
+export function addJamTrack(
+  role: TrackRole,
+  opts?: { name?: string; code?: string },
+): { ok: true; id: string; name: string; role: TrackRole } {
+  const jam = useJamStore.getState()
+  const kit = jam.kitId ? getKit(jam.kitId) : undefined
+  const resolved = kit ? resolveShuffleProfile(kit) : null
+  const density = resolved?.density ?? 'mid'
+  const groove = resolved?.groove ?? 'four_on_floor'
+  const fxBias = resolved?.fxBias ?? 'dry'
+  // Keep existing walk; hydrate clock/mix if an old seed is missing them.
+  let seed: SongSeed
+  if (jam.songSeed) {
+    seed = hydrateSeed(jam.songSeed, { density, groove, fxBias })
+    if (seed !== jam.songSeed) jam.setSongSeed(seed)
+  } else {
+    seed = rollSeed({
+      root: jam.songRoot,
+      scale: jam.songScale,
+      vibe: kit?.vibe ?? jam.vibe,
+      density,
+      groove,
+      fxBias,
+    })
+    jam.setSongSeed(seed)
+  }
+  const preset = ROLE_PRESETS[role]
+  let code = opts?.code
+  if (!code) {
+    code = reshuffleTrack(role, '', {
+      lockKit: jam.lockKit || !!kit,
+      bank: kit?.drumsBank,
+      shuffle: songAwareShuffle(kit?.shuffle),
+      seed,
+    })
+  }
+  if (!code) code = preset.defaultCode
+  const name = opts?.name ?? preset.label
+  const id = useSessionStore.getState().addTrack({
+    name,
+    role: preset.role,
+    code,
+    color: preset.color,
+    muted: false,
+    soloed: false,
+    locked: false,
+    volume: 1,
+    octave: 0,
+    error: null,
+  })
+  jam.touchTrack(id)
+  jam.setCodeTrackId(null)
+  jam.setSoundTrackId(id)
+  jam.setLastPeek(`+ Track · ${name}`)
+  queueLive('jam')
+  return { ok: true, id, name, role }
+}
+
 export function stashAb(slot: AbSlot) {
   useJamStore.getState().stashVariant(slot)
   return { ok: true as const, slot, peek: useJamStore.getState().lastPeek }
@@ -255,7 +321,7 @@ export function freshStartJam(): FreshStartResult {
       KITS[0]
     if (preferred) {
       randomKit = !persisted
-      applyKit(preferred.id)
+      applyKit(preferred.id, { randomizeRoot: !jam.hasPickedKit })
       kitName = preferred.name
     }
     // applyKit already generated — do not reshuffle again.
