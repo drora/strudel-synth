@@ -6,6 +6,7 @@ import { PlayButton } from '../transport/PlayButton'
 import { SampleLoadingIndicator } from '../transport/SampleLoadingIndicator'
 import { JamTrackSheet } from './JamTrackSheet'
 import { JamCodeSheet } from './JamCodeSheet'
+import { JamAllCodeSheet } from './JamAllCodeSheet'
 import { JamMutateSheet } from './JamMutateSheet'
 import { JamImprovPlate } from './JamImprovPlate'
 import { liveUpdateEngine } from '../../engine/live-update'
@@ -17,17 +18,11 @@ import { JamABToggle } from './JamABToggle'
 import { useJamShell } from './useJamShell'
 import { JamTrackChip } from './JamTrackChip'
 import { drumsBankShortName } from '../../engine/kit-browser'
-import { resolveCodeOpenTrackId } from '../../engine/last-touched'
+import { CODE_ALL, isCodeAllOpen } from '../../engine/all-code'
 import { setSongHarmony } from '../../engine/jam-actions'
 import { SONG_ROOTS, SONG_SCALES, SONG_SCALE_LABELS } from '../../engine/note-harmony'
 import { walkConcertNames } from '../../engine/song-seed'
 import type { ScaleKind } from '../../engine/kits'
-
-function openCodeForTrack(trackId: string | null | undefined) {
-  if (!trackId) return
-  useSessionStore.getState().setActiveTrack(trackId)
-  useJamStore.getState().setCodeTrackId(trackId)
-}
 
 export function JamShell() {
   const j = useJamShell()
@@ -37,7 +32,8 @@ export function JamShell() {
     () => (songSeed ? walkConcertNames(songSeed) : []),
     [songSeed],
   )
-  const codeTrack = j.tracks.find((t) => t.id === codeTrackId)
+  const codeAll = isCodeAllOpen(codeTrackId)
+  const codeTrack = codeAll ? undefined : j.tracks.find((t) => t.id === codeTrackId)
 
   return (
     <div
@@ -50,18 +46,23 @@ export function JamShell() {
           <div className="text-[10px] uppercase tracking-wider text-accent">Jam</div>
         </div>
         <div className="flex items-center gap-2">
+          <a
+            href="https://github.com/drora/strudel-synth"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg bg-bg-elevated text-text-muted border border-border hover:text-accent"
+            aria-label="Strudel Studio on GitHub"
+            title="GitHub"
+          >
+            <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+            </svg>
+          </a>
           <button
             type="button"
             className="min-h-11 px-3 rounded-lg text-xs font-medium bg-bg-elevated text-text-muted border border-border hover:text-accent"
-            onClick={() => {
-              const jam = useJamStore.getState()
-              const id = resolveCodeOpenTrackId(
-                jam.lastTouchedTrackId,
-                j.tracks.map((tr) => tr.id),
-              )
-              openCodeForTrack(id)
-            }}
-            title="Edit last-modified track code"
+            onClick={() => useJamStore.getState().setCodeTrackId(CODE_ALL)}
+            title="Edit all tracks"
           >
             {'<' + '/>'} Code
           </button>
@@ -278,6 +279,7 @@ export function JamShell() {
       )}
 
       {j.soundTrack && <JamTrackSheet track={j.soundTrack} />}
+      {codeAll && <JamAllCodeSheet />}
       {codeTrack && <JamCodeSheet track={codeTrack} />}
       {j.showMutateSheet && (
         <JamMutateSheet onClose={() => j.setShowMutateSheet(false)} />
