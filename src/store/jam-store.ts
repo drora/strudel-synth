@@ -10,6 +10,7 @@ import {
   keepOrFallbackLastTouched,
   afterTrackRemoved,
 } from '../engine/last-touched'
+import { IMPROV_MIX_DEFAULT, type ImprovPadMix } from '../engine/improv-plate'
 
 export interface JamUndoEntry {
   trackId: string
@@ -49,6 +50,10 @@ interface JamState {
   activeVariant: AbSlot | null
   /** Live improv pad overlay pattern (not persisted). null = silence lane. */
   improvHold: string | null
+  /** Last Pads sheet settings — survive close/open (and refresh). */
+  improvOctave: number
+  improvMix: ImprovPadMix
+  improvVoice: string
 
   setVibe: (vibe: VibeId) => void
   setKitId: (kitId: string | null) => void
@@ -77,6 +82,9 @@ interface JamState {
   /** Punch the other slot, or stash+activate if empty. */
   toggleAb: () => void
   setImprovHold: (hold: string | null) => void
+  setImprovOctave: (octave: number) => void
+  setImprovVoice: (voice: string) => void
+  patchImprovMix: (patch: Partial<ImprovPadMix>) => void
 }
 
 function snapshotSection(): SectionSnap {
@@ -115,6 +123,9 @@ export const useJamStore = create<JamState>()(
       variantB: null,
       activeVariant: null,
       improvHold: null,
+      improvOctave: 4,
+      improvMix: IMPROV_MIX_DEFAULT,
+      improvVoice: 'sawtooth',
 
       setVibe: (vibe) => set({ vibe }),
       setKitId: (kitId) => set({ kitId }),
@@ -193,6 +204,10 @@ export const useJamStore = create<JamState>()(
       },
 
       setImprovHold: (improvHold) => set({ improvHold }),
+      setImprovOctave: (improvOctave) => set({ improvOctave }),
+      setImprovVoice: (improvVoice) => set({ improvVoice }),
+      patchImprovMix: (patch) =>
+        set((s) => ({ improvMix: { ...s.improvMix, ...patch } })),
 
       toggleAb: () => {
         const { variantA, variantB, activeVariant } = get()
@@ -222,6 +237,9 @@ export const useJamStore = create<JamState>()(
         songSeed: s.songSeed,
         lockKit: s.lockKit,
         hasPickedKit: s.hasPickedKit,
+        improvOctave: s.improvOctave,
+        improvMix: s.improvMix,
+        improvVoice: s.improvVoice,
       }),
     },
   ),
