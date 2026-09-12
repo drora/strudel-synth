@@ -12,6 +12,7 @@ import {
   hitsToNoteCode,
   walkTriadPcs,
 } from './improv-plate'
+import { improvLookahead, markImprovVoiceWarm } from './improv-trigger'
 import { composeTracks } from './compose-tracks'
 import type { Track } from './types'
 import type { WalkCenter } from './song-seed'
@@ -165,6 +166,15 @@ console.log('=== Improv plate smoke ===')
   assert.match(kept, /\.room\(0.6\)/)
   assert.doesNotMatch(kept, /\.gain\(/)
   console.log('pad mix ok')
+}
+
+{
+  assert.equal(improvLookahead('sine'), 0.02, 'synths are warm')
+  assert.equal(improvLookahead('sawtooth'), 0.02)
+  assert.equal(improvLookahead('piano'), 0.12, 'cold sample')
+  markImprovVoiceWarm('piano')
+  assert.equal(improvLookahead('piano'), 0.02, 'heard sample is warm')
+  console.log('pad lookahead ok')
 }
 
 console.log('improv-plate-smoke.test.ts: ok')

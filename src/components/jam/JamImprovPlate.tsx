@@ -16,7 +16,7 @@ import {
 import { improvSoundChoices } from '../../engine/kit-sound-choices'
 import { listMicSampleNames } from '../../engine/mic-sample'
 import { liveUpdateEngine } from '../../engine/live-update'
-import { fireImprovNote, warmImprovTrigger } from '../../engine/improv-trigger'
+import { fireImprovNote, warmImprovTrigger, preloadImprovVoice } from '../../engine/improv-trigger'
 import { ROLE_COLORS } from '../../engine/types'
 
 interface Props {
@@ -37,10 +37,6 @@ export function JamImprovPlate({ onClose }: Props) {
   const kitId = useJamStore((s) => s.kitId)
   const isPlaying = useSessionStore((s) => s.isPlaying)
 
-  useEffect(() => {
-    void warmImprovTrigger()
-  }, [])
-
   const [octave, setOctave] = useState(4)
   const [pressed, setPressed] = useState<number | null>(null)
   const [mix, setMix] = useState<ImprovPadMix>(IMPROV_MIX_DEFAULT)
@@ -53,6 +49,10 @@ export function JamImprovPlate({ onClose }: Props) {
     const choices = improvSoundChoices(kitId ? getKit(kitId) : undefined, listMicSampleNames())
     return choices[0]?.sound ?? 'sawtooth'
   })
+
+  useEffect(() => {
+    void warmImprovTrigger().then(() => preloadImprovVoice(voice))
+  }, [voice])
 
   const pads = useMemo(
     () =>
