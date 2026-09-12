@@ -43,6 +43,8 @@ html, body {
   /* iOS notch / home indicator */
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
+  /* Block pinch-zoom; buttons already use manipulation */
+  touch-action: manipulation;
 }
 
 @media (pointer: fine) {

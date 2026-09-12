@@ -61,14 +61,6 @@ export function JamShell() {
           <button
             type="button"
             className="min-h-11 px-3 rounded-lg text-xs font-medium bg-bg-elevated text-text-muted border border-border hover:text-accent"
-            onClick={() => useJamStore.getState().setCodeTrackId(CODE_ALL)}
-            title="Edit all tracks"
-          >
-            {'<' + '/>'} Code
-          </button>
-          <button
-            type="button"
-            className="min-h-11 px-3 rounded-lg text-xs font-medium bg-bg-elevated text-text-muted border border-border hover:text-accent"
             onClick={() => useUIStore.getState().setAppMode('learn')}
           >
             Learn
@@ -87,7 +79,7 @@ export function JamShell() {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
+      <div className="shrink-0 px-3 pt-3 pb-2 space-y-2 border-b border-border bg-bg">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -108,10 +100,17 @@ export function JamShell() {
               ▾
             </span>
           </button>
-          <JamABToggle />
+          <button
+            type="button"
+            className="min-h-12 px-3 rounded-xl text-xs font-medium bg-bg-elevated text-text-muted border border-border hover:text-accent shrink-0"
+            onClick={() => useJamStore.getState().setCodeTrackId(CODE_ALL)}
+            title="Edit all tracks"
+          >
+            {'<' + '/>'} Code
+          </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-start gap-2">
           <label className="flex-1 min-h-11 px-3 rounded-xl border border-border bg-bg-elevated flex items-center gap-2">
             <span className="text-[10px] uppercase tracking-wider text-text-muted shrink-0">
               Root
@@ -131,27 +130,30 @@ export function JamShell() {
               ))}
             </select>
           </label>
-          <label className="flex-1 min-h-11 px-3 rounded-xl border border-border bg-bg-elevated flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wider text-text-muted shrink-0">
-              Scale
-            </span>
-            <select
-              className="flex-1 min-h-9 bg-transparent text-sm outline-none"
-              value={j.songScale}
-              aria-label="Song scale"
-              onChange={(e) =>
-                setSongHarmony(j.songRoot, e.target.value as ScaleKind, {
-                  remap: true,
-                })
-              }
-            >
-              {SONG_SCALES.map((s) => (
-                <option key={s} value={s}>
-                  {SONG_SCALE_LABELS[s]}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+            <label className="min-h-11 px-3 rounded-xl border border-border bg-bg-elevated flex items-center gap-2">
+              <span className="text-[10px] uppercase tracking-wider text-text-muted shrink-0">
+                Scale
+              </span>
+              <select
+                className="flex-1 min-h-9 bg-transparent text-sm outline-none"
+                value={j.songScale}
+                aria-label="Song scale"
+                onChange={(e) =>
+                  setSongHarmony(j.songRoot, e.target.value as ScaleKind, {
+                    remap: true,
+                  })
+                }
+              >
+                {SONG_SCALES.map((s) => (
+                  <option key={s} value={s}>
+                    {SONG_SCALE_LABELS[s]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <JamABToggle />
+          </div>
         </div>
 
         {walkChips.length > 0 && (
@@ -169,7 +171,9 @@ export function JamShell() {
             ))}
           </div>
         )}
+      </div>
 
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
         <div className="flex flex-col items-center py-2">
           <JamPhaseRing bpm={j.bpm} isPlaying={j.isPlaying} />
           {j.showKitLoadingBanner && (

@@ -6,7 +6,7 @@ const LONG_PRESS_MS = 450
 const MOVE_CANCEL_PX = 10
 
 /**
- * Tiny A/B punch near Kit — stash current codes, punch between slots.
+ * Tiny A/B punch under Scale — stash current codes, punch between slots.
  * Tap empty slot to save; tap filled to apply; long-press (or right-click) to
  * overwrite; main chip toggles A↔B.
  */
