@@ -7,13 +7,11 @@ import {
   hitsToNoteCode,
   applyImprovMixToCode,
   bridgeImprovPhrase,
-  IMPROV_MIX_DEFAULT,
   IMPROV_VOL_STEPS,
   IMPROV_VEL_STEPS,
   IMPROV_FX_CONTROLS,
   isImprovFxOn,
   type ImprovHit,
-  type ImprovPadMix,
 } from '../../engine/improv-plate'
 import { improvSoundChoices } from '../../engine/kit-sound-choices'
 import { listMicSampleNames, micSampleDuration } from '../../engine/mic-sample'
@@ -39,18 +37,18 @@ export function JamImprovPlate({ onClose }: Props) {
   const kitId = useJamStore((s) => s.kitId)
   const isPlaying = useSessionStore((s) => s.isPlaying)
 
-  const [octave, setOctave] = useState(4)
+  const octave = useJamStore((s) => s.improvOctave)
+  const mix = useJamStore((s) => s.improvMix)
+  const storedVoice = useJamStore((s) => s.improvVoice)
   const [pressed, setPressed] = useState<number | null>(null)
-  const [mix, setMix] = useState<ImprovPadMix>(IMPROV_MIX_DEFAULT)
   const kit = kitId ? getKit(kitId) : undefined
   const voices = useMemo(
     () => improvSoundChoices(kit, listMicSampleNames()),
     [kit],
   )
-  const [voice, setVoice] = useState<string>(() => {
-    const choices = improvSoundChoices(kitId ? getKit(kitId) : undefined, listMicSampleNames())
-    return choices[0]?.sound ?? 'sawtooth'
-  })
+  const voice = voices.some((v) => (v.sound ?? v.id) === storedVoice)
+    ? storedVoice
+    : (voices[0]?.sound ?? storedVoice)
 
   useEffect(() => {
     void warmImprovTrigger().then(() => preloadImprovVoice(voice))
@@ -182,7 +180,7 @@ export function JamImprovPlate({ onClose }: Props) {
                 aria-label="Octave down"
                 onClick={() => {
                   bridgeImprovPhrase(hitsRef.current)
-                  setOctave((o) => Math.max(1, o - 1))
+                  useJamStore.getState().setImprovOctave(Math.max(1, octave - 1))
                 }}
               >
                 −
@@ -196,7 +194,7 @@ export function JamImprovPlate({ onClose }: Props) {
                 aria-label="Octave up"
                 onClick={() => {
                   bridgeImprovPhrase(hitsRef.current)
-                  setOctave((o) => Math.min(7, o + 1))
+                  useJamStore.getState().setImprovOctave(Math.min(7, octave + 1))
                 }}
               >
                 +
@@ -221,7 +219,7 @@ export function JamImprovPlate({ onClose }: Props) {
                 <button
                   key={v.id}
                   type="button"
-                  onClick={() => setVoice(id)}
+                  onClick={() => useJamStore.getState().setImprovVoice(id)}
                   className={`shrink-0 min-h-9 px-2.5 rounded-lg text-[11px] font-medium border transition-colors ${
                     selected
                       ? 'bg-accent/20 text-accent border-accent/40'
@@ -299,7 +297,7 @@ export function JamImprovPlate({ onClose }: Props) {
               step={0.05}
               value={mix.volume}
               onChange={(e) =>
-                setMix((m) => ({ ...m, volume: Number(e.target.value) }))
+                useJamStore.getState().patchImprovMix({ volume: Number(e.target.value) })
               }
               className="w-full accent-[var(--color-accent,#a78bfa)]"
               aria-label="Pad volume"
@@ -309,7 +307,7 @@ export function JamImprovPlate({ onClose }: Props) {
                 <button
                   key={v}
                   type="button"
-                  onClick={() => setMix((m) => ({ ...m, volume: v }))}
+                  onClick={() => useJamStore.getState().patchImprovMix({ volume: v })}
                   className={`min-h-8 px-2 rounded-lg text-[11px] border ${
                     Math.abs(mix.volume - v) < 0.001
                       ? 'border-accent bg-accent/20 text-accent'
@@ -331,7 +329,7 @@ export function JamImprovPlate({ onClose }: Props) {
                 <button
                   key={v}
                   type="button"
-                  onClick={() => setMix((m) => ({ ...m, velocity: v }))}
+                  onClick={() => useJamStore.getState().patchImprovMix({ velocity: v })}
                   className={`min-h-8 px-2 rounded-lg text-[11px] border ${
                     Math.abs(mix.velocity - v) < 0.001
                       ? 'border-accent bg-accent/20 text-accent'
@@ -364,10 +362,9 @@ export function JamImprovPlate({ onClose }: Props) {
                         key={v}
                         type="button"
                         onClick={() =>
-                          setMix((m) => ({
-                            ...m,
+                          useJamStore.getState().patchImprovMix({
                             [fx.key]: selected ? fx.off : v,
-                          }))
+                          })
                         }
                         className={`min-h-8 px-2 rounded-lg text-[11px] border ${
                           selected
