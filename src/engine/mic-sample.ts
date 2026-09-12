@@ -78,17 +78,6 @@ function assignSampleToTrack(sampleName: string): string {
   const session = useSessionStore.getState()
   const jam = useJamStore.getState()
   const code = `s("${sampleName}")`
-  const targetId = jam.soundTrackId ?? session.activeTrackId
-
-  if (targetId && session.tracks.some((t) => t.id === targetId)) {
-    session.setCode(targetId, code)
-    jam.touchTrack(targetId)
-    jam.setLastPeek(`Mic · ${sampleName} → track`)
-    jam.setSoundTrackId(targetId)
-    queueLiveIfPlaying()
-    return targetId
-  }
-
   const role: TrackRole = 'vox'
   const id = session.addTrack({
     name: `Mic ${micCounter}`,
@@ -104,7 +93,8 @@ function assignSampleToTrack(sampleName: string): string {
   })
   jam.touchTrack(id)
   jam.setLastPeek(`Mic · ${sampleName} → new track`)
-  jam.setSoundTrackId(id)
+  // New vox lane only — never open (or leave open) the Sound picker.
+  jam.setSoundTrackId(null)
   jam.setCodeTrackId(null)
   queueLiveIfPlaying()
   return id
