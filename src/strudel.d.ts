@@ -22,7 +22,8 @@ declare module '@strudel/mini' {
 declare module 'superdough' {
   export function superdough(
     value: Record<string, unknown>,
-    deadline?: number,
+    t: number,
     duration?: number,
   ): unknown
+  export function getAudioContext(): AudioContext
 }
