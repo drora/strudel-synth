@@ -47,6 +47,8 @@ interface JamState {
   variantA: SectionSnap | null
   variantB: SectionSnap | null
   activeVariant: AbSlot | null
+  /** Live improv pad overlay pattern (not persisted). null = silence lane. */
+  improvHold: string | null
 
   setVibe: (vibe: VibeId) => void
   setKitId: (kitId: string | null) => void
@@ -74,6 +76,7 @@ interface JamState {
   punchVariant: (slot: AbSlot) => void
   /** Punch the other slot, or stash+activate if empty. */
   toggleAb: () => void
+  setImprovHold: (hold: string | null) => void
 }
 
 function snapshotSection(): SectionSnap {
@@ -111,6 +114,7 @@ export const useJamStore = create<JamState>()(
       variantA: null,
       variantB: null,
       activeVariant: null,
+      improvHold: null,
 
       setVibe: (vibe) => set({ vibe }),
       setKitId: (kitId) => set({ kitId }),
@@ -187,6 +191,8 @@ export const useJamStore = create<JamState>()(
         get().setLastPeek(`A/B · punch ${slot.toUpperCase()}`)
         queueSectionUpdate()
       },
+
+      setImprovHold: (improvHold) => set({ improvHold }),
 
       toggleAb: () => {
         const { variantA, variantB, activeVariant } = get()

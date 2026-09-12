@@ -13,14 +13,16 @@ import type { Track } from './types'
  * - 1 → (code).gain(...)
  * - 2+ → stack( ... one part per track ... )
  *
+ * Optional `overlay`: when a string (including `silence`), append one extra
+ * stack part `(${overlay}).gain(1)` so session track count is unchanged but the
+ * evaluated stack has a stable extra lane (improv pad hold).
+ *
  * NOTE: Also exported from `strudel.ts` (same implementation). Prefer importing
  * from here in unit tests to avoid pulling the audio engine.
  */
-export function composeTracks(tracks: Track[], bpm: number): string {
+export function composeTracks(tracks: Track[], bpm: number, overlay?: string): string {
   const cps = bpm / 60 / 4
   const header = `setcps(${cps})\n`
-
-  if (tracks.length === 0) return header + 'silence'
 
   const anySolo = tracks.some((tr) => tr.soloed)
   const effectiveGain = (t: Track): number => {
@@ -29,15 +31,25 @@ export function composeTracks(tracks: Track[], bpm: number): string {
     return t.volume
   }
 
-  // N===1: always one pattern (mute → gain(0), never drop the lane).
-  if (tracks.length === 1) {
+  const trackParts: string[] = []
+  if (tracks.length === 0) {
+    if (overlay === undefined) return header + 'silence'
+    trackParts.push('  silence')
+  } else if (tracks.length === 1) {
     const t = tracks[0]!
-    return `${header}(${t.code}).gain(${effectiveGain(t)})`
+    const part = `(${t.code}).gain(${effectiveGain(t)})`
+    if (overlay === undefined) return `${header}${part}`
+    trackParts.push(`  ${part}`)
+  } else {
+    for (const t of tracks) {
+      trackParts.push(`  (${t.code}).gain(${effectiveGain(t)})`)
+    }
+    if (overlay === undefined) {
+      return `${header}stack(\n${trackParts.join(',\n')}\n)`
+    }
   }
 
-  // N>=2: always stack every track so mute/solo never changes arity.
-  const parts = tracks
-    .map((t) => `  (${t.code}).gain(${effectiveGain(t)})`)
-    .join(',\n')
-  return `${header}stack(\n${parts}\n)`
+  // overlay lane (improv hold / silence)
+  trackParts.push(`  (${overlay}).gain(1)`)
+  return `${header}stack(\n${trackParts.join(',\n')}\n)`
 }

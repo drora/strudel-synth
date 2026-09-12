@@ -7,6 +7,8 @@ import { SampleLoadingIndicator } from '../transport/SampleLoadingIndicator'
 import { JamTrackSheet } from './JamTrackSheet'
 import { JamCodeSheet } from './JamCodeSheet'
 import { JamMutateSheet } from './JamMutateSheet'
+import { JamImprovPlate } from './JamImprovPlate'
+import { liveUpdateEngine } from '../../engine/live-update'
 import { JamKitPicker } from './JamKitPicker'
 import { JamAddTrack } from './JamAddTrack'
 import { JamPhaseRing } from './JamPhaseRing'
@@ -235,6 +237,14 @@ export function JamShell() {
           </button>
           <button
             type="button"
+            onClick={() => j.setShowImprovPlate(true)}
+            className="min-h-11 px-3 rounded-xl text-xs font-medium bg-bg-elevated border border-border"
+            title="Improv pads — hold notes over the jam, Keep as vox"
+          >
+            Pads
+          </button>
+          <button
+            type="button"
             onClick={j.onShuffle}
             className="min-h-11 flex-1 rounded-xl text-xs font-medium bg-accent/20 text-accent border border-accent/30"
           >
@@ -271,6 +281,17 @@ export function JamShell() {
       {codeTrack && <JamCodeSheet track={codeTrack} />}
       {j.showMutateSheet && (
         <JamMutateSheet onClose={() => j.setShowMutateSheet(false)} />
+      )}
+      {j.showImprovPlate && (
+        <JamImprovPlate
+          onClose={() => {
+            useJamStore.getState().setImprovHold(null)
+            if (useSessionStore.getState().isPlaying) {
+              liveUpdateEngine.queueUpdate('immediate', 'jam')
+            }
+            j.setShowImprovPlate(false)
+          }}
+        />
       )}
     </div>
   )

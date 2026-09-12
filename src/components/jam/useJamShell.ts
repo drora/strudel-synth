@@ -45,6 +45,7 @@ export function useJamShell() {
   /** Soft-tag / search filters for kit browser (+ New Kit). */
   const [kitFilterSearch, setKitFilterSearch] = useState('')
   const [showMutateSheet, setShowMutateSheet] = useState(false)
+  const [showImprovPlate, setShowImprovPlate] = useState(false)
   // Soft tags start empty (kit-first). Persisted `vibe` still updates on applyKit.
   const [kitFilterTags, setKitFilterTags] = useState<string[]>([])
 
@@ -144,6 +145,8 @@ export function useJamShell() {
     onSpice,
     showMutateSheet,
     setShowMutateSheet,
+    showImprovPlate,
+    setShowImprovPlate,
   }
 }
 

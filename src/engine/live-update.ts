@@ -1,4 +1,5 @@
 import { useSessionStore } from '../store/session-store'
+import { useJamStore } from '../store/jam-store'
 import { evaluateCode, composeTracks, getSchedulerCycle, stop as hushPlayback } from './strudel'
 import { getAudioContext } from './audio-context'
 
@@ -57,7 +58,8 @@ class LiveUpdateEngine {
    * Wall/audio epochs align to hearing; scheduler.now() is preferred when available.
    */
   markPlayStarted() {
-    this.lastTrackCount = useSessionStore.getState().tracks.length
+    // Overlay lane always present while playing (improvHold ?? silence).
+    this.lastTrackCount = useSessionStore.getState().tracks.length + 1
     this.playEpochSec = performance.now() / 1000
     try {
       this.playEpochAudio = getAudioContext().currentTime
@@ -184,15 +186,17 @@ class LiveUpdateEngine {
     }
 
     try {
-      const trackCount = state.tracks.length
+      const overlay = useJamStore.getState().improvHold ?? 'silence'
+      // Composed arity includes the stable overlay lane.
+      const composedArity = state.tracks.length + 1
       const arityChanged =
-        this.lastTrackCount != null && this.lastTrackCount !== trackCount
-      this.lastTrackCount = trackCount
+        this.lastTrackCount != null && this.lastTrackCount !== composedArity
+      this.lastTrackCount = composedArity
       // Remove/add changes stack arity — hush first so ghost lanes die.
       if (arityChanged) {
         await hushPlayback()
       }
-      const code = composeTracks(state.tracks, state.bpm)
+      const code = composeTracks(state.tracks, state.bpm, overlay)
       await evaluateCode(code)
       state.tracks.forEach((t) => {
         if (t.error) state.setError(t.id, null)
