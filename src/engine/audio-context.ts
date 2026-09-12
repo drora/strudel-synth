@@ -207,17 +207,10 @@ export function isAudioSyncedToStrudel(): boolean {
 }
 
 type AudioSessionLike = { type: string }
-type CtxWithSink = AudioContext & {
-  sinkId?: string
-  setSinkId?: (id: string) => Promise<void>
-}
-
-const SILENT_WAV =
-  'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA='
 
 /**
- * After getUserMedia, phones stay in voice/SCO mode (built-in speaker)
- * instead of A2DP (Bluetooth speaker). Stop the mic first, then call this.
+ * After getUserMedia, phones stay in voice/SCO mode (built-in speaker).
+ * Stop the mic first. Do not setSinkId or play HTML audio — that muted Rec playback.
  */
 export async function restoreMediaRoute(): Promise<void> {
   try {
@@ -227,26 +220,7 @@ export async function restoreMediaRoute(): Promise<void> {
     /* */
   }
   try {
-    const ctx = getAudioContext() as CtxWithSink
-    await resumeContext(ctx)
-    if (typeof ctx.setSinkId === 'function') {
-      try {
-        await ctx.setSinkId('')
-      } catch {
-        /* */
-      }
-    }
-  } catch {
-    /* */
-  }
-  if (typeof Audio === 'undefined') return
-  try {
-    const a = new Audio(SILENT_WAV)
-    a.setAttribute('playsinline', '')
-    await a.play().catch(() => {})
-    a.pause()
-    a.removeAttribute('src')
-    a.load()
+    await resumeContext(getAudioContext())
   } catch {
     /* */
   }
