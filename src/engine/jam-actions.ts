@@ -17,6 +17,7 @@ export {
   freshStartJam,
   addJamTrack,
   setSongHarmony,
+  rollSongHarmony,
   setTrackOctave,
   applyMutate,
 } from './jam-actions-a'

@@ -382,9 +382,8 @@ console.log('  rollSeed degrees ∈ neighbors: ok')
   console.log('  PR D mix feel swing/euclid/duck: ok')
 }
 
-// PR D: applyKit first-paint root is randomSongRoot() from SONG_ROOTS
-// (freshStartJam empty + !hasPickedKit → applyKit(..., { randomizeRoot: true })).
-// Picker / hasPickedKit reload keep jam.songRoot — see jam-actions-a applyKit.
+// First kit of choice: applyKit(..., { randomizeRoot: true }) rolls root+scale.
+// Later kit changes keep jam.songRoot + jam.songScale. Dice = rollSongHarmony.
 {
   assert.ok(SONG_ROOTS.includes('f'))
   assert.ok(SONG_ROOTS.length >= 12)
