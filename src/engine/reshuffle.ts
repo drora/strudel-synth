@@ -377,8 +377,15 @@ function captureSoundIdentity(currentCode: string): PinnedSound | null {
   return null
 }
 
+/** One-shot sample trigger grid — never note() / synth. */
+function sampleTriggerPattern(sample: string, density: Density): string {
+  if (density === 'low') return `${sample} ~ ~ ~`
+  if (density === 'high') return `${sample} ~ ${sample} ${sample}`
+  return `${sample} ~ ${sample} ~`
+}
+
 /** Re-apply pinned Sound identity onto freshly generated pattern code. */
-function applyPinnedSound(next: string, pinned: PinnedSound): string {
+function applyPinnedSound(next: string, pinned: PinnedSound, density: Density): string {
   if (pinned.kind === 'bank') {
     let out = setBankInCode(next, pinned.bank)
     if (pinned.n != null) out = setNInCode(out, pinned.n)
@@ -386,9 +393,15 @@ function applyPinnedSound(next: string, pinned: PinnedSound): string {
     return out
   }
   if (pinned.kind === 'sample') {
-    // Drop bank/n if generator emitted a bank-voice line; pin sample hits only.
-    let out = removeEffectFromCode(removeEffectFromCode(next, 'bank'), 'n')
-    return rewriteSPatternSample(out, pinned.sample)
+    const hasS = /\bs\(\s*["']/.test(next)
+    const hasNote = /\bnote\(/.test(next)
+    // Drum-style s() lines: rewrite the primary hit.
+    if (hasS && !hasNote) {
+      let out = removeEffectFromCode(removeEffectFromCode(next, 'bank'), 'n')
+      return rewriteSPatternSample(out, pinned.sample)
+    }
+    // Melodic generate is note()+synth — that drops a recorded take. Stay on s().
+    return `s("${sampleTriggerPattern(pinned.sample, density)}")`
   }
   return setSoundInCode(next, pinned.sound)
 }
@@ -414,7 +427,7 @@ export function reshuffleTrack(
   let next = generateRaw(role, currentCode, profile, DRUM_ROLES.includes(role) ? bank : null, opts?.seed)
 
   if (pinned) {
-    next = applyPinnedSound(next, pinned)
+    next = applyPinnedSound(next, pinned, profile.density)
   } else if (opts?.lockKit && DRUM_ROLES.includes(role)) {
     // No prior sound to pin (fresh/empty) — keep kit bank on bank-voice kits.
     const prevBank = opts.bank || getBankFromCode(currentCode)
@@ -432,7 +445,7 @@ export function reshuffleTrack(
   }
 
   const oct = opts?.octaveOffset ?? 0
-  if (oct && isMelodicRole(role)) {
+  if (oct && isMelodicRole(role) && /\bnote\(/.test(next)) {
     next = shiftNotesByOctaves(next, oct)
   }
   return next
