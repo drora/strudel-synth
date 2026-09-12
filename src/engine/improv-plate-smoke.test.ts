@@ -9,6 +9,8 @@ import {
   improvVoiceHap,
   improvVoiceHapWithMix,
   applyImprovMixToCode,
+  lastImprovPhrase,
+  bridgeImprovPhrase,
   hitsToNoteCode,
   walkTriadPcs,
   smearFromHold,
@@ -224,30 +226,47 @@ console.log('=== Improv plate smoke ===')
 
 {
   const dry = improvVoiceHapWithMix('c4', 'sawtooth', { volume: 0.9 })
-  assert.equal(dry.gain, 0.9)
+  assert.equal(dry.gain, undefined, 'Vol is the fader, not hap.gain')
   assert.equal(dry.lpf, undefined)
   assert.equal(dry.room, undefined)
   const wet = improvVoiceHapWithMix('c4', 'sawtooth', {
     volume: 0.5,
+    gain: 0.7,
     lpf: 800,
     room: 0.6,
     delay: 0,
     hpf: 20,
   })
-  assert.equal(wet.gain, 0.5)
+  assert.equal(wet.gain, 0.7)
   assert.equal(wet.lpf, 800)
   assert.equal(wet.room, 0.6)
   assert.equal(wet.delay, undefined)
   assert.equal(wet.hpf, undefined)
   const kept = applyImprovMixToCode('note("c4 eb4").sound("sine")', {
     volume: 0.5,
+    gain: 0.7,
     lpf: 800,
     room: 0.6,
   })
   assert.match(kept, /\.lpf\(800\)/)
   assert.match(kept, /\.room\(0.6\)/)
-  assert.doesNotMatch(kept, /\.gain\(/)
+  assert.match(kept, /\.gain\(0.7\)/)
+  const keptVolOnly = applyImprovMixToCode('note("c4").sound("sine")', { volume: 0.5 })
+  assert.doesNotMatch(keptVolOnly, /\.gain\(/)
   console.log('pad mix ok')
+}
+
+{
+  const early = { note: 'c4', cycle: 0, dur: 0.2, at: 0 }
+  const late = { note: 'e5', cycle: 0, dur: 0.2, at: 2200 }
+  const split = lastImprovPhrase([early, late])
+  assert.equal(split.length, 1)
+  assert.equal(split[0]!.note, 'e5')
+  const bridged = [{ ...early }]
+  bridgeImprovPhrase(bridged, 2000)
+  const kept = lastImprovPhrase([...bridged, { note: 'e5', cycle: 0, dur: 0.2, at: 2100 }])
+  assert.equal(kept.map((h) => h.note).join(' '), 'c4 e5', 'octave does not split Keep')
+  console.log('octave bridge ok')
 }
 
 {

@@ -265,7 +265,7 @@ async function beginHold(
   const sound = getSoundFn(s)
   const t = ac.currentTime + improvLookahead(s)
   if (!sound?.onTrigger) {
-    if (dough) void dough({ ...hap, gain: (mix.volume || 0.9) * velocity, cut: 1 }, t, 0.45)
+    if (dough) void dough({ ...hap, gain: (mix.volume || 0.9) * velocity * (Number(hap.gain) || 1), cut: 1 }, t, 0.45)
     return
   }
   const handle = await sound.onTrigger(t, hap, () => {}, 0.5)
