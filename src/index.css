@@ -45,6 +45,9 @@ html, body {
   padding-right: env(safe-area-inset-right);
   /* Prefer pan-only so pinch cannot zoom the page (Safari may still ignore). */
   touch-action: pan-x pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 @media (pointer: fine) {
@@ -60,6 +63,15 @@ html, body {
   flex-direction: column;
   overflow: hidden;
   padding-top: env(safe-area-inset-top);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Code editors still need a caret / selection. */
+.cm-editor, textarea, input, [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* Scrollbar styling */
