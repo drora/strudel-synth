@@ -357,8 +357,8 @@ export const IMPROV_FX_CONTROLS: Array<{
   { key: 'lpf', label: 'LPF', steps: [200, 400, 800, 1200, 2000, 4000, 8000, 12000], off: 12000 },
   { key: 'hpf', label: 'HPF', steps: [20, 100, 200, 400, 800, 1600, 3200], off: 20 },
   { key: 'room', label: 'Reverb', steps: [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2], off: 0 },
-  { key: 'roomsize', label: 'Size', steps: [0.5, 1, 2, 3, 4], off: 0 },
-  { key: 'delay', label: 'Delay', steps: [0, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 1], off: 0 },
+  { key: 'roomsize', label: 'Room size', steps: [0.5, 1, 2, 3, 4], off: 0 },
+  { key: 'delay', label: 'Delay', steps: [0, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 1, 1.5, 2], off: 0 },
   { key: 'gain', label: 'Gain', steps: [0.3, 0.5, 0.7, 0.85, 1, 1.15, 1.3], off: 0 },
 ]
 
