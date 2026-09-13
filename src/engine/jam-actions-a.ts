@@ -594,6 +594,51 @@ function restoreIntensitySnap(snap: import('./intensity').IntensitySnap) {
   jam.setSpawnedPadId(snap.spawnedPad?.id ?? null)
 }
 
+/**
+ * When L1 kit-track codes change, re-derive those ids into cached L2/L3/L4 snaps
+ * so the next climb restores the new sound (e.g. snare sd→rim) without wiping
+ * unrelated in-level edits (L2 hat tweaks, L3 spawn).
+ */
+function patchHigherIntensitySnapsFromL1(
+  prevL1: import('./intensity').IntensitySnap | undefined,
+  newL1: import('./intensity').IntensitySnap,
+  opts?: { forceAll?: boolean },
+) {
+  const jam = useJamStore.getState()
+  const session = useSessionStore.getState()
+  const forceAll = opts?.forceAll === true
+  if (!forceAll && !prevL1) return
+  const prevCodes = new Map((prevL1?.codes ?? []).map((c) => [c.id, c.code]))
+  const changed: { id: string; code: string; role: TrackRole; keys: boolean }[] = []
+  for (const c of newL1.codes) {
+    if (!forceAll && prevCodes.get(c.id) === c.code) continue
+    const tr = session.tracks.find((t) => t.id === c.id)
+    if (!tr || tr.locked) continue
+    // Never rewrite the intensity spawn lane via L1 flow-through.
+    if (jam.spawnedPadId === c.id) continue
+    changed.push({ id: c.id, code: c.code, role: tr.role, keys: isKeysTrack(tr) })
+  }
+  if (!changed.length) return
+  for (const lvl of [2, 3, 4] as const) {
+    const snap = jam.intensitySnaps[lvl]
+    if (!snap) continue
+    const spawnId = snap.spawnedPad?.id ?? null
+    const codes = snap.codes.map((c) => ({ ...c }))
+    for (const ch of changed) {
+      if (spawnId && ch.id === spawnId) continue
+      const next = applyIntensityFromBase(ch.code, ch.role, lvl, {
+        root: jam.songRoot,
+        scale: jam.songScale,
+        keys: ch.keys,
+      })
+      const idx = codes.findIndex((c) => c.id === ch.id)
+      if (idx >= 0) codes[idx] = { id: ch.id, code: next }
+      else codes.push({ id: ch.id, code: next })
+    }
+    jam.saveIntensitySnap(lvl, { codes, spawnedPad: snap.spawnedPad })
+  }
+}
+
 function realizeIntensityLevel(target: IntensityLevel) {
   const jam = useJamStore.getState()
   const session = useSessionStore.getState()
@@ -606,7 +651,13 @@ function realizeIntensityLevel(target: IntensityLevel) {
         })()
       : null
   if (!jam.intensitySnaps[1]) {
-    jam.saveIntensitySnap(1, captureIntensitySnap(session.tracks, null))
+    const snap1 = captureIntensitySnap(session.tracks, null)
+    jam.saveIntensitySnap(1, snap1)
+    // Defensive: L1 missing but L2+ cached — flow current L1 into those snaps.
+    const higher = useJamStore.getState().intensitySnaps
+    if (higher[2] || higher[3] || higher[4]) {
+      patchHigherIntensitySnapsFromL1(undefined, snap1, { forceAll: true })
+    }
   }
   restoreIntensitySnap(useJamStore.getState().intensitySnaps[1]!)
   dropSpawnedPad()
@@ -646,8 +697,13 @@ function applyIntensityDir(
 
   const beforeIds = session.tracks.map((tr) => tr.id)
   const beforePad = liveSpawnedPad()
+  const prevL1 = from === 1 ? jam.intensitySnaps[1] : undefined
   const beforeSnap = captureIntensitySnap(session.tracks, beforePad)
   jam.saveIntensitySnap(from, beforeSnap)
+  // L1 code edits (e.g. snare sd→rim) must flow into cached L2+ before restore.
+  if (from === 1) {
+    patchHigherIntensitySnapsFromL1(prevL1, beforeSnap)
+  }
 
   // 3↔4: always realize so drums follow the level but the live spawn stays.
   if (intensityLevelsShareSpawn(from, to)) {
