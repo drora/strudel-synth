@@ -341,6 +341,11 @@ export type ImprovPadMix = {
   room?: number | null
   roomsize?: number | null
   delay?: number | null
+  delaytime?: number | null
+  attack?: number | null
+  decay?: number | null
+  sustain?: number | null
+  release?: number | null
 }
 
 export const IMPROV_MIX_DEFAULT: ImprovPadMix = { volume: 0.9, velocity: 0.85 }
@@ -348,17 +353,44 @@ export const IMPROV_MIX_DEFAULT: ImprovPadMix = { volume: 0.9, velocity: 0.85 }
 export const IMPROV_VOL_STEPS = [0, 0.25, 0.5, 0.75, 0.9, 1, 1.25, 1.5]
 export const IMPROV_VEL_STEPS = [0.3, 0.5, 0.7, 0.85, 1, 1.2]
 
+export type FxGroupId = 'reverb' | 'delay' | 'envelope'
+
+export const FX_GROUP_LABEL: Record<FxGroupId, string> = {
+  reverb: 'Reverb',
+  delay: 'Delay',
+  envelope: 'Envelope',
+}
+
+export function groupedFxControls<T extends { key: string; group?: FxGroupId }>(
+  controls: T[],
+): Array<{ group: FxGroupId | null; label: string | null; items: T[] }> {
+  const out: Array<{ group: FxGroupId | null; label: string | null; items: T[] }> = []
+  for (const c of controls) {
+    const g = c.group ?? null
+    const last = out[out.length - 1]
+    if (g && last && last.group === g) last.items.push(c)
+    else out.push({ group: g, label: g ? FX_GROUP_LABEL[g] : null, items: [c] })
+  }
+  return out
+}
+
 export const IMPROV_FX_CONTROLS: Array<{
-  key: keyof Pick<ImprovPadMix, 'lpf' | 'hpf' | 'room' | 'roomsize' | 'delay' | 'gain'>
+  key: keyof Pick<ImprovPadMix, 'lpf' | 'hpf' | 'room' | 'roomsize' | 'delay' | 'delaytime' | 'attack' | 'decay' | 'sustain' | 'release' | 'gain'>
   label: string
   steps: number[]
   off: number
+  group?: FxGroupId
 }> = [
   { key: 'lpf', label: 'LPF', steps: [200, 400, 800, 1200, 2000, 4000, 8000, 12000], off: 12000 },
   { key: 'hpf', label: 'HPF', steps: [20, 100, 200, 400, 800, 1600, 3200], off: 20 },
-  { key: 'room', label: 'Reverb', steps: [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2], off: 0 },
-  { key: 'roomsize', label: 'Room size', steps: [0.5, 1, 2, 3, 4], off: 0 },
-  { key: 'delay', label: 'Delay', steps: [0, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 1, 1.5, 2], off: 0 },
+  { key: 'attack', label: 'Attack', group: 'envelope', steps: [0.01, 0.05, 0.1, 0.2, 0.4, 0.8], off: -1 },
+  { key: 'decay', label: 'Decay', group: 'envelope', steps: [0.05, 0.1, 0.2, 0.4, 0.8, 1.5], off: -1 },
+  { key: 'sustain', label: 'Sustain', group: 'envelope', steps: [0, 0.25, 0.5, 0.75, 1], off: -1 },
+  { key: 'release', label: 'Release', group: 'envelope', steps: [0.05, 0.1, 0.2, 0.4, 0.8, 1.5], off: -1 },
+  { key: 'room', label: 'Reverb', group: 'reverb', steps: [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2], off: 0 },
+  { key: 'roomsize', label: 'Room size', group: 'reverb', steps: [0.5, 1, 2, 3, 4], off: 0 },
+  { key: 'delay', label: 'Delay', group: 'delay', steps: [0, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 1, 1.5, 2], off: 0 },
+  { key: 'delaytime', label: 'Time', group: 'delay', steps: [0.125, 0.25, 0.5, 0.75, 1], off: 0 },
   { key: 'gain', label: 'Gain', steps: [0.3, 0.5, 0.7, 0.85, 1, 1.15, 1.3], off: 0 },
 ]
 

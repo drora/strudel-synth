@@ -9,7 +9,7 @@ import {
 } from '../../engine/kits'
 import { soundChoicesForKit, improvSoundChoices } from '../../engine/kit-sound-choices'
 import { listMicSampleNames } from '../../engine/mic-sample'
-import { isPadsKeepTrack, setImprovVoiceInCode } from '../../engine/improv-plate'
+import { isPadsKeepTrack, setImprovVoiceInCode, groupedFxControls, type FxGroupId } from '../../engine/improv-plate'
 import {
   parseEffectValue,
   setEffectInCode,
@@ -28,12 +28,18 @@ const JAM_FX_CONTROLS: Array<{
   label: string
   steps: number[]
   unit?: string
+  group?: FxGroupId
 }> = [
   { key: 'lpf', label: 'LPF', steps: [200, 400, 800, 1200, 2000, 4000, 8000, 12000] },
   { key: 'hpf', label: 'HPF', steps: [20, 100, 200, 400, 800, 1600, 3200] },
-  { key: 'room', label: 'Reverb', steps: [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2] },
-  { key: 'roomsize', label: 'Room size', steps: [0.5, 1, 2, 3, 4] },
-  { key: 'delay', label: 'Delay', steps: [0, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 1, 1.5, 2] },
+  { key: 'attack', label: 'Attack', group: 'envelope', steps: [0.01, 0.05, 0.1, 0.2, 0.4, 0.8] },
+  { key: 'decay', label: 'Decay', group: 'envelope', steps: [0.05, 0.1, 0.2, 0.4, 0.8, 1.5] },
+  { key: 'sustain', label: 'Sustain', group: 'envelope', steps: [0, 0.25, 0.5, 0.75, 1] },
+  { key: 'release', label: 'Release', group: 'envelope', steps: [0.05, 0.1, 0.2, 0.4, 0.8, 1.5] },
+  { key: 'room', label: 'Reverb', group: 'reverb', steps: [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2] },
+  { key: 'roomsize', label: 'Room size', group: 'reverb', steps: [0.5, 1, 2, 3, 4] },
+  { key: 'delay', label: 'Delay', group: 'delay', steps: [0, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 1, 1.5, 2] },
+  { key: 'delaytime', label: 'Time', group: 'delay', steps: [0.125, 0.25, 0.5, 0.75, 1] },
   { key: 'gain', label: 'Gain', steps: [0.3, 0.5, 0.7, 0.85, 1, 1.15, 1.3] },
 ]
 
@@ -234,39 +240,51 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
 
         {sheetTab === 'fx' && (
           <div className="space-y-3">
-            {JAM_FX_CONTROLS.map((fx) => {
-              const current = parseEffectValue(live.code, fx.key)
-              const patterned = isPatternedEffect(live.code, fx.key)
+            {groupedFxControls(JAM_FX_CONTROLS).map((row) => {
+              const body = row.items.map((fx) => {
+                const current = parseEffectValue(live.code, fx.key)
+                const patterned = isPatternedEffect(live.code, fx.key)
+                return (
+                  <div key={fx.key}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[11px] font-medium text-text-muted">{fx.label}</span>
+                      <span className="text-[10px] text-text-muted">
+                        {patterned ? 'patterned' : current ?? '—'}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {fx.steps.map((v) => (
+                        <button
+                          key={v}
+                          type="button"
+                          disabled={patterned}
+                          onClick={() => applyFx(fx.key, v)}
+                          className={`min-h-9 px-2.5 rounded-lg text-[11px] border ${
+                            !patterned && current === v
+                              ? 'border-accent bg-accent/20 text-accent'
+                              : 'border-border text-text-muted'
+                          } disabled:opacity-40`}
+                          title={
+                            !patterned && current === v
+                              ? `Remove ${fx.label}`
+                              : `Set ${fx.label} ${v}`
+                          }
+                        >
+                          {v}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })
+              if (!row.group) return <div key={row.items[0]!.key}>{body}</div>
               return (
-                <div key={fx.key}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[11px] font-medium text-text-muted">{fx.label}</span>
-                    <span className="text-[10px] text-text-muted">
-                      {patterned ? 'patterned' : current ?? '—'}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {fx.steps.map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        disabled={patterned}
-                        onClick={() => applyFx(fx.key, v)}
-                        className={`min-h-9 px-2.5 rounded-lg text-[11px] border ${
-                          !patterned && current === v
-                            ? 'border-accent bg-accent/20 text-accent'
-                            : 'border-border text-text-muted'
-                        } disabled:opacity-40`}
-                        title={
-                          !patterned && current === v
-                            ? `Remove ${fx.label}`
-                            : `Set ${fx.label} ${v}`
-                        }
-                      >
-                        {v}
-                      </button>
-                    ))}
-                  </div>
+                <div
+                  key={row.group}
+                  className="rounded-xl border border-border px-2.5 py-2 space-y-2"
+                >
+                  <span className="text-[10px] font-medium text-text-muted">{row.label}</span>
+                  {body}
                 </div>
               )
             })}

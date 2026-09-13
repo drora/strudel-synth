@@ -18,6 +18,8 @@ import {
   smearFromHold,
   noteTransposeRate,
   isPadsKeepTrack,
+  groupedFxControls,
+  IMPROV_FX_CONTROLS,
   setImprovVoiceInCode,
 } from './improv-plate'
 import { improvLookahead, markImprovVoiceWarm } from './improv-trigger'
@@ -283,13 +285,32 @@ console.log('=== Improv plate smoke ===')
     lpf: 800,
     room: 0.6,
     roomsize: 2,
+    delay: 0.35,
+    delaytime: 0.5,
+    attack: 0.1,
+    decay: 0.2,
+    sustain: 0.75,
+    release: 0.4,
   })
   assert.match(kept, /\.lpf\(800\)/)
   assert.match(kept, /\.room\(0.6\)/)
   assert.match(kept, /\.roomsize\(2\)/)
+  assert.match(kept, /\.delay\(0.35\)/)
+  assert.match(kept, /\.delaytime\(0.5\)/)
+  assert.match(kept, /\.attack\(0.1\)/)
+  assert.match(kept, /\.decay\(0.2\)/)
+  assert.match(kept, /\.sustain\(0.75\)/)
+  assert.match(kept, /\.release\(0.4\)/)
   assert.match(kept, /\.gain\(0.7\)/)
   const keptVolOnly = applyImprovMixToCode('note("c4").sound("sine")', { volume: 0.5 })
   assert.doesNotMatch(keptVolOnly, /\.gain\(/)
+  const groups = groupedFxControls(IMPROV_FX_CONTROLS)
+  const rev = groups.find((g) => g.group === 'reverb')
+  const del = groups.find((g) => g.group === 'delay')
+  assert.deepEqual(rev?.items.map((c) => c.key), ['room', 'roomsize'])
+  assert.deepEqual(del?.items.map((c) => c.key), ['delay', 'delaytime'])
+  const env = groups.find((g) => g.group === 'envelope')
+  assert.deepEqual(env?.items.map((c) => c.key), ['attack', 'decay', 'sustain', 'release'])
   console.log('pad mix ok')
 }
 

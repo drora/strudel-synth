@@ -66,7 +66,7 @@ let getSoundFn: GetSoundFn | null = null
 let getCtrl: GetCtrlFn | null = null
 let warming: Promise<void> | null = null
 let token = 0
-let live: { gain: GainNode; stop?: (end: number) => void } | null = null
+let live: { gain: GainNode; stop?: (end: number) => void; releaseSec?: number } | null = null
 
 async function loadJamDough(): Promise<void> {
   const mod = await import('@strudel/web')
@@ -229,8 +229,9 @@ function fadeLive(ac: AudioContext) {
     const v = Math.max(g.value, 0.001)
     g.cancelScheduledValues(now)
     g.setValueAtTime(v, now)
-    g.exponentialRampToValueAtTime(0.0001, now + RELEASE_SEC)
-    cur.stop?.(now + RELEASE_SEC + 0.02)
+    const rel = Math.max(0.02, cur.releaseSec ?? RELEASE_SEC)
+    g.exponentialRampToValueAtTime(0.0001, now + rel)
+    cur.stop?.(now + rel + 0.02)
   } catch {
     /* */
   }
@@ -256,11 +257,23 @@ async function beginHold(
   }
   const hap = resolveHap(note, voice, mix)
   hap.duration = HOLD_SEC
-  hap.sustain = 1
   const s = String(hap.s ?? '')
   const vox = /^(hmm|speechless|breath|diphone|yeah|mouth|kurt)$/.test(s)
-  hap.attack = vox ? 0.06 : 0.005
-  hap.release = RELEASE_SEC
+  const attack =
+    isImprovFxOn('attack', mix.attack) && mix.attack != null
+      ? mix.attack
+      : vox
+        ? 0.06
+        : 0.005
+  const release =
+    isImprovFxOn('release', mix.release) && mix.release != null
+      ? mix.release
+      : RELEASE_SEC
+  hap.attack = attack
+  if (isImprovFxOn('decay', mix.decay) && mix.decay != null) hap.decay = mix.decay
+  hap.sustain =
+    isImprovFxOn('sustain', mix.sustain) && mix.sustain != null ? mix.sustain : 1
+  hap.release = release
   hap.velocity = velocity
   const sound = getSoundFn(s)
   const t = ac.currentTime + improvLookahead(s)
@@ -300,7 +313,7 @@ async function beginHold(
   const gain = ac.createGain()
   const amp = Math.max(0.001, (mix.volume || 0.9) * velocity)
   gain.gain.setValueAtTime(0.0001, t)
-  gain.gain.exponentialRampToValueAtTime(amp, t + (vox ? 0.04 : 0.012))
+  gain.gain.exponentialRampToValueAtTime(amp, t + Math.max(0.008, Math.min(attack, 0.4)))
   node.connect(gain)
 
   try {
@@ -315,14 +328,18 @@ async function beginHold(
       orbit.sendReverb(gain, mix.room)
     }
     if (orbit && isImprovFxOn('delay', mix.delay) && mix.delay != null) {
-      orbit.getDelay(0.25, 0.45, t)
+      const time =
+        isImprovFxOn('delaytime', mix.delaytime) && mix.delaytime != null
+          ? mix.delaytime
+          : 0.25
+      orbit.getDelay(time, 0.45, t)
       orbit.sendDelay(gain, mix.delay)
     }
   } catch {
     gain.connect(ac.destination)
   }
 
-  live = { gain, stop: handle.stop }
+  live = { gain, stop: handle.stop, releaseSec: release }
   markImprovVoiceWarm(s)
   if (s.startsWith('jam_mic_')) {
     const take = micSampleDuration(s)
