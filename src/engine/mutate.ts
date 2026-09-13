@@ -145,7 +145,7 @@ function bumpEuclidCalls(code: string): string {
 }
 
 const KICK_RE = /^(bd|kick|bassdrum|lt|kick:|bd:)/i
-const HAT_RE = /^(hh|oh|ch|ph|hat|shaker|sh|rim|clap|cp|hc|ride|rd|cr)/i
+const HAT_RE = /^(hh|oh|ch|ph|hat|shaker|sh|hc|ride|rd|cr)/i
 
 export function isKickish(tok: string): boolean {
   const { base } = stripMul(tok)
@@ -159,7 +159,7 @@ function isHatish(tok: string): boolean {
   return HAT_RE.test(bare)
 }
 
-const SNARE_RE = /^(sd|sn|snare|sd:|sn:)/i
+const SNARE_RE = /^(sd|sn|snare|rim|rs|rimshot|cp|clap)/i
 
 export function isSnareish(tok: string): boolean {
   const { base } = stripMul(tok)

@@ -225,6 +225,14 @@ console.log('  catalog: 15 transforms; half/double/intensity song-scoped')
   assert.equal(applyIntensityFromBase(sparseKicks, 'drums', 4), 's("bd ~ bd ~")')
   assert.equal(applyIntensityFromBase('s("bd ~ ~ ~ bd ~ ~ ~")', 'drums', 4), 's("bd ~ bd ~ bd ~ bd ~")')
 
+  // L4 snare-family densifies rim/rs/clap like sd
+  assert.equal(applyIntensityFromBase('s("rim ~ ~ ~")', 'drums', 4), 's("rim ~ rim ~")')
+  assert.equal(applyIntensityFromBase('s("~ rim ~ ~")', 'drums', 4), 's("~ rim ~ rim")')
+  assert.equal(applyIntensityFromBase('s("cp ~ ~ ~")', 'drums', 4), 's("cp ~ cp ~")')
+  assert.ok(isSnareish('rim') && isSnareish('rs') && isSnareish('rimshot') && isSnareish('cp') && isSnareish('clap'))
+  // L2 hat-fill must not treat rim as a hat
+  assert.equal(applyIntensityFromBase('s("rim ~ ~ ~")', 'drums', 2), 's("rim ~ ~ ~")')
+
   const l4 = applyIntensityFromBase(drums, 'drums', 4)
   assert.ok(/hh/.test(l4), `L4 hats stay dense: ${l4}`)
 
