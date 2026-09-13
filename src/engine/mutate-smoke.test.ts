@@ -23,6 +23,9 @@ import {
   transformTo8,
   fillSilences,
   applyIntensityFromBase,
+  doubleImmediate,
+  isKickish,
+  isSnareish,
 } from './mutate'
 import {
   clampIntensity,
@@ -201,16 +204,21 @@ console.log('  catalog: 15 transforms; half/double/intensity song-scoped')
   assert.ok(!/\.gain\(/.test(l2) && !/\.room\(/.test(l2), `L2 no mush FX: ${l2}`)
   const l3 = applyIntensityFromBase(drums, 'drums', 3)
   assert.equal(l3, l2, 'L3 spawn is jam-actions, not pattern')
+  assert.deepEqual(doubleImmediate(['bd', '~', '~', '~'], isKickish), ['bd', '~', 'bd', '~'])
+  assert.deepEqual(doubleImmediate(['~', 'sd', '~', '~'], isSnareish), ['~', 'sd', '~', 'sd'])
+  assert.equal(applyIntensityFromBase('s("bd*2")', 'drums', 4), 's("bd*4")')
+  assert.equal(applyIntensityFromBase('s("bd*4")', 'drums', 4), 's("bd*8")')
+
+  const sparseKicks = 's("bd ~ ~ ~")'
+  assert.equal(applyIntensityFromBase(sparseKicks, 'drums', 4), 's("bd ~ bd ~")')
+  assert.equal(applyIntensityFromBase('s("bd ~ ~ ~ bd ~ ~ ~")', 'drums', 4), 's("bd ~ bd ~ bd ~ bd ~")')
+
   const l4 = applyIntensityFromBase(drums, 'drums', 4)
-  assert.ok(
-    l4.includes('bd bd') || !l4.includes('bd ~'),
-    `L4 kick filled: ${l4}`,
-  )
-  assert.ok(
-    l4.includes('sd sd') || !l4.includes('sd ~'),
-    `L4 snare filled: ${l4}`,
-  )
   assert.ok(/hh/.test(l4), `L4 hats stay dense: ${l4}`)
+
+  const perc = 's("~ sd ~ ~")'
+  assert.equal(applyIntensityFromBase(perc, 'fx', 2), perc)
+  assert.equal(applyIntensityFromBase(perc, 'fx', 4), 's("~ sd ~ sd")')
 
   const bass = 'note("c2 ~ g2 ~").sound("sawtooth")'
   assert.equal(applyIntensityFromBase(bass, 'bass', 2), bass)
@@ -241,7 +249,7 @@ console.log('  catalog: 15 transforms; half/double/intensity song-scoped')
 
   const pad = 'note("c3 eb3 g3").sound("triangle").gain(0.6)'
   assert.equal(applyIntensityFromBase(pad, 'pad', 4), pad)
-  console.log('  intensity: 1 as-is · 2 hats fill/bump · 3 same · 4 bd+sd+bass-walk; no mush')
+  console.log('  intensity: 1 as-is · 2 hats fill/bump · 3 same · 4 double bd+sd (not every step) + perc snares; bass walk @0.5')
 }
 
 {

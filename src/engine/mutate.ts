@@ -49,7 +49,7 @@ export const MUTATIONS: readonly MutateDef[] = [
   { id: 'reverse', label: 'Reverse', hint: 'Flip the pattern', scope: 'track' },
   { id: 'every-other', label: 'Every other', hint: 'Keep alternate hits', scope: 'track' },
   { id: 'double-time', label: 'Double-time', hint: 'Tighten feel · all tracks', scope: 'song' },
-  { id: 'intensity-up', label: 'Intensity+', hint: '1 as-is · 2 hats fill gaps · 3 pad → arp → keys → fx · 4 bd+sd + bass walk @0.5', scope: 'song' },
+  { id: 'intensity-up', label: 'Intensity+', hint: '1 as-is · 2 hats fill gaps · 3 pad → arp → keys → fx · 4 bd ~ ~ ~ → bd ~ bd ~ · *N→*2N · perc snares; bass walk @0.5', scope: 'song' },
   { id: 'intensity-down', label: 'Intensity−', hint: 'wind down those same steps', scope: 'song' },
 ] as const
 
@@ -119,7 +119,7 @@ function withMul(base: string, mul: number | null): string {
 const KICK_RE = /^(bd|kick|bassdrum|lt|kick:|bd:)/i
 const HAT_RE = /^(hh|oh|ch|ph|hat|shaker|sh|rim|clap|cp|hc|ride|rd|cr)/i
 
-function isKickish(tok: string): boolean {
+export function isKickish(tok: string): boolean {
   const { base } = stripMul(tok)
   const bare = base.replace(/^\[|\]$/g, '').split(/[,\s]/)[0] ?? base
   return KICK_RE.test(bare)
@@ -131,12 +131,18 @@ function isHatish(tok: string): boolean {
   return HAT_RE.test(bare)
 }
 
-const SNARE_RE = /^(sd|sn|snare)/i
+const SNARE_RE = /^(sd|sn|snare|sd:|sn:)/i
 
-function isSnareish(tok: string): boolean {
+export function isSnareish(tok: string): boolean {
   const { base } = stripMul(tok)
   const bare = base.replace(/^\[|\]$/g, '').split(/[,\s]/)[0] ?? base
   return SNARE_RE.test(bare)
+}
+
+function isClapish(tok: string): boolean {
+  const { base } = stripMul(tok)
+  const bare = base.replace(/^\[|\]$/g, '').split(/[,\s]/)[0] ?? base
+  return /^(cp|clap)/i.test(bare)
 }
 
 /** Sparse: turn every other non-rest into ~ (keep first of each pair). */
@@ -695,6 +701,48 @@ export function fillSilences(tokens: string[], pred: (tok: string) => boolean): 
   return out
 }
 
+/**
+ * Double a voice in place: extra hit halfway to the next same-voice hit
+ * (wraps). Only writes into rests — never overwrites. *N → *2N (cap 16).
+ * bd ~ ~ ~ → bd ~ bd ~    ~ sd ~ ~ → ~ sd ~ sd    bd*4 → bd*8
+ */
+export function doubleImmediate(tokens: string[], pred: (tok: string) => boolean): string[] {
+  if (tokens.length === 0) return tokens
+
+  const densified = tokens.map((t) => {
+    const g = parseBracketGroup(t)
+    if (!g) return t
+    const inner = tokenizeMini(g.inner)
+    if (inner.length > 1 || inner.some(isRest)) {
+      return rebuildBracketGroup(g, doubleImmediate(inner, pred))
+    }
+    return t
+  })
+
+  const n = densified.length
+  const out = densified.map((t) => {
+    if (isRest(t) || !pred(t)) return t
+    const { base, mul } = stripMul(t)
+    if (mul != null) return withMul(base, Math.min(16, mul * 2))
+    return t
+  })
+
+  const idxs: number[] = []
+  for (let i = 0; i < n; i++) {
+    const t = densified[i]!
+    if (!isRest(t) && pred(t) && stripMul(t).mul == null) idxs.push(i)
+  }
+  if (idxs.length === 0) return out
+
+  for (let k = 0; k < idxs.length; k++) {
+    const i = idxs[k]!
+    const next = k + 1 < idxs.length ? idxs[k + 1]! : idxs[0]! + n
+    const mid = (i + Math.floor((next - i) / 2)) % n
+    if (mid !== i && isRest(out[mid]!)) out[mid] = densified[i]!
+  }
+  return out
+}
+
 export type BassWalkOpts = {
   root?: string
   scale?: ScaleKind
@@ -856,9 +904,13 @@ export function applyIntensityFromBase(
       if (role === 'hihats' && level >= 2) return fillSilences(toks, (t) => !isRest(t))
       if (role === 'drums') {
         if (level >= 4) {
-          return fillSilences(toks, (t) => isHatish(t) || isKickish(t) || isSnareish(t))
+          const doubled = doubleImmediate(toks, (t) => isKickish(t) || isSnareish(t))
+          return fillSilences(doubled, isHatish)
         }
         if (level >= 2) return fillSilences(toks, isHatish)
+      }
+      if (role === 'fx' && level >= 4) {
+        return doubleImmediate(toks, (t) => isKickish(t) || isSnareish(t) || isClapish(t))
       }
       if (role === 'bass' && level >= 4) return enrichBassWalk(toks, harmony)
       return null
