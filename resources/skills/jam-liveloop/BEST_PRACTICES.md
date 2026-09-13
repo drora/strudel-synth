@@ -1,7 +1,23 @@
 # Jam liveloop — best practices
 
 Kit **shuffle profile** knowledge only — never song titles or cover charts.
-Partner rules (WebMCP-only, header taps, intensity, hard rules): see [SKILL.md](./SKILL.md).
+Partner how-to (room, levers, Strudel lookups, hard rules): see [SKILL.md](./SKILL.md).
+
+## Before you write code
+
+Call **`search_strudel_docs`** / **`get_reference`** first — don’t invent API. Official pages (same list as SKILL.md §3):
+
+- Mini-notation https://strudel.cc/learn/mini-notation/
+- Samples / banks https://strudel.cc/learn/samples/
+- Effects https://strudel.cc/learn/effects/
+- First effects https://strudel.cc/workshop/first-effects/
+- Synths / notes https://strudel.cc/learn/synths/
+- Code syntax https://strudel.cc/learn/code/
+- Signals https://strudel.cc/learn/signals/
+- Time / structure https://strudel.cc/learn/time-spans/
+- Tempo (prefer `set_bpm`, not `setcps`) https://strudel.cc/learn/factories/
+
+Also: `get_samples` (match kit `drumsBank`), `get_scales_and_chords`. Double quotes = mini-notation; single quotes = plain strings.
 
 ## Mini-notation tips
 
@@ -21,22 +37,6 @@ Kits are **identity + shuffle profile**, not frozen recipes. Profile fields: `gr
 - Hand `update_track` edits must stay coherent with `get_kit` (read jam state first).
 - Prefer shuffle / re-apply for variety over pasting a "classic" pattern as THE kit.
 
-## Shuffle vs Spice vs Mutate vs Intensity
-
-| | Shuffle | Spice | Mutate | Intensity |
-|-|---------|-------|--------|-----------|
-| Intent | Fresh pattern in profile | FX/timbre nudge | Deterministic pattern transform | Density ladder 1–4 |
-| Tool | `shuffle_sounds` / `apply_kit` | `spice` | `apply_mutate` | `intensity-up` / `intensity-down` only |
-| Keeps tune shape? | No (new lines) | Yes | Partially | Rebuilds from L1 |
-
-Never stack these in one turn. See SKILL.md for the intensity talk-recipe (do not hand-write L2–L4).
-
-## Familiar → kit
-
-1. `list_kits` → `get_kit` — match vibe, `drumsBank`, shuffle groove/density/scale/root.
-2. Starting points: punchy four-on-floor → techno + `four_on_floor` + 909/808; dusty boom-bap → lofi + breakbeat/halftime; airy pads → ambient + sparse; classic house → house + `four_on_floor`.
-3. `apply_kit`, then `shuffle_sounds` or soft in-profile `update_track` if close — never invent frozen recipes or cover recreations.
-
 ## Common mistakes
 
 | Mistake | Fix |
@@ -52,6 +52,7 @@ Never stack these in one turn. See SKILL.md for the intensity talk-recipe (do no
 | Faking mic Rec | Report `mic_status`; user taps Rec |
 | Faking Import / Export / Take | Header taps only — no tools; Take ≠ Rec; do not `set_song_harmony` to “restore” |
 | Editing walk chips as targets | Display-only concert names — use `set_song_harmony` for key/scale |
+| Inventing Strudel API | `get_reference` / `search_strudel_docs` first (see URLs above) |
 
 ## Phone Jam constraints
 
@@ -66,7 +67,7 @@ Never stack these in one turn. See SKILL.md for the intensity talk-recipe (do no
 playing + melodic/rhythmic edit  → quantization "1"
 big groove rewrite / kit-like    → "2" (or apply_kit / shuffle_sounds)
 mute / solo / volume / remove    → immediate (tools do this)
-stopped                          → store update only (no queue)
+stopped                          → store update only (no audio)
 ```
 
 ## Kit collision naming
@@ -76,12 +77,9 @@ stopped                          → store update only (no queue)
 - Soft tags: `tempo:slow|mid|fast`, `bank:909`, `vibe:techno`.
 - Prefer per-track **Lock** (`set_track_lock`) for pinning lanes.
 
-## Spice
+## Spice / Mutate / Intensity
 
-- **Spice** = one FX/timbre nudge on existing code.
-- **Spice ≠ Shuffle** — same tune; never pattern rewrite, denser/sparser groove, bank swap, or `shuffle_sounds`.
-- Peek: `Spice · room` / `Spice · darker`. Undo via `undo_jam`.
-- **Mutate** is a pattern-transform sheet (not Shuffle/Spice).
+See SKILL.md §2 — one lever per turn. Spice = FX nudge; Mutate = pattern transform; Intensity = up/down only (never hand-write L2–L4).
 
 ## Undo
 
