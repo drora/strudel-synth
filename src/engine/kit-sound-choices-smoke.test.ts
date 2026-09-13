@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict'
 import { getKit } from './kits'
-import { soundChoicesForKit } from './kit-sound-choices'
+import { soundChoicesForKit, pickRandomSoundChoice } from './kit-sound-choices'
 import { matchSoundChoice, applySoundChoiceToCode } from './kits'
 import { getSoundFromCode } from './code-effects'
 import { SOUND_CHOICES } from './kits-sound-choices'
@@ -133,4 +133,16 @@ assert.deepEqual(
 )
 assert.ok(!vox.some((c) => ['mouth', 'yeah', 'auto'].includes(c.sound ?? '')))
 
-console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, nobank dirt, bank fallback, match/apply, vox vocals')
+const leadList = soundChoicesForKit('lead', punch)
+const seen = new Set<string>()
+for (let i = 0; i < 40; i++) {
+  const c = pickRandomSoundChoice('lead', punch)
+  assert.ok(c && leadList.some((x) => x.id === c.id), `pick in kit list ${c?.id}`)
+  seen.add(c!.id)
+}
+assert.ok(seen.size >= 2, `+ Track voice variety ${seen.size}`)
+const first = leadList[0]!.id
+const other = pickRandomSoundChoice('lead', punch, [first])
+assert.ok(other && other.id !== first, 'prefer unused sound id')
+
+console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, nobank dirt, bank fallback, match/apply, vox vocals, +Track random voice')

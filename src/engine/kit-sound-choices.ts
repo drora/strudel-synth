@@ -194,6 +194,20 @@ export function soundChoicesForKit(role: TrackRole, kit: Kit | null | undefined)
   return SOUND_CHOICES[role] ?? SOUND_CHOICES.custom
 }
 
+/** Random Sound-sheet tile for + Track. Prefers ids not in `avoidIds`. */
+export function pickRandomSoundChoice(
+  role: TrackRole,
+  kit: Kit | null | undefined,
+  avoidIds?: Iterable<string>,
+): SoundChoice | null {
+  const choices = soundChoicesForKit(role, kit).filter((c) => c.sound || c.bank)
+  if (!choices.length) return null
+  const avoid = new Set(avoidIds)
+  const unused = choices.filter((c) => !avoid.has(c.id))
+  const pool = unused.length ? unused : choices
+  return pool[Math.floor(Math.random() * pool.length)] ?? null
+}
+
 const IMPROV_ROLES: TrackRole[] = ['lead', 'pad', 'arp', 'vox', 'custom', 'bass']
 
 /**
