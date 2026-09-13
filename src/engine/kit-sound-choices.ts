@@ -251,3 +251,20 @@ export function improvSoundChoices(
 
   return out
 }
+
+/** Visit-first Pads voice: kit melodic list, skip Rec buffers. */
+export function pickRandomImprovVoice(
+  kit: Kit | null | undefined,
+  avoid?: string,
+): string | null {
+  const choices = improvSoundChoices(kit).filter(
+    (c) => c.sound && !c.sound.startsWith('jam_mic_'),
+  )
+  if (!choices.length) return null
+  const pool = avoid
+    ? choices.filter((c) => c.sound !== avoid && c.id !== avoid)
+    : choices
+  const use = pool.length ? pool : choices
+  return use[Math.floor(Math.random() * use.length)]!.sound ?? null
+}
+

@@ -21,7 +21,7 @@ import {
 import { liveUpdateEngine, type Quantization } from './live-update'
 import { applyMutateToTracks, getMutation, type MutateId } from './mutate'
 import { planShuffleTargets } from './shuffle-lock'
-import { pickRandomSoundChoice, soundChoicesForKit } from './kit-sound-choices'
+import { pickRandomSoundChoice, pickRandomImprovVoice, soundChoicesForKit } from './kit-sound-choices'
 
 export type JamQueueReason = 'kit' | 'jam' | 'reshuffle' | 'mute-solo'
 
@@ -342,6 +342,11 @@ export function freshStartJam(): FreshStartResult {
       kitName = preferred.name
     }
     // applyKit already generated — do not reshuffle again.
+    // Same as root/scale: one random Pads voice this visit, then user setting sticks.
+    const afterKit = useJamStore.getState()
+    const voiceKit = afterKit.kitId ? getKit(afterKit.kitId) : preferred
+    const voice = pickRandomImprovVoice(voiceKit, afterKit.improvVoice)
+    if (voice) afterKit.setImprovVoice(voice)
   } else {
     // Tracks exist → song Shuffle only (new seed, keep kit).
     shuffled = reshuffleUnlocked().shuffled

@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict'
 import { getKit } from './kits'
-import { soundChoicesForKit, pickRandomSoundChoice } from './kit-sound-choices'
+import { soundChoicesForKit, pickRandomSoundChoice, pickRandomImprovVoice, improvSoundChoices } from './kit-sound-choices'
 import { matchSoundChoice, applySoundChoiceToCode } from './kits'
 import { getSoundFromCode } from './code-effects'
 import { SOUND_CHOICES } from './kits-sound-choices'
@@ -145,4 +145,15 @@ const first = leadList[0]!.id
 const other = pickRandomSoundChoice('lead', punch, [first])
 assert.ok(other && other.id !== first, 'prefer unused sound id')
 
-console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, nobank dirt, bank fallback, match/apply, vox vocals, +Track random voice')
+const padList = improvSoundChoices(punch).filter((c) => c.sound && !c.sound.startsWith('jam_mic_'))
+const padSeen = new Set<string>()
+for (let i = 0; i < 40; i++) {
+  const v = pickRandomImprovVoice(punch)
+  assert.ok(v && padList.some((c) => c.sound === v), `pads voice in kit list ${v}`)
+  padSeen.add(v!)
+}
+assert.ok(padSeen.size >= 2, `visit pad voice variety ${padSeen.size}`)
+const avoidSaw = pickRandomImprovVoice(punch, 'sawtooth')
+assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
+
+console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, nobank dirt, bank fallback, match/apply, vox vocals, +Track random voice, visit pad voice')
