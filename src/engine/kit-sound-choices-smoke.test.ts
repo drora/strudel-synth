@@ -8,6 +8,7 @@ import { soundChoicesForKit, pickRandomSoundChoice, pickRandomImprovVoice, impro
 import { matchSoundChoice, applySoundChoiceToCode } from './kits'
 import { getSoundFromCode } from './code-effects'
 import { SOUND_CHOICES } from './kits-sound-choices'
+import { HIDDEN_PITCHED_CHOICES } from './kits-sound-choices-melodic'
 
 console.log('=== Kit sound choices smoke ===')
 
@@ -155,5 +156,14 @@ for (let i = 0; i < 40; i++) {
 assert.ok(padSeen.size >= 2, `visit pad voice variety ${padSeen.size}`)
 const avoidSaw = pickRandomImprovVoice(punch, 'sawtooth')
 assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
+
+{
+  const needed = ['vibraphone', 'harmonica', 'balafon_hard', 'xylophone_hard_ff']
+  for (const s of needed) {
+    assert.ok(HIDDEN_PITCHED_CHOICES.some((c) => c.sound === s), `hidden ${s}`)
+    assert.ok(SOUND_CHOICES.lead.some((c) => c.sound === s), `lead has ${s}`)
+  }
+  assert.equal(HIDDEN_PITCHED_CHOICES.length, 37)
+}
 
 console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, nobank dirt, bank fallback, match/apply, vox vocals, +Track random voice, visit pad voice')
