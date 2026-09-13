@@ -19,7 +19,7 @@ import {
   shiftNotesByOctaves,
 } from './note-harmony'
 import { liveUpdateEngine, type Quantization } from './live-update'
-import { applyIntensityFromBase, applyMutateToTracks, getMutation, type MutateId } from './mutate'
+import { applyIntensityFromBase, applyIntensityL4Layer, applyMutateToTracks, getMutation, type MutateId } from './mutate'
 import { planShuffleTargets } from './shuffle-lock'
 import { pickRandomSoundChoice, pickRandomImprovVoice, soundChoicesForKit } from './kit-sound-choices'
 import type { Track } from './types'
@@ -642,7 +642,7 @@ function patchHigherIntensitySnapsFromL1(
 function realizeIntensityLevel(target: IntensityLevel) {
   const jam = useJamStore.getState()
   const session = useSessionStore.getState()
-  // Keep live L3 spawn across 3↔4 (copy before L1 restore drops it).
+  // Keep live L3 spawn across 3↔4 (copy before base restore drops it).
   const kept: Track | null =
     target >= 3
       ? (() => {
@@ -659,28 +659,92 @@ function realizeIntensityLevel(target: IntensityLevel) {
       patchHigherIntensitySnapsFromL1(undefined, snap1, { forceAll: true })
     }
   }
-  restoreIntensitySnap(useJamStore.getState().intensitySnaps[1]!)
-  dropSpawnedPad()
-  if (target <= 1) return
-  const fresh = useSessionStore.getState()
-  for (const tr of fresh.tracks) {
-    if (tr.locked) continue
-    if (kept && tr.id === kept.id) continue
-    const next = applyIntensityFromBase(tr.code, tr.role, target, { root: jam.songRoot, scale: jam.songScale, keys: isKeysTrack(tr) })
-    if (next !== tr.code) fresh.setCode(tr.id, next)
+
+  const snaps = () => useJamStore.getState().intensitySnaps
+  const harmonyFor = (tr: Track) => ({
+    root: jam.songRoot,
+    scale: jam.songScale,
+    keys: isKeysTrack(tr),
+  })
+
+  /** Restore L2 pattern base (snap[2] with hat edits), else L1 + hat densify. */
+  const restoreL2Base = () => {
+    const s2 = snaps()[2]
+    if (s2) {
+      restoreIntensitySnap(s2)
+      dropSpawnedPad()
+      return
+    }
+    restoreIntensitySnap(snaps()[1]!)
+    dropSpawnedPad()
+    const fresh = useSessionStore.getState()
+    for (const tr of fresh.tracks) {
+      if (tr.locked) continue
+      if (kept && tr.id === kept.id) continue
+      const next = applyIntensityFromBase(tr.code, tr.role, 2, harmonyFor(tr))
+      if (next !== tr.code) fresh.setCode(tr.id, next)
+    }
   }
-  if (target >= 3) {
+
+  /** Re-attach kept live spawn (edits persist) or spawn a new L3 lane. */
+  const ensureSpawn = () => {
     if (kept) {
       if (!useSessionStore.getState().tracks.some((tr) => tr.id === kept.id)) {
         useSessionStore.getState().addTrack({ ...kept, id: kept.id })
+      } else {
+        // Ensure kept code/Sound/octave wins over any snap restore.
+        useSessionStore.getState().setCode(kept.id, kept.code)
       }
       useJamStore.getState().setSpawnedPadId(kept.id)
-      // Do not rewrite kept code (user edits / Sound / octave persist).
+      // Do not rewrite kept code via densify (user edits / Sound / octave persist).
     } else {
-      // Always spawn at recipe L3 — never pass 4 into applyIntensityFromBase for a new spawn.
+      // Always spawn at recipe L3 — never densify a new spawn as L4.
       spawnIntensityLane(3)
     }
   }
+
+  if (target <= 1) {
+    restoreIntensitySnap(snaps()[1]!)
+    dropSpawnedPad()
+    return
+  }
+
+  if (target === 2) {
+    restoreL2Base()
+    return
+  }
+
+  if (target === 3) {
+    // Prefer snap[3] so L3 in-level kit edits return on 4→3; else L2 + spawn.
+    const s3 = snaps()[3]
+    if (s3) {
+      restoreIntensitySnap(s3)
+      dropSpawnedPad()
+    } else {
+      restoreL2Base()
+    }
+    ensureSpawn()
+    return
+  }
+
+  // target === 4: L3 base + L4 densify layer only (no hat/euclid re-run).
+  const s3 = snaps()[3]
+  if (s3) {
+    restoreIntensitySnap(s3)
+    dropSpawnedPad()
+  } else {
+    restoreL2Base()
+  }
+  {
+    const fresh = useSessionStore.getState()
+    for (const tr of fresh.tracks) {
+      if (tr.locked) continue
+      if (kept && tr.id === kept.id) continue
+      const next = applyIntensityL4Layer(tr.code, tr.role, harmonyFor(tr))
+      if (next !== tr.code) fresh.setCode(tr.id, next)
+    }
+  }
+  ensureSpawn()
 }
 
 function applyIntensityDir(

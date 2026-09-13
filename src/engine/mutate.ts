@@ -927,14 +927,52 @@ export function enrichBassWalk(tokens: string[], opts?: BassWalkOpts): string[] 
   return out
 }
 
-/** Rebuild intensity pattern from a level-1 generate. Never stacks; no mush FX. */
+/**
+ * L4 densify layer only (kick/snare double, bass/keys walk, fx snare-family).
+ * No hat fillSilences, no bumpEuclidCalls — for stacking on L3 (= L2 hats + spawn).
+ */
+export function applyIntensityL4Layer(
+  code: string,
+  role: TrackRole,
+  harmony?: BassWalkOpts,
+): string {
+  return mapIntensityBodies(
+    code,
+    (toks) => {
+      if (role === 'drums') {
+        return doubleImmediate(toks, (t) => isKickish(t) || isSnareish(t))
+      }
+      if (role === 'fx') {
+        return doubleImmediate(toks, (t) => isKickish(t) || isSnareish(t) || isClapish(t))
+      }
+      if (role === 'bass' || harmony?.keys) return enrichBassWalk(toks, harmony)
+      return null
+    },
+    (toks) => {
+      if (role === 'bass' || harmony?.keys) return enrichBassWalk(toks, harmony)
+      return null
+    },
+  )
+}
+
+/**
+ * Rebuild intensity pattern from a level-1 generate (L1→L2 hats, L1→L4 hats+densify).
+ * Prefer applyIntensityL4Layer when stacking L4 on an L3/L2 base (do not re-run hats).
+ * No mush FX.
+ */
 export function applyIntensityFromBase(
   code: string,
   role: TrackRole,
   level: IntensityLevel,
-  harmony?: BassWalkOpts,
+  harmony?: BassWalkOpts & { from?: IntensityLevel },
 ): string {
   if (level <= 1) return code
+  const from = harmony?.from ?? 1
+  // Already at L2/L3 pattern base: only apply L4 densify layer (no hats/euclid).
+  if (from >= 2) {
+    if (level >= 4) return applyIntensityL4Layer(code, role, harmony)
+    return code
+  }
   let next = mapIntensityBodies(
     code,
     (toks) => {

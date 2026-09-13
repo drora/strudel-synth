@@ -1,14 +1,14 @@
 /**
- * Jam song intensity — 4 discrete levels rebuilt from the level-1 generate (never stacked).
+ * Jam song intensity — chained levels (not independent rebuilds from L1).
  * No gain/LPF/reverb/delay mush. Kit / New kit / Shuffle reset to 1.
  *
  * 1 — as-is. Song as generated. No pattern change, no FX.
- * 2 — double hats only. Hats densify (8→16 fill). Kick, snare, bass, pads, lead stay.
- * 3 — pad → arp → keys → fx cascade (one spawn). Hats stay doubled. First missing role in
- *     that order; keys = a lead lane named Keys; fx even if an FX track already exists.
- *     Going back to 2 drops only the spawned lane.
- * 4 — densify kick/snare/bass/hats from L1. L4 keeps the L3 spawn (shared); does not reshuffle it.
- *     Edits on that lane persist across 3↔4.
+ * 2 — L1 + hat densify (8→16 fill / euclid bump). Kick, snare, bass, pads, lead stay.
+ *     In-level hat edits are kept in snap[2] and ride into L3/L4.
+ * 3 — L2 + pad → arp → keys → fx cascade (one spawn). No extra pattern densify.
+ *     Going back to 2 drops only the spawned lane. Pad/spawn edits persist 3↔4.
+ * 4 — L3 + kick/snare/bass/keys/fx densify only (no hat/euclid re-run). Same L3 spawn
+ *     (shared; no reshuffle). Edits on that lane persist across 3↔4.
  */
 import type { Track } from './types'
 

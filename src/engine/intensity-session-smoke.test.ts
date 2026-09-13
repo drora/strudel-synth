@@ -1,5 +1,6 @@
 /**
- * Intensity L3/L4 shared spawn + L1 code edits flowing into cached L2+.
+ * Intensity L3/L4 shared spawn, L2 hat edits riding to L3/L4, L4-on-L3 densify,
+ * + L1 code edits flowing into cached L2+.
  * Run: npx --yes tsx src/engine/intensity-session-smoke.test.ts
  * Or:  npm run test:intensity-session
  */
@@ -45,6 +46,7 @@ const { useSessionStore } = await import('../store/session-store.ts')
 const { useJamStore } = await import('../store/jam-store.ts')
 const { applyKit, applyMutate } = await import('./jam-actions.ts')
 const { KITS } = await import('./kits.ts')
+const { applyIntensityL4Layer } = await import('./mutate.ts')
 
 {
   const kit = KITS.find((k) => !k.tracks.some((t) => t.role === 'pad')) ?? KITS[0]!
@@ -173,6 +175,100 @@ const { KITS } = await import('./kits.ts')
   assert.ok(/\brim\b/.test(at4.code), `L4 drums rim, got: ${at4.code}`)
 
   console.log('  L1 snare edit (sd/cp→rim) flows into cached L2+; spawn unchanged')
+}
+
+
+
+{
+  // L2 hat edits must ride into L3/L4; L3 kit edits ride into L4; 4→3 drops densify.
+  const kit =
+    KITS.find(
+      (k) =>
+        k.tracks.some((t) => t.role === 'hihats' || (t.role === 'drums' && /\b(hh|oh|ch)\b/.test(t.code ?? ''))) &&
+        k.tracks.some((t) => t.role === 'drums'),
+    ) ?? KITS[0]!
+  const applied = applyKit(kit.id, { fromPicker: true })
+  assert.equal(applied.ok, true, 'applyKit for L2-hat ride')
+
+  const jam = useJamStore.getState()
+  jam.resetIntensitySession()
+  jam.setIntensityLevel(1)
+
+  assert.equal(applyMutate('intensity-up').ok, true)
+  assert.equal(useJamStore.getState().intensityLevel, 2)
+
+  // Prefer a dedicated hihats track; else drums (hat tokens live there).
+  let hat =
+    useSessionStore.getState().tracks.find((t) => t.role === 'hihats') ??
+    useSessionStore.getState().tracks.find((t) => t.role === 'drums')
+  assert.ok(hat, 'hat-bearing track present at L2')
+  const hatId = hat!.id
+  const marked = `${hat!.code}/*l2-hats*/`
+  useSessionStore.getState().setCode(hatId, marked)
+
+  // Pick a non-spawn kit track to edit at L3 (prefer bass, else first non-hat drums/other).
+  const pickL3EditTarget = () => {
+    const tracks = useSessionStore.getState().tracks
+    const spawnId = useJamStore.getState().spawnedPadId
+    return (
+      tracks.find((t) => t.role === 'bass' && t.id !== spawnId) ??
+      tracks.find((t) => t.role === 'drums' && t.id !== hatId && t.id !== spawnId) ??
+      tracks.find((t) => t.id !== hatId && t.id !== spawnId)
+    )
+  }
+
+  assert.equal(applyMutate('intensity-up').ok, true)
+  assert.equal(useJamStore.getState().intensityLevel, 3)
+  const spawnId = useJamStore.getState().spawnedPadId
+  assert.ok(spawnId, 'L3 spawns')
+  const hatAt3 = useSessionStore.getState().tracks.find((t) => t.id === hatId)!
+  assert.ok(hatAt3.code.includes('/*l2-hats*/'), `L3 keeps L2 hat edit, got: ${hatAt3.code}`)
+
+  const l3Target = pickL3EditTarget()
+  assert.ok(l3Target, 'non-spawn kit track for L3 edit')
+  const l3Id = l3Target!.id
+  const l3Marked = `${l3Target!.code}/*l3-kit*/`
+  useSessionStore.getState().setCode(l3Id, l3Marked)
+
+  // Capture pre-L4 codes for densify check on drums (if available).
+  const drumsPre4 = useSessionStore.getState().tracks.find((t) => t.role === 'drums' && t.id !== spawnId)
+  const drumsId = drumsPre4?.id
+  const drumsCodeAt3 = drumsPre4?.code
+
+  assert.equal(applyMutate('intensity-up').ok, true)
+  assert.equal(useJamStore.getState().intensityLevel, 4)
+  assert.equal(useJamStore.getState().spawnedPadId, spawnId, 'L4 keeps spawn')
+  const hatAt4 = useSessionStore.getState().tracks.find((t) => t.id === hatId)!
+  assert.ok(hatAt4.code.includes('/*l2-hats*/'), `L4 keeps L2 hat edit, got: ${hatAt4.code}`)
+  const l3At4 = useSessionStore.getState().tracks.find((t) => t.id === l3Id)!
+  assert.ok(
+    l3At4.code.includes('/*l3-kit*/') || l3At4.code.startsWith(l3Marked.split('/*l3-kit*/')[0]!),
+    `L4 preserves L3 kit edit marker through densify, got: ${l3At4.code}`,
+  )
+  // Marker is a comment suffix — densify maps bodies and should leave trailing comment.
+  assert.ok(l3At4.code.includes('/*l3-kit*/'), `L4 still has /*l3-kit*/, got: ${l3At4.code}`)
+
+  if (drumsId && drumsCodeAt3) {
+    const drumsAt4 = useSessionStore.getState().tracks.find((t) => t.id === drumsId)!
+    const drumsRole = drumsAt4.role
+    const expected = applyIntensityL4Layer(drumsCodeAt3, drumsRole)
+    assert.equal(drumsAt4.code, expected, `L4 drums = L4-layer(L3), got: ${drumsAt4.code}`)
+  }
+
+  // 4 → 3: hat edit remains; L3 kit edit restored; spawn kept; L4 densify dropped.
+  assert.equal(applyMutate('intensity-down').ok, true)
+  assert.equal(useJamStore.getState().intensityLevel, 3)
+  assert.equal(useJamStore.getState().spawnedPadId, spawnId, '4→3 keeps spawn')
+  const hatBack3 = useSessionStore.getState().tracks.find((t) => t.id === hatId)!
+  assert.ok(hatBack3.code.includes('/*l2-hats*/'), `4→3 keeps L2 hat edit, got: ${hatBack3.code}`)
+  const l3Back = useSessionStore.getState().tracks.find((t) => t.id === l3Id)!
+  assert.equal(l3Back.code, l3Marked, `4→3 restores L3 kit code (drops densify), got: ${l3Back.code}`)
+  if (drumsId && drumsCodeAt3) {
+    const drumsBack = useSessionStore.getState().tracks.find((t) => t.id === drumsId)!
+    assert.equal(drumsBack.code, drumsCodeAt3, `4→3 drums back to L3, got: ${drumsBack.code}`)
+  }
+
+  console.log('  L2 hat edits ride to L3/L4; L3 kit edits ride to L4; 4→3 drops densify, keeps spawn+hats')
 }
 
 console.log('ALL INTENSITY SESSION CHECKS PASSED')
