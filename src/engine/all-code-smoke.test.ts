@@ -12,6 +12,7 @@ import {
   checkImportCode,
   applyImportToTracks,
   ALL_CODE_FILENAME,
+  IMPORT_FILE_ACCEPT,
   allCodeFilename,
   jamFileStem,
 } from './all-code'
@@ -96,6 +97,8 @@ console.log('=== all-code smoke ===')
     'roland-tr-909-fs-harmonic-minor-128.strudel',
   )
   assert.equal(jamFileStem({ kit: 'Amen Chop', root: 'c', scale: 'minor', bpm: 174 }), 'amen-chop-c-minor-174')
+  assert.match(IMPORT_FILE_ACCEPT, /\.strudel/)
+  assert.doesNotMatch(IMPORT_FILE_ACCEPT, /javascript/)
   console.log('filename slug ok')
 }
 

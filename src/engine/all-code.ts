@@ -5,6 +5,9 @@ export const CODE_ALL = '__all__'
 
 export const ALL_CODE_FILENAME = 'strudel-studio.strudel'
 
+/** Picker hint. Import is content-based — `.strudel` needs no `.js`. */
+export const IMPORT_FILE_ACCEPT = '.strudel,.txt,text/plain,*/*'
+
 export function slugJamPart(s: string): string {
   const t = s
     .toLowerCase()
