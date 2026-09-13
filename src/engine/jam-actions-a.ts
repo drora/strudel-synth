@@ -27,6 +27,7 @@ import {
   captureIntensitySnap,
   clampIntensity,
   intensitySpawnRole,
+  isKeysTrack,
   nextIntensity,
   shouldSpawnIntensityLane,
   type IntensityLevel,
@@ -493,7 +494,7 @@ function dropSpawnedPad() {
   jam.setSpawnedPadId(null)
 }
 
-function generateRoleCode(role: 'pad' | 'arp'): { code: string; name: string; color: string } {
+function generateRoleCode(role: 'pad' | 'arp' | 'lead' | 'fx'): { code: string; name: string; color: string } {
   const jam = useJamStore.getState()
   const kit = jam.kitId ? getKit(jam.kitId) : undefined
   const resolved = kit ? resolveShuffleProfile(kit) : null
@@ -533,13 +534,17 @@ function generateRoleCode(role: 'pad' | 'arp'): { code: string; name: string; co
 
 function spawnIntensityLane(level: IntensityLevel): Track {
   const jam = useJamStore.getState()
-  const hasPad = useSessionStore.getState().tracks.some((tr) => tr.role === 'pad')
-  const role = intensitySpawnRole(hasPad)
+  const tracks = useSessionStore.getState().tracks
+  const hasPad = tracks.some((tr) => tr.role === 'pad')
+  const hasArp = tracks.some((tr) => tr.role === 'arp')
+  const hasKeys = tracks.some((tr) => isKeysTrack(tr))
+  const role = intensitySpawnRole({ hasPad, hasArp, hasKeys })
   const built = generateRoleCode(role)
+  const name = role === 'lead' ? 'Keys' : built.name
   const id = useSessionStore.getState().addTrack({
-    name: built.name,
+    name,
     role,
-    code: applyIntensityFromBase(built.code, role, level),
+    code: applyIntensityFromBase(built.code, role, level, { root: jam.songRoot, scale: jam.songScale }),
     color: built.color,
     muted: false,
     soloed: false,
@@ -588,7 +593,7 @@ function realizeIntensityLevel(target: IntensityLevel) {
   const fresh = useSessionStore.getState()
   for (const tr of fresh.tracks) {
     if (tr.locked) continue
-    const next = applyIntensityFromBase(tr.code, tr.role, target)
+    const next = applyIntensityFromBase(tr.code, tr.role, target, { root: jam.songRoot, scale: jam.songScale })
     if (next !== tr.code) fresh.setCode(tr.id, next)
   }
   if (shouldSpawnIntensityLane(target, !!useJamStore.getState().spawnedPadId)) {

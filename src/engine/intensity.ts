@@ -4,8 +4,9 @@
  *
  * 1 — as-is. Song as generated. No pattern change, no FX.
  * 2 — double hats only. Hats densify (8→16 fill). Kick, snare, bass, pads, lead stay.
- * 3 — pad, or arp if a pad already exists. Hats stay doubled. Spawn a pad lane if none;
- *     if a pad already exists, spawn an arp instead. Going back to 2 drops only the spawned lane.
+ * 3 — pad → arp → keys → fx cascade (one spawn). Hats stay doubled. First missing role in
+ *     that order; keys = a lead lane named Keys; fx even if an FX track already exists.
+ *     Going back to 2 drops only the spawned lane.
  * 4 — double kick + snare + bass. Hats stay doubled. bd/kick and sd/snare densify; bass
  *     densifies the same 8→16 way. Not hats again.
  */
@@ -13,10 +14,12 @@ import type { Track } from './types'
 
 export const INTENSITY_MIN = 1
 export const INTENSITY_MAX = 4
-/** Enter 3 = add pad if missing. Leave 3 downward = drop spawned pad. */
+/** Enter 3 = spawn one cascade lane. Leave 3 downward = drop spawned lane. */
 export const INTENSITY_PAD_LEVEL = 3
 
 export type IntensityLevel = 1 | 2 | 3 | 4
+
+export type IntensitySpawnRole = 'pad' | 'arp' | 'lead' | 'fx'
 
 export type IntensitySnap = {
   codes: { id: string; code: string }[]
@@ -37,9 +40,21 @@ export function shouldSpawnIntensityPad(level: IntensityLevel, hasPad: boolean):
   return level >= INTENSITY_PAD_LEVEL && !hasPad
 }
 
-/** Level 3+: Pad if none, Arp if a pad lane already exists. */
-export function intensitySpawnRole(hasPad: boolean): 'pad' | 'arp' {
-  return hasPad ? 'arp' : 'pad'
+/** Keys lane = name match (not every lead). Kit "Lead" is not Keys. */
+export function isKeysTrack(t: { name: string }): boolean {
+  return /keys|piano|rhodes|epiano|clav/i.test(t.name)
+}
+
+/** Level 3+: first missing in pad → arp → keys(lead) → fx. */
+export function intensitySpawnRole(flags: {
+  hasPad: boolean
+  hasArp: boolean
+  hasKeys: boolean
+}): IntensitySpawnRole {
+  if (!flags.hasPad) return 'pad'
+  if (!flags.hasArp) return 'arp'
+  if (!flags.hasKeys) return 'lead'
+  return 'fx'
 }
 
 export function shouldSpawnIntensityLane(level: IntensityLevel, alreadySpawned: boolean): boolean {

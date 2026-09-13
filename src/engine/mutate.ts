@@ -4,7 +4,8 @@
  */
 import type { Track, TrackRole } from './types'
 import { splitEffectSuffix } from './code-effects'
-import { isMelodicRole } from './note-harmony'
+import { isMelodicRole, parseNoteToken, formatNote, SCALE_DEGREES, rootIndex } from './note-harmony'
+import type { ScaleKind } from './kits-types'
 import type { IntensityLevel } from './intensity'
 
 export type MutateScope = 'track' | 'song'
@@ -48,7 +49,7 @@ export const MUTATIONS: readonly MutateDef[] = [
   { id: 'reverse', label: 'Reverse', hint: 'Flip the pattern', scope: 'track' },
   { id: 'every-other', label: 'Every other', hint: 'Keep alternate hits', scope: 'track' },
   { id: 'double-time', label: 'Double-time', hint: 'Tighten feel · all tracks', scope: 'song' },
-  { id: 'intensity-up', label: 'Intensity+', hint: '1 as-is · 2 hats · 3 pad/arp · 4 bd+sd+bass', scope: 'song' },
+  { id: 'intensity-up', label: 'Intensity+', hint: '1 as-is · 2 hats fill gaps · 3 pad → arp → keys → fx · 4 bd+sd + bass walk @0.5', scope: 'song' },
   { id: 'intensity-down', label: 'Intensity−', hint: 'wind down those same steps', scope: 'song' },
 ] as const
 
@@ -80,6 +81,13 @@ export function tokenizeMini(body: string): string[] {
           }
         }
       }
+      // Absorb trailing *N so "[hh oh]*4" stays one token
+      if (i < s.length && s[i] === '*') {
+        const mulStart = i
+        i++
+        while (i < s.length && /[\d.]/.test(s[i]!)) i++
+        if (i === mulStart + 1) i = mulStart
+      }
       out.push(s.slice(start, i))
     } else {
       while (i < s.length && !/\s/.test(s[i]!)) i++
@@ -109,7 +117,7 @@ function withMul(base: string, mul: number | null): string {
 }
 
 const KICK_RE = /^(bd|kick|bassdrum|lt|kick:|bd:)/i
-const HAT_RE = /^(hh|oh|ch|ph|hat|shaker|rim|clap|cp|hc)/i
+const HAT_RE = /^(hh|oh|ch|ph|hat|shaker|sh|rim|clap|cp|hc|ride|rd|cr)/i
 
 function isKickish(tok: string): boolean {
   const { base } = stripMul(tok)
@@ -586,24 +594,277 @@ function mapIntensityBodies(
   return next + fx
 }
 
+type BracketGroup = {
+  open: '[' | '<'
+  close: ']' | '>'
+  inner: string
+  mul: number | null
+}
+
+function parseBracketGroup(tok: string): BracketGroup | null {
+  const m = tok.match(/^(\[)([\s\S]*)\](?:\*(\d+(?:\.\d+)?))?$/)
+  if (m) {
+    return { open: '[', close: ']', inner: m[2]!, mul: m[3] != null ? Number(m[3]) : null }
+  }
+  const m2 = tok.match(/^(<)([\s\S]*)>(?:\*(\d+(?:\.\d+)?))?$/)
+  if (m2) {
+    return { open: '<', close: '>', inner: m2[2]!, mul: m2[3] != null ? Number(m2[3]) : null }
+  }
+  return null
+}
+
+function rebuildBracketGroup(g: BracketGroup, innerToks: string[]): string {
+  return withMul(`${g.open}${joinMini(innerToks)}${g.close}`, g.mul)
+}
+
+function barePitchToken(tok: string): string {
+  let base = stripMul(tok).base
+  base = base.replace(/@[\d.]+$/i, '')
+  return base
+}
+
+function tokenMidi(tok: string): number | null {
+  const p = parseNoteToken(barePitchToken(tok))
+  if (!p) return null
+  return p.pc + p.octave * 12
+}
+
+/**
+ * Fill every rest from nearest matching hit (previous if any, else look-ahead).
+ * Densify inner []/<> groups that contain rests first; if no top-level rests,
+ * bump *N / euclid or duplicate matching tokens.
+ */
+export function fillSilences(tokens: string[], pred: (tok: string) => boolean): string[] {
+  if (tokens.length === 0) return tokens
+
+  const densified = tokens.map((t) => {
+    const g = parseBracketGroup(t)
+    if (!g) return t
+    const inner = tokenizeMini(g.inner)
+    if (!inner.some(isRest)) return t
+    return rebuildBracketGroup(g, fillSilences(inner, pred))
+  })
+
+  const hasMatch = densified.some((t) => !isRest(t) && pred(t))
+  if (!hasMatch) return densified
+
+  if (densified.some(isRest)) {
+    const n = densified.length
+    const nextMatch: (string | null)[] = Array(n).fill(null)
+    let upcoming: string | null = null
+    for (let i = n - 1; i >= 0; i--) {
+      nextMatch[i] = upcoming
+      const t = densified[i]!
+      if (!isRest(t) && pred(t)) upcoming = t
+    }
+    let last: string | null = null
+    return densified.map((t, i) => {
+      if (!isRest(t)) {
+        if (pred(t)) last = t
+        return t
+      }
+      const fill = last ?? nextMatch[i]
+      if (!fill) return t
+      last = fill
+      return fill
+    })
+  }
+
+  const out: string[] = []
+  for (const t of densified) {
+    if (isRest(t) || !pred(t)) {
+      out.push(t)
+      continue
+    }
+    const { base, mul } = stripMul(t)
+    if (mul != null) {
+      out.push(withMul(base, Math.min(16, mul * 2)))
+      continue
+    }
+    const eu = base.match(/^(.+)\((\d+),(\d+)\)$/)
+    if (eu) {
+      const name = eu[1]!
+      const euN = Number(eu[2])
+      const euD = Number(eu[3])
+      const n2 = Math.min(euD, euN + Math.max(2, Math.floor((euD - euN) / 2)))
+      out.push(`${name}(${n2},${euD})`)
+      continue
+    }
+    out.push(t, stripMul(t).base)
+  }
+  return out
+}
+
+export type BassWalkOpts = {
+  root?: string
+  scale?: ScaleKind
+}
+
+function collectPhraseMidis(tokens: string[]): number[] {
+  const out: number[] = []
+  for (const t of tokens) {
+    if (isRest(t)) continue
+    const g = parseBracketGroup(t)
+    if (g) {
+      out.push(...collectPhraseMidis(tokenizeMini(g.inner)))
+      continue
+    }
+    const m = tokenMidi(t)
+    if (m != null) out.push(m)
+  }
+  return out
+}
+
+function scaleMidisBetween(lo: number, hi: number, rootPc: number, degs: number[]): number[] {
+  const out: number[] = []
+  for (let m = lo + 1; m < hi; m++) {
+    const rel = (((m % 12) + 12) % 12 - rootPc + 12) % 12
+    if (degs.includes(rel)) out.push(m)
+  }
+  return out
+}
+
+function walkNoteAt(midi: number): string {
+  const pc = ((midi % 12) + 12) % 12
+  const oct = Math.floor(midi / 12)
+  return `${formatNote(pc, oct)}@0.5`
+}
+
+/**
+ * L4 bass: keep core pitches in order; plant short walk tones (@0.5) in rests
+ * or between hits. Walk pitches come from in-scale steps between neighbors
+ * (inferred from the phrase, optional song root/scale).
+ */
+export function enrichBassWalk(tokens: string[], opts?: BassWalkOpts): string[] {
+  if (tokens.length === 0) return tokens
+
+  const withGroups = tokens.map((t) => {
+    const g = parseBracketGroup(t)
+    if (!g) return t
+    const inner = tokenizeMini(g.inner)
+    if (inner.length < 2 && !inner.some(isRest)) return t
+    return rebuildBracketGroup(g, enrichBassWalk(inner, opts))
+  })
+
+  const phraseMidis = collectPhraseMidis(withGroups)
+  if (phraseMidis.length === 0) {
+    // Non-pitch rhythmic bass — fall back to same-hit densify
+    return fillSilences(withGroups, (t) => !isRest(t))
+  }
+
+  const rootPc =
+    opts?.root != null ? rootIndex(opts.root) : (((phraseMidis[0]! % 12) + 12) % 12)
+  const scale: ScaleKind = opts?.scale ?? 'minor'
+  const degs = SCALE_DEGREES[scale] ?? SCALE_DEGREES.minor
+
+  const phraseMin = Math.min(...phraseMidis)
+  const phraseMax = Math.max(...phraseMidis)
+  const usedWalks: number[] = []
+
+  const pickWalk = (prev: string | null, next: string | null): string => {
+    const pM = prev ? tokenMidi(prev) : null
+    const nM = next ? tokenMidi(next) : null
+
+    if (pM != null && nM != null) {
+      const lo = Math.min(pM, nM)
+      const hi = Math.max(pM, nM)
+      const cands = scaleMidisBetween(lo, hi, rootPc, degs)
+      if (cands.length) {
+        const pick = cands[Math.floor(cands.length / 2)]!
+        usedWalks.push(pick)
+        return walkNoteAt(pick)
+      }
+    }
+
+    const span = scaleMidisBetween(phraseMin, phraseMax, rootPc, degs).filter(
+      (m) => m !== pM && m !== nM,
+    )
+    for (const m of span) {
+      if (!usedWalks.includes(m)) {
+        usedWalks.push(m)
+        return walkNoteAt(m)
+      }
+    }
+    if (span.length) {
+      const m = span[usedWalks.length % span.length]!
+      usedWalks.push(m)
+      return walkNoteAt(m)
+    }
+
+    const anchor = pM ?? nM ?? phraseMidis[0]!
+    for (const delta of [2, -2, 3, -3, 1, -1]) {
+      const m = anchor + delta
+      if (m === pM || m === nM) continue
+      usedWalks.push(m)
+      return walkNoteAt(m)
+    }
+    usedWalks.push(anchor + 2)
+    return walkNoteAt(anchor + 2)
+  }
+
+  const findNextPitch = (from: number): string | null => {
+    for (let i = from; i < withGroups.length; i++) {
+      const t = withGroups[i]!
+      if (isRest(t)) continue
+      if (parseBracketGroup(t)) continue
+      if (tokenMidi(t) != null) return t
+    }
+    return null
+  }
+
+  if (withGroups.some(isRest)) {
+    let lastPitch: string | null = null
+    return withGroups.map((t, i) => {
+      if (!isRest(t)) {
+        if (!parseBracketGroup(t) && tokenMidi(t) != null) lastPitch = t
+        return t
+      }
+      const nextPitch = findNextPitch(i + 1)
+      return pickWalk(lastPitch, nextPitch)
+    })
+  }
+
+  // No rests: insert short walks between consecutive pitch tokens (cores stay).
+  const out: string[] = []
+  for (let i = 0; i < withGroups.length; i++) {
+    const t = withGroups[i]!
+    out.push(t)
+    if (parseBracketGroup(t) || isRest(t) || tokenMidi(t) == null) continue
+    let j = i + 1
+    while (j < withGroups.length && (isRest(withGroups[j]!) || parseBracketGroup(withGroups[j]!))) {
+      j++
+    }
+    if (j >= withGroups.length) continue
+    const next = withGroups[j]!
+    if (tokenMidi(next) == null) continue
+    out.push(pickWalk(t, next))
+  }
+  return out
+}
+
 /** Rebuild intensity pattern from a level-1 generate. Never stacks; no mush FX. */
-export function applyIntensityFromBase(code: string, role: TrackRole, level: IntensityLevel): string {
+export function applyIntensityFromBase(
+  code: string,
+  role: TrackRole,
+  level: IntensityLevel,
+  harmony?: BassWalkOpts,
+): string {
   if (level <= 1) return code
   return mapIntensityBodies(
     code,
     (toks) => {
-      if (role === 'hihats' && level >= 2) return transformTo16(toks)
+      if (role === 'hihats' && level >= 2) return fillSilences(toks, (t) => !isRest(t))
       if (role === 'drums') {
         if (level >= 4) {
-          return transformTo16Where(toks, (t) => isHatish(t) || isKickish(t) || isSnareish(t))
+          return fillSilences(toks, (t) => isHatish(t) || isKickish(t) || isSnareish(t))
         }
-        if (level >= 2) return transformTo16Where(toks, isHatish)
+        if (level >= 2) return fillSilences(toks, isHatish)
       }
-      if (role === 'bass' && level >= 4) return transformTo16(toks)
+      if (role === 'bass' && level >= 4) return enrichBassWalk(toks, harmony)
       return null
     },
     (toks) => {
-      if (role === 'bass' && level >= 4) return transformTo16(toks)
+      if (role === 'bass' && level >= 4) return enrichBassWalk(toks, harmony)
       return null
     },
   )
