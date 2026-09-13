@@ -1,6 +1,7 @@
 import { useSessionStore } from '../store/session-store'
 import { useJamStore } from '../store/jam-store'
 import { evaluateCode, composeTracks, getSchedulerCycle, stop as hushPlayback } from './strudel'
+import { silenceUnplayableTracks } from './compose-tracks'
 import { getAudioContext } from './audio-context'
 
 export type Quantization = 'immediate' | '1' | '2' | '4'
@@ -71,6 +72,12 @@ class LiveUpdateEngine {
     if (now != null) {
       this.lastCycleInt = Math.floor(now)
     }
+    // Save-while-stopped → first Play: clear Dirty so the Save button is not stuck.
+    this.setStatus('applied')
+    if (this.appliedFlashTimer) clearTimeout(this.appliedFlashTimer)
+    this.appliedFlashTimer = setTimeout(() => {
+      if (this.status === 'applied') this.setStatus('idle')
+    }, 220)
   }
 
   markPlayStopped() {
@@ -196,11 +203,17 @@ class LiveUpdateEngine {
       if (arityChanged) {
         await hushPlayback()
       }
-      const code = composeTracks(state.tracks, state.bpm, overlay)
+      const { tracks: playable, silencedIds } = silenceUnplayableTracks(state.tracks)
+      const code = composeTracks(playable, state.bpm, overlay)
       await evaluateCode(code)
       state.tracks.forEach((t) => {
         if (t.error) state.setError(t.id, null)
       })
+      if (silencedIds.length) {
+        const name =
+          state.tracks.find((tr) => tr.id === silencedIds[0])?.name ?? silencedIds[0]
+        useJamStore.getState().setLastPeek(`Play · ${name} skipped — syntax`)
+      }
       this.setStatus('applied', { reason })
       if (this.appliedFlashTimer) clearTimeout(this.appliedFlashTimer)
       this.appliedFlashTimer = setTimeout(() => {
