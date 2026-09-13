@@ -35,6 +35,7 @@ import {
   intensitySpawnRole,
   isKeysTrack,
   shouldSpawnIntensityLane,
+  intensityLevelsShareSpawn,
 } from './intensity'
 import { splitEffectSuffix } from './code-effects'
 import type { Track } from './types'
@@ -291,7 +292,12 @@ console.log('  catalog: 15 transforms; half/double/intensity song-scoped')
   assert.equal(shouldSpawnIntensityLane(3, true), false)
   assert.equal(shouldDropSpawnedPad(2), true)
   assert.equal(shouldDropSpawnedPad(3), false)
-  console.log('  intensity levels: 1–4; 3 pad → arp → keys → fx')
+  assert.equal(intensityLevelsShareSpawn(3, 4), true)
+  assert.equal(intensityLevelsShareSpawn(4, 3), true)
+  assert.equal(intensityLevelsShareSpawn(2, 3), false)
+  assert.equal(intensityLevelsShareSpawn(3, 2), false)
+  assert.equal(intensityLevelsShareSpawn(1, 4), false)
+  console.log('  intensity levels: 1–4; 3 pad → arp → keys → fx; L3↔L4 share spawn')
 }
 
 console.log('ALL MUTATE CHECKS PASSED')

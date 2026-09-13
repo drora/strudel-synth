@@ -7,8 +7,8 @@
  * 3 — pad → arp → keys → fx cascade (one spawn). Hats stay doubled. First missing role in
  *     that order; keys = a lead lane named Keys; fx even if an FX track already exists.
  *     Going back to 2 drops only the spawned lane.
- * 4 — double kick + snare + bass. Hats stay doubled. bd/kick and sd/snare densify; bass
- *     densifies the same 8→16 way. Not hats again.
+ * 4 — densify kick/snare/bass/hats from L1. L4 keeps the L3 spawn (shared); does not reshuffle it.
+ *     Edits on that lane persist across 3↔4.
  */
 import type { Track } from './types'
 
@@ -63,6 +63,11 @@ export function shouldSpawnIntensityLane(level: IntensityLevel, alreadySpawned: 
 
 export function shouldDropSpawnedPad(level: IntensityLevel): boolean {
   return level < INTENSITY_PAD_LEVEL
+}
+
+/** L3 and L4 share the same spawned lane; moving between them must not reshuffle it. */
+export function intensityLevelsShareSpawn(from: number, to: number): boolean {
+  return from >= INTENSITY_PAD_LEVEL && to >= INTENSITY_PAD_LEVEL
 }
 
 export function captureIntensitySnap(

@@ -45,7 +45,7 @@ The jam already has a **kit identity + song seed**. Don’t throw the kit unless
 | Pin a keeper | `set_track_lock` |
 | Good take of the arrangement | `stash_ab` then experiment |
 
-**Intensity (1–4)** — use **only** `apply_mutate` with `intensity-up` / `intensity-down`. Never hand-write L2–L4. Kit / Shuffle reset to 1. Talk-recipe (understanding only): **1** as-is · **2** hats · **3** pad→arp→keys→fx · **4** kick/snare/bass.
+**Intensity (1–4)** — use **only** `apply_mutate` with `intensity-up` / `intensity-down`. Never hand-write L2–L4. Kit / Shuffle reset to 1. Talk-recipe (understanding only): **1** as-is · **2** hats · **3** pad→arp→keys→fx · **4** kick/snare/bass (L3 spawn is shared with L4; L4 does not reshuffle it; edits on that lane persist 3↔4).
 
 **Surgical `update_track`:** one lane, quant `"1"` (or `"2"` if structural). Stay in `get_kit` `drumsBank` + song scale. Edit **one mini-string region** so they hear the diff.
 
