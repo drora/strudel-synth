@@ -23,6 +23,7 @@ import {
   transformTo8,
   fillSilences,
   applyIntensityFromBase,
+  applyIntensityL4Layer,
   doubleImmediate,
   isKickish,
   isSnareish,
@@ -276,6 +277,24 @@ console.log('  catalog: 15 transforms; half/double/intensity song-scoped')
 
   const pad = 'note("c3 eb3 g3").sound("triangle").gain(0.6)'
   assert.equal(applyIntensityFromBase(pad, 'pad', 4), pad)
+
+  // L4-on-L3/L2 layer: densify without re-running hats/euclid
+  assert.equal(applyIntensityL4Layer('s("hh hh hh hh")', 'hihats'), 's("hh hh hh hh")')
+  assert.equal(applyIntensityFromBase('s("hh hh hh hh")', 'hihats', 4, { from: 2 }), 's("hh hh hh hh")')
+  assert.equal(applyIntensityFromBase('s("~ hh ~ hh")', 'hihats', 3, { from: 2 }), 's("~ hh ~ hh")', 'from:2 level 3 is no-op')
+  const drumsL2 = 's("bd ~ sd ~ hh hh oh oh")'
+  const drumsL4layer = applyIntensityL4Layer(drumsL2, 'drums')
+  assert.ok(/bd/.test(drumsL4layer) && /sd/.test(drumsL4layer), drumsL4layer)
+  assert.ok(!drumsL4layer.includes('hh hh hh'), `must not hat-fill: ${drumsL4layer}`)
+  // kick/snare doubled via doubleImmediate from L2 base
+  assert.equal(applyIntensityL4Layer('s("bd ~ ~ ~")', 'drums'), 's("bd ~ bd ~")')
+  assert.equal(applyIntensityL4Layer('s("rim ~ ~ ~")', 'drums'), 's("rim ~ rim ~")')
+  assert.equal(applyIntensityL4Layer('s("~ sd ~ ~")', 'fx'), 's("~ sd ~ sd")')
+  const bassL2 = 'note("c2 ~ g2 ~").sound("sawtooth")'
+  const bassL4l = applyIntensityL4Layer(bassL2, 'bass')
+  assert.ok(/@0\.5/.test(bassL4l), `L4 layer bass walk: ${bassL4l}`)
+  assert.equal(applyIntensityFromBase(bassL2, 'bass', 4, { from: 3 }), bassL4l)
+
   console.log('  intensity: 1 as-is · 2 hats fill/bump · 3 same · 4 double bd+sd (not every step) + perc snares; bass walk @0.5')
 }
 
