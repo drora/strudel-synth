@@ -6,9 +6,10 @@
  * 2 — L1 + hat densify (8→16 fill / euclid bump). Kick, snare, bass, pads, lead stay.
  *     In-level hat edits are kept in snap[2] and ride into L3/L4.
  * 3 — L2 + pad → arp → keys → fx cascade (one spawn). No extra pattern densify.
- *     Going back to 2 drops only the spawned lane. Pad/spawn edits persist 3↔4.
+ *     Going back to 2 drops only the spawned lane. Spawn edits carry 3→4 only.
  * 4 — L3 + kick/snare/bass/keys/fx densify only (no hat/euclid re-run). Same L3 spawn
- *     (shared; no reshuffle). Edits on that lane persist across 3↔4.
+ *     id (shared; no reshuffle). L3 pad edits carry up; L4-only pad edits stay on 4
+ *     (4→3 restores snap[3] spawn — does not leak L4 pad back onto L3).
  */
 import type { Track } from './types'
 

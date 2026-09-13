@@ -1,6 +1,6 @@
 /**
- * Intensity L3/L4 shared spawn, L2 hat edits riding to L3/L4, L4-on-L3 densify,
- * + L1 code edits flowing into cached L2+.
+ * Intensity spawn one-way (3→4 carry, not 4→3), L2 hat edits riding to L3/L4,
+ * L4-on-L3 densify, + L1 code edits flowing into cached L2+.
  * Run: npx --yes tsx src/engine/intensity-session-smoke.test.ts
  * Or:  npm run test:intensity-session
  */
@@ -49,6 +49,7 @@ const { KITS } = await import('./kits.ts')
 const { applyIntensityL4Layer } = await import('./mutate.ts')
 
 {
+  // Spawn edits carry 3→4 only; L4-only pad stays on 4; 4→3 restores L3 version.
   const kit = KITS.find((k) => !k.tracks.some((t) => t.role === 'pad')) ?? KITS[0]!
   const applied = applyKit(kit.id, { fromPicker: true })
   assert.equal(applied.ok, true, 'applyKit')
@@ -70,31 +71,59 @@ const { applyIntensityL4Layer } = await import('./mutate.ts')
   const codeAt3 = spawnAt3!.code
   assert.ok(codeAt3.length > 0)
 
-  // Mutate spawn code at L3
+  // 1) Edit spawn at L3 → 3→4: same id + L3-edited code
   const editedAt3 = `${codeAt3}/*l3-edit*/`
   useSessionStore.getState().setCode(spawnId!, editedAt3)
 
-  // 3 → 4: same id + same code (no reshuffle)
   assert.equal(applyMutate('intensity-up').ok, true)
   assert.equal(useJamStore.getState().intensityLevel, 4)
   assert.equal(useJamStore.getState().spawnedPadId, spawnId, 'L4 keeps same spawn id')
   const at4 = useSessionStore.getState().tracks.find((t) => t.id === spawnId)
   assert.ok(at4, 'spawn still present at L4')
-  assert.equal(at4!.code, editedAt3, 'L4 keeps L3-edited spawn code')
+  assert.equal(at4!.code, editedAt3, '3→4 carries L3-edited spawn code')
 
-  // Edit at L4
+  // Edit at L4 (L4-only)
   const editedAt4 = `${editedAt3}/*l4-edit*/`
   useSessionStore.getState().setCode(spawnId!, editedAt4)
 
-  // 4 → 3: same id + L4-edited code
+  // 2) 4 → 3: same id + L3 edit (NOT L4 edit)
   assert.equal(applyMutate('intensity-down').ok, true)
   assert.equal(useJamStore.getState().intensityLevel, 3)
-  assert.equal(useJamStore.getState().spawnedPadId, spawnId, '3←4 keeps same spawn id')
+  assert.equal(useJamStore.getState().spawnedPadId, spawnId, '4→3 keeps same spawn id')
   const back3 = useSessionStore.getState().tracks.find((t) => t.id === spawnId)
   assert.ok(back3, 'spawn still present back at L3')
-  assert.equal(back3!.code, editedAt4, '3←4 keeps L4-edited spawn code')
+  assert.equal(back3!.code, editedAt3, '4→3 restores L3 spawn, not L4 edit')
+  assert.ok(!back3!.code.includes('/*l4-edit*/'), 'L4 edit must not leak onto L3')
 
-  // 3 → 2 drops spawn; 2 → 3 restores latest shared spawn from snaps
+  // 3) 3→4 again (no L3 pad change): L4 spawn is the L4 edit (4-only persist)
+  assert.equal(applyMutate('intensity-up').ok, true)
+  assert.equal(useJamStore.getState().intensityLevel, 4)
+  assert.equal(useJamStore.getState().spawnedPadId, spawnId, 're-enter L4 same spawn id')
+  const at4again = useSessionStore.getState().tracks.find((t) => t.id === spawnId)
+  assert.ok(at4again, 'spawn present on second L4 visit')
+  assert.equal(at4again!.code, editedAt4, 'L4-only pad edit persists when L3 pad unchanged')
+
+  // Back to 3, then edit L3 again
+  assert.equal(applyMutate('intensity-down').ok, true)
+  assert.equal(useJamStore.getState().intensityLevel, 3)
+  const editedAt3b = `${editedAt3}/*l3-edit-2*/`
+  useSessionStore.getState().setCode(spawnId!, editedAt3b)
+
+  // 4) Edit spawn at L3 again → 3→4: L4 becomes the new L3 edit (carry up)
+  assert.equal(applyMutate('intensity-up').ok, true)
+  assert.equal(useJamStore.getState().intensityLevel, 4)
+  const at4carry = useSessionStore.getState().tracks.find((t) => t.id === spawnId)
+  assert.ok(at4carry, 'spawn present after L3 re-edit carry')
+  assert.equal(at4carry!.code, editedAt3b, 'new L3 pad edit overwrites L4 spawn')
+  assert.ok(!at4carry!.code.includes('/*l4-edit*/'), 'stale L4 edit cleared by L3 carry-up')
+
+  // Return to 3 for drop test (L3 version = editedAt3b after 4→3)
+  assert.equal(applyMutate('intensity-down').ok, true)
+  assert.equal(useJamStore.getState().intensityLevel, 3)
+  const at3preDrop = useSessionStore.getState().tracks.find((t) => t.id === spawnId)
+  assert.equal(at3preDrop!.code, editedAt3b, '4→3 after carry restores latest L3 edit')
+
+  // 5) 3 → 2 drops spawn; 2 → 3 restores L3 spawn (not L4)
   assert.equal(applyMutate('intensity-down').ok, true)
   assert.equal(useJamStore.getState().intensityLevel, 2)
   assert.equal(useJamStore.getState().spawnedPadId, null, 'L2 drops spawn')
@@ -105,9 +134,10 @@ const { applyIntensityL4Layer } = await import('./mutate.ts')
   assert.equal(useJamStore.getState().spawnedPadId, spawnId, '2→3 restores shared spawn id')
   const restored = useSessionStore.getState().tracks.find((t) => t.id === spawnId)
   assert.ok(restored, 'spawn restored at L3')
-  assert.equal(restored!.code, editedAt4, '2→3 restores latest spawn code')
+  assert.equal(restored!.code, editedAt3b, '2→3 restores L3 spawn, not L4')
+  assert.ok(!restored!.code.includes('/*l4-edit*/'), '2→3 must not restore L4-only edit')
 
-  console.log('  L3↔L4 keep spawn id+code; 2→3 restores latest shared spawn')
+  console.log('  spawn edits 3→4 only; L4-only pad stays on 4; 2→3 restores L3')
 }
 
 
