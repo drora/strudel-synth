@@ -3,7 +3,7 @@
  * Keeps Sound / bank / FX chain intact (splitEffectSuffix spirit). Not Shuffle, not Spice.
  */
 import type { Track, TrackRole } from './types'
-import { splitEffectSuffix } from './code-effects'
+import { parseEffectValue, setEffectInCode, splitEffectSuffix } from './code-effects'
 import { isMelodicRole } from './note-harmony'
 
 export type MutateScope = 'track' | 'song'
@@ -22,6 +22,8 @@ export type MutateId =
   | 'reverse'
   | 'every-other'
   | 'double-time'
+  | 'intensity-up'
+  | 'intensity-down'
 
 export type MutateDef = {
   id: MutateId
@@ -45,6 +47,8 @@ export const MUTATIONS: readonly MutateDef[] = [
   { id: 'reverse', label: 'Reverse', hint: 'Flip the pattern', scope: 'track' },
   { id: 'every-other', label: 'Every other', hint: 'Keep alternate hits', scope: 'track' },
   { id: 'double-time', label: 'Double-time', hint: 'Tighten feel · all tracks', scope: 'song' },
+  { id: 'intensity-up', label: 'Intensity+', hint: '1–4 · perc + bass + FX · 3+ adds pad', scope: 'song' },
+  { id: 'intensity-down', label: 'Intensity−', hint: '1–4 · wind down perc + bass + FX + pad', scope: 'song' },
 ] as const
 
 export function getMutation(id: string): MutateDef | undefined {
@@ -310,6 +314,94 @@ export function transformEveryOther(tokens: string[]): string[] {
   })
 }
 
+
+const PERC_ROLES = new Set<TrackRole>(['drums', 'hihats', 'fx'])
+
+function intensityDir(id: MutateId): 1 | -1 | 0 {
+  if (id === 'intensity-up') return 1
+  if (id === 'intensity-down') return -1
+  return 0
+}
+
+function sameHit(a: string, b: string): boolean {
+  return stripMul(a).base === stripMul(b).base
+}
+
+/** 8-beat → 16-beat: fill rests with the previous hit; if already dense, duplicate each. */
+export function transformTo16(tokens: string[]): string[] {
+  if (tokens.length === 0) return tokens
+  if (tokens.some(isRest)) {
+    let last: string | null = null
+    return tokens.map((t) => {
+      if (!isRest(t)) {
+        last = t
+        return t
+      }
+      return last ?? t
+    })
+  }
+  const out: string[] = []
+  for (const t of tokens) {
+    out.push(t, stripMul(t).base)
+  }
+  return out
+}
+
+/** 16-beat → 8-beat: paired same hits become hit/~; else keep the 8th-note grid. */
+export function transformTo8(tokens: string[]): string[] {
+  if (tokens.length < 2) return tokens
+  if (tokens.length % 2 === 0) {
+    const paired = tokens.every((_, i) => i % 2 === 1 || sameHit(tokens[i]!, tokens[i + 1]!))
+    if (paired) {
+      const out: string[] = []
+      for (let i = 0; i < tokens.length; i += 2) {
+        out.push(tokens[i]!, '~')
+      }
+      return out
+    }
+    return tokens.filter((_, i) => i % 2 === 0)
+  }
+  return transformSparse(tokens)
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
+/** Song-wide directional FX (stronger than one Spice nudge). */
+export function applyIntensityFx(code: string, dir: 1 | -1, role: TrackRole): string {
+  let next = code
+  const gain = parseEffectValue(next, 'gain')
+  if (dir === 1) {
+    next = setEffectInCode(next, 'gain', Math.min(1.45, gain != null ? round2(gain * 1.22) : 1.15))
+  } else {
+    next = setEffectInCode(next, 'gain', Math.max(0.2, gain != null ? round2(gain * 0.78) : 0.68))
+  }
+  const lpf = parseEffectValue(next, 'lpf')
+  if (dir === 1) {
+    if (lpf != null) next = setEffectInCode(next, 'lpf', Math.min(12000, Math.round(lpf * 1.55)))
+  } else if (role === 'bass' && lpf != null) {
+    next = setEffectInCode(next, 'lpf', Math.max(160, Math.round(lpf * 0.78)))
+  } else if (role !== 'drums') {
+    if (lpf != null) next = setEffectInCode(next, 'lpf', Math.max(200, Math.round(lpf * 0.55)))
+    else if (role === 'pad' || role === 'lead' || role === 'arp') next = setEffectInCode(next, 'lpf', 900)
+  }
+  const room = parseEffectValue(next, 'room')
+  if (dir === 1) {
+    const bump = role === 'pad' ? 0.3 : role === 'lead' || role === 'vox' ? 0.22 : 0.14
+    const seed = room ?? (role === 'pad' ? 0.28 : 0.14)
+    next = setEffectInCode(next, 'room', Math.min(1.2, round2(seed + bump)))
+  } else if (room != null) {
+    next = setEffectInCode(next, 'room', Math.max(0, round2(room - 0.22)))
+  }
+  const delay = parseEffectValue(next, 'delay')
+  if (role === 'lead' || role === 'pad' || role === 'arp' || role === 'vox') {
+    if (dir === 1) next = setEffectInCode(next, 'delay', Math.min(0.75, round2((delay ?? 0.16) + 0.16)))
+    else if (delay != null) next = setEffectInCode(next, 'delay', Math.max(0, round2(delay - 0.16)))
+  }
+  return next
+}
+
 export function applyTokenTransform(
   tokens: string[],
   id: MutateId,
@@ -343,6 +435,16 @@ export function applyTokenTransform(
       return transformEveryOther(tokens)
     case 'double-time':
       return transformDoubleTime(tokens)
+    case 'intensity-up':
+    case 'intensity-down': {
+      const dir = intensityDir(id)
+      if (!dir) return tokens
+      const hits = dir === 1 ? transformTo16(tokens) : transformTo8(tokens)
+      if (kind === 'note' && role === 'bass') return hits
+      if (kind === 's' && PERC_ROLES.has(role)) return hits
+      if (kind === 's' && role === 'bass' && tokens.length > 1) return hits
+      return tokens
+    }
     default:
       return tokens
   }
@@ -410,8 +512,11 @@ export function mutatePatternCode(code: string, id: MutateId, role: TrackRole): 
     return joinMini(applyTokenTransform(toks, id, 's', role))
   })
 
-  if (next === head) return code
-  return next + fx
+  const dir = intensityDir(id)
+  if (next === head && !dir) return code
+  const combined = next + fx
+  if (dir) return applyIntensityFx(combined, dir, role)
+  return combined
 }
 
 export type MutateApplyResult = {

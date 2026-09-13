@@ -25,7 +25,7 @@ interface SessionState {
   setOctave: (trackId: string, octave: number) => void
   setTrackName: (trackId: string, name: string) => void
   loadTemplate: (template: Template, opts?: { preserveBpm?: boolean }) => void
-  addTrack: (track: Omit<Track, 'id'>) => string
+  addTrack: (track: Omit<Track, 'id'> & { id?: string }) => string
   removeTrack: (trackId: string) => void
   toggleMute: (trackId: string) => void
   toggleSolo: (trackId: string) => void
@@ -93,7 +93,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   addTrack: (track) => {
-    const id = genId()
+    const id = track.id ?? genId()
     set((state) => ({
       tracks: [
         ...state.tracks,
