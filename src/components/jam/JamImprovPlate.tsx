@@ -10,6 +10,7 @@ import {
   IMPROV_VOL_STEPS,
   IMPROV_VEL_STEPS,
   IMPROV_FX_CONTROLS,
+  groupedFxControls,
   isImprovFxOn,
   type ImprovHit,
 } from '../../engine/improv-plate'
@@ -342,40 +343,52 @@ export function JamImprovPlate({ onClose }: Props) {
               ))}
             </div>
           </div>
-          {IMPROV_FX_CONTROLS.map((fx) => {
-            const current = mix[fx.key]
-            const on = isImprovFxOn(fx.key, current)
+          {groupedFxControls(IMPROV_FX_CONTROLS).map((row) => {
+            const body = row.items.map((fx) => {
+              const current = mix[fx.key]
+              const on = isImprovFxOn(fx.key, current)
+              return (
+                <div key={fx.key}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] font-medium text-text-muted">{fx.label}</span>
+                    <span className="text-[10px] text-text-muted tabular-nums">
+                      {on ? current : '—'}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {fx.steps.map((v) => {
+                      const selected = on && current === v
+                      return (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() =>
+                            useJamStore.getState().patchImprovMix({
+                              [fx.key]: selected ? fx.off : v,
+                            })
+                          }
+                          className={`min-h-8 px-2 rounded-lg text-[11px] border ${
+                            selected
+                              ? 'border-accent bg-accent/20 text-accent'
+                              : 'border-border text-text-muted'
+                          }`}
+                        >
+                          {v}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })
+            if (!row.group) return <div key={row.items[0]!.key}>{body}</div>
             return (
-              <div key={fx.key}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-medium text-text-muted">{fx.label}</span>
-                  <span className="text-[10px] text-text-muted tabular-nums">
-                    {on ? current : '—'}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {fx.steps.map((v) => {
-                    const selected = on && current === v
-                    return (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() =>
-                          useJamStore.getState().patchImprovMix({
-                            [fx.key]: selected ? fx.off : v,
-                          })
-                        }
-                        className={`min-h-8 px-2 rounded-lg text-[11px] border ${
-                          selected
-                            ? 'border-accent bg-accent/20 text-accent'
-                            : 'border-border text-text-muted'
-                        }`}
-                      >
-                        {v}
-                      </button>
-                    )
-                  })}
-                </div>
+              <div
+                key={row.group}
+                className="rounded-xl border border-border px-2.5 py-2 space-y-2"
+              >
+                <span className="text-[10px] font-medium text-text-muted">{row.label}</span>
+                {body}
               </div>
             )
           })}
