@@ -20,6 +20,7 @@
     "test:last-touched": "npx --yes tsx src/engine/last-touched-smoke.test.ts",
     "test:note-harmony": "npx --yes tsx src/engine/note-harmony-smoke.test.ts",
     "test:mutate": "npx --yes tsx src/engine/mutate-smoke.test.ts",
+    "test:intensity-session": "npx --yes tsx src/engine/intensity-session-smoke.test.ts",
     "test:jam-lock": "npx --yes tsx src/engine/jam-lock-shuffle-smoke.test.ts",
     "test:webmcp": "npx --yes tsx src/engine/webmcp-tools-smoke.test.ts",
     "test:song-seed": "npx --yes tsx src/engine/song-seed-smoke.test.ts",

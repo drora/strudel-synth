@@ -26,10 +26,10 @@ import type { Track } from './types'
 import {
   captureIntensitySnap,
   clampIntensity,
+  intensityLevelsShareSpawn,
   intensitySpawnRole,
   isKeysTrack,
   nextIntensity,
-  shouldSpawnIntensityLane,
   type IntensityLevel,
 } from './intensity'
 
@@ -553,10 +553,11 @@ function spawnIntensityLane(level: IntensityLevel): Track {
   const role = intensitySpawnRole({ hasPad, hasArp, hasKeys })
   const built = generateRoleCode(role)
   const name = role === 'lead' ? 'Keys' : built.name
+  const recipeLevel: IntensityLevel = level >= 4 ? 3 : level
   const id = useSessionStore.getState().addTrack({
     name,
     role,
-    code: applyIntensityFromBase(built.code, role, level, { root: jam.songRoot, scale: jam.songScale, keys: role === 'lead' }),
+    code: applyIntensityFromBase(built.code, role, recipeLevel, { root: jam.songRoot, scale: jam.songScale, keys: role === 'lead' }),
     color: built.color,
     muted: false,
     soloed: false,
@@ -596,6 +597,14 @@ function restoreIntensitySnap(snap: import('./intensity').IntensitySnap) {
 function realizeIntensityLevel(target: IntensityLevel) {
   const jam = useJamStore.getState()
   const session = useSessionStore.getState()
+  // Keep live L3 spawn across 3↔4 (copy before L1 restore drops it).
+  const kept: Track | null =
+    target >= 3
+      ? (() => {
+          const live = liveSpawnedPad()
+          return live ? { ...live } : null
+        })()
+      : null
   if (!jam.intensitySnaps[1]) {
     jam.saveIntensitySnap(1, captureIntensitySnap(session.tracks, null))
   }
@@ -605,11 +614,21 @@ function realizeIntensityLevel(target: IntensityLevel) {
   const fresh = useSessionStore.getState()
   for (const tr of fresh.tracks) {
     if (tr.locked) continue
+    if (kept && tr.id === kept.id) continue
     const next = applyIntensityFromBase(tr.code, tr.role, target, { root: jam.songRoot, scale: jam.songScale, keys: isKeysTrack(tr) })
     if (next !== tr.code) fresh.setCode(tr.id, next)
   }
-  if (shouldSpawnIntensityLane(target, !!useJamStore.getState().spawnedPadId)) {
-    spawnIntensityLane(target)
+  if (target >= 3) {
+    if (kept) {
+      if (!useSessionStore.getState().tracks.some((tr) => tr.id === kept.id)) {
+        useSessionStore.getState().addTrack({ ...kept, id: kept.id })
+      }
+      useJamStore.getState().setSpawnedPadId(kept.id)
+      // Do not rewrite kept code (user edits / Sound / octave persist).
+    } else {
+      // Always spawn at recipe L3 — never pass 4 into applyIntensityFromBase for a new spawn.
+      spawnIntensityLane(3)
+    }
   }
 }
 
@@ -630,15 +649,36 @@ function applyIntensityDir(
   const beforeSnap = captureIntensitySnap(session.tracks, beforePad)
   jam.saveIntensitySnap(from, beforeSnap)
 
-  const existing = useJamStore.getState().intensitySnaps[to]
-  if (existing) restoreIntensitySnap(existing)
-  else realizeIntensityLevel(to)
+  // 3↔4: always realize so drums follow the level but the live spawn stays.
+  if (intensityLevelsShareSpawn(from, to)) {
+    realizeIntensityLevel(to)
+  } else {
+    const existing = useJamStore.getState().intensitySnaps[to]
+    if (existing) restoreIntensitySnap(existing)
+    else realizeIntensityLevel(to)
+  }
 
   jam.saveIntensitySnap(
     to,
     captureIntensitySnap(useSessionStore.getState().tracks, liveSpawnedPad()),
   )
   jam.setIntensityLevel(to)
+
+  // Keep L3/L4 snaps' spawnedPad in sync so 2→3 later restores the latest spawn code.
+  const liveAfter = liveSpawnedPad()
+  if (liveAfter) {
+    const jamAfter = useJamStore.getState()
+    for (const lvl of [3, 4] as const) {
+      const snap = jamAfter.intensitySnaps[lvl]
+      if (!snap) continue
+      jamAfter.saveIntensitySnap(lvl, {
+        codes: snap.codes.map((c) =>
+          c.id === liveAfter.id ? { id: c.id, code: liveAfter.code } : c,
+        ),
+        spawnedPad: { ...liveAfter },
+      })
+    }
+  }
 
   const after = useSessionStore.getState()
   const addedTrackIds = after.tracks.filter((tr) => !beforeIds.includes(tr.id)).map((tr) => tr.id)
