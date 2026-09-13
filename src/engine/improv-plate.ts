@@ -198,6 +198,23 @@ export function phraseCycles(tokens: string[], beatsPerCycle = 4): number {
   return total / Math.max(beatsPerCycle, 1)
 }
 
+/** `@` is relative — a 1-beat sentence would fill the bar and tile. Rest-pad to 4. */
+function padTokensToBar(
+  tokens: string[],
+  vels: number[],
+  speeds: number[],
+  stretches: number[],
+  beatsPerCycle = 4,
+) {
+  const total = tokens.reduce((n, tok) => n + tokenBeats(tok), 0)
+  if (total <= 0 || total >= beatsPerCycle) return
+  const pad = round3(beatsPerCycle - total)
+  tokens.push(pad === 1 ? '~' : `~@${pad}`)
+  vels.push(1)
+  speeds.push(1)
+  stretches.push(0)
+}
+
 function restToken(gapSec: number, bpm: number): string | null {
   const beats = quantizeBeats(gapSec, bpm)
   // Gaps shorter than a beat stay glued — do not insert ~@0.25 between staccato taps.
@@ -290,6 +307,7 @@ export function hitsToNoteCode(
       stretches.push(0)
     }
   }
+  padTokensToBar(tokens, vels, speeds, stretches)
   let code = improvVoiceCode(tokens.join(' '), voice)
   const allDefault = vels.every((v) => Math.abs(v - 1) < 0.06)
   if (!allDefault) {
