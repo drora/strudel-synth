@@ -1,6 +1,7 @@
 # Jam liveloop — best practices
 
 Kit **shuffle profile** knowledge only — never song titles or cover charts.
+Partner rules (WebMCP-only, header taps, intensity, hard rules): see [SKILL.md](./SKILL.md).
 
 ## Mini-notation tips
 
@@ -14,28 +15,27 @@ Kit **shuffle profile** knowledge only — never song titles or cover charts.
 Kits are **identity + shuffle profile**, not frozen recipes. Profile fields: `groove`, `density`, optional `root` / `scale` / `melodicSounds` / `fxBias` / `pinN`.
 
 - `apply_kit` and `shuffle_sounds` regenerate lines in that profile (same bank / groove / scale family). Melodic lanes follow a shared **song-seed** chord walk (Song Shuffle = new seed; track Shuffle keeps seed; Sound still pins).
-- `get_session` / `get_jam_state` expose `songRoot` / `songScale` / `songWalk` (centers + `concertNames`). Walk chips are **display-only**.
+- `get_session` exposes `songRoot` / `songScale` / `songWalk` (centers + `concertNames`). Walk chips are **display-only**.
 - Scales: minor, major, dorian, pentatonic, mixolydian, phrygian, lydian, harmonic_minor (`set_song_harmony`).
-- `add_track` without code is **seed-aware** (same as Jam + Track).
+- `add_track` without code is **seed-aware**.
 - Hand `update_track` edits must stay coherent with `get_kit` (read jam state first).
 - Prefer shuffle / re-apply for variety over pasting a "classic" pattern as THE kit.
 
-## Shuffle vs Spice vs Mutate vs Lock
+## Shuffle vs Spice vs Mutate vs Intensity
 
-| | Shuffle | Spice | Mutate | Lock |
-|-|---------|-------|--------|------|
-| Intent | Fresh pattern in profile | FX/timbre nudge | Deterministic pattern transform | Pin lane |
-| Tool | `shuffle_sounds` / `apply_kit` | `spice` / `spice_tracks` | `apply_mutate` | `set_track_lock` |
-| Keeps tune shape? | No (new lines) | Yes | Partially | Yes (skips lane) |
+| | Shuffle | Spice | Mutate | Intensity |
+|-|---------|-------|--------|-----------|
+| Intent | Fresh pattern in profile | FX/timbre nudge | Deterministic pattern transform | Density ladder 1–4 |
+| Tool | `shuffle_sounds` / `apply_kit` | `spice` | `apply_mutate` | `intensity-up` / `intensity-down` only |
+| Keeps tune shape? | No (new lines) | Yes | Partially | Rebuilds from L1 |
 
-Never stack all four in one turn. Peek labels: `Shuffle · …` / `Spice · room` / Mutate sheet.
+Never stack these in one turn. See SKILL.md for the intensity talk-recipe (do not hand-write L2–L4).
 
 ## Familiar → kit
 
-1. `list_kits` (search/tags/vibe/tempo) → `get_kit` — match vibe, `drumsBank`, shuffle groove/density/scale/root, name/description.
+1. `list_kits` → `get_kit` — match vibe, `drumsBank`, shuffle groove/density/scale/root.
 2. Starting points: punchy four-on-floor → techno + `four_on_floor` + 909/808; dusty boom-bap → lofi + breakbeat/halftime; airy pads → ambient + sparse; classic house → house + `four_on_floor`.
 3. `apply_kit`, then `shuffle_sounds` or soft in-profile `update_track` if close — never invent frozen recipes or cover recreations.
-4. Trust `get_kit` / list `shuffle` metadata over memory mini-notation. Recipe of profiles — not a dump of every kit.
 
 ## Common mistakes
 
@@ -50,13 +50,14 @@ Never stack all four in one turn. Peek labels: `Shuffle · …` / `Spice · room
 | Ignoring quantization | Default `"1"`; structural → `"2"` |
 | Removing tracks to “clean up” | Ask first; mute instead |
 | Faking mic Rec | Report `mic_status`; user taps Rec |
-| Faking Take | User-gesture only (like Rec); no agent start; do not pretend you started a Take |
+| Faking Take / treating Take as Rec | User taps **Take** (header); you cannot start it; Take is not Rec |
+| Reconstructing Import via harmony/BPM | Ask them to tap **Import**; pasted code → `update_track` that lane only (no `set_song_harmony` remap) |
 | Editing walk chips as targets | Display-only concert names — use `set_song_harmony` for key/scale |
 
 ## Phone Jam constraints
 
 - Thumb UI: kit picker, chips, Sound|FX sheet, Code sheet, A/B near Kit.
-- Sheets stay open while browsing sounds — agents should not spam `close_code_sheet`.
+- Sheets stay open while browsing sounds — do not spam `close_code_sheet`.
 - Sample prebake may briefly block; wait for playable state via `get_session`.
 - Touch latency: favor cycle quant over `immediate` for musical edits.
 
@@ -74,14 +75,14 @@ stopped                          → store update only (no queue)
 - Kits have unique `id`s and display names with **model** (LM-2, CR-1000, DR-550, SK-1…).
 - Never invent bare names like “Linn” / “Casio” / “DR” when listing or applying — use `list_kits` ids.
 - Soft tags: `tempo:slow|mid|fast`, `bank:909`, `vibe:techno`.
-- `lockKit: true` → shuffle keeps bank **and** profile groove family; `false` → free reshuffle across kits. Prefer per-track **Lock** for pinning lanes.
+- Prefer per-track **Lock** (`set_track_lock`) for pinning lanes.
 
 ## Spice
 
-- UI **Spice** = one FX/timbre nudge on existing code (`engine/spice.ts` via `setEffectInCode`).
-- **Spice ≠ Shuffle** — same tune; **never** pattern rewrite, denser/sparser groove, bank swap, or `shuffle_sounds`.
+- **Spice** = one FX/timbre nudge on existing code.
+- **Spice ≠ Shuffle** — same tune; never pattern rewrite, denser/sparser groove, bank swap, or `shuffle_sounds`.
 - Peek: `Spice · room` / `Spice · darker`. Undo via `undo_jam`.
-- Mission deal cards are **removed**. **Mutate** is a pattern-transform sheet (not Shuffle/Spice).
+- **Mutate** is a pattern-transform sheet (not Shuffle/Spice).
 
 ## Undo
 
@@ -91,8 +92,7 @@ stopped                          → store update only (no queue)
 
 - `list_sound_choices` respects track role (`SOUND_CHOICES`).
 - FX keys mirror Jam chips + code-effects: `lpf`, `hpf`, `room`, `delay`, `gain`, plus `roomsize`, `delaytime`, `delayfeedback`, etc.
-- Patterned `.lpf(sine.range(…))` cannot be set via `set_fx` — use Code.
-- Autocomplete biases to the active kit profile + song root/scale — don't suggest off-kit banks.
+- Patterned `.lpf(sine.range(…))` cannot be set via `set_fx` — use Code / `update_track`.
 
 ## Session hygiene
 
