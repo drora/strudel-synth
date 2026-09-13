@@ -40,7 +40,13 @@ export function JamShell() {
 
   const exportJam = () => {
     downloadAllCode(
-      tracksToAllCode(j.tracks),
+      tracksToAllCode(j.tracks, {
+        kitId: j.kitId,
+        kitName: j.activeKit?.name,
+        root: j.songRoot,
+        scale: j.songScale,
+        bpm: j.bpm,
+      }),
       allCodeFilename({
         kit: j.activeKit?.name,
         root: j.songRoot,
@@ -93,6 +99,13 @@ export function JamShell() {
           >
             Learn
           </button>
+          <button
+            type="button"
+            className="min-h-11 px-3 rounded-lg text-xs font-medium bg-bg-elevated text-text-muted border border-border hover:text-accent"
+            onClick={exportJam}
+          >
+            Export
+          </button>
           <input
             ref={importFileRef}
             type="file"
@@ -109,13 +122,6 @@ export function JamShell() {
             onClick={startImport}
           >
             Import
-          </button>
-          <button
-            type="button"
-            className="min-h-11 px-3 rounded-lg text-xs font-medium bg-bg-elevated text-text-muted border border-border hover:text-accent"
-            onClick={exportJam}
-          >
-            Export
           </button>
           <JamTakeMix />
         </div>
