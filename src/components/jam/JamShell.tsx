@@ -94,7 +94,7 @@ export function JamShell() {
           <input
             ref={importFileRef}
             type="file"
-            accept=".js,.mjs,.txt,.strudel,text/plain,text/javascript"
+            accept=".strudel,.js,.txt,.mjs,text/plain,text/javascript"
             className="hidden"
             onChange={(e) => {
               onImportFile(e.target.files?.[0])
