@@ -9,9 +9,11 @@ import { startOrQueueUpdate } from '../../engine/playback'
 import {
   applyImportToTracks,
   checkImportCode,
+  allCodeFilename,
   downloadAllCode,
   tracksToAllCode,
 } from '../../engine/all-code'
+import { getKit } from '../../engine/kits'
 
 /**
  * Header Code — one editor for every track.
@@ -206,7 +208,16 @@ export function JamAllCodeSheet() {
             </button>
             <button
               type="button"
-              onClick={() => downloadAllCode(viewRef.current?.state.doc.toString() ?? textRef.current)}
+              onClick={() => {
+                const jam = useJamStore.getState()
+                const name = allCodeFilename({
+                  kit: jam.kitId ? getKit(jam.kitId)?.name : null,
+                  root: jam.songRoot,
+                  scale: jam.songScale,
+                  bpm: useSessionStore.getState().bpm,
+                })
+                downloadAllCode(viewRef.current?.state.doc.toString() ?? textRef.current, name)
+              }}
               className="min-h-11 px-3 rounded-xl text-xs font-medium bg-bg text-text-muted border border-border hover:text-text"
             >
               Export

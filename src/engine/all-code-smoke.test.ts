@@ -12,6 +12,8 @@ import {
   checkImportCode,
   applyImportToTracks,
   ALL_CODE_FILENAME,
+  allCodeFilename,
+  jamFileStem,
 } from './all-code'
 import type { Track } from './types'
 
@@ -87,6 +89,15 @@ console.log('=== all-code smoke ===')
   console.log('import check ok')
 }
 
-{ assert.equal(ALL_CODE_FILENAME, 'strudel-studio.strudel') }
+{
+  assert.equal(ALL_CODE_FILENAME, 'strudel-studio.strudel')
+  assert.equal(
+    allCodeFilename({ kit: 'Roland TR-909', root: 'f#', scale: 'harmonic_minor', bpm: 128 }),
+    'roland-tr-909-fs-harmonic-minor-128.strudel',
+  )
+  assert.equal(jamFileStem({ kit: 'Amen Chop', root: 'c', scale: 'minor', bpm: 174 }), 'amen-chop-c-minor-174')
+  console.log('filename slug ok')
+}
+
 
 console.log('all-code-smoke.test.ts: ok')

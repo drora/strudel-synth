@@ -15,11 +15,12 @@ import { JamKitPicker } from './JamKitPicker'
 import { JamAddTrack } from './JamAddTrack'
 import { JamPhaseRing } from './JamPhaseRing'
 import { JamMicRec } from './JamMicRec'
+import { JamShareMix } from './JamShareMix'
 import { JamABToggle } from './JamABToggle'
 import { useJamShell } from './useJamShell'
 import { JamTrackChip } from './JamTrackChip'
 import { drumsBankShortName } from '../../engine/kit-browser'
-import { CODE_ALL, isCodeAllOpen, downloadAllCode, tracksToAllCode } from '../../engine/all-code'
+import { CODE_ALL, isCodeAllOpen, downloadAllCode, tracksToAllCode, allCodeFilename } from '../../engine/all-code'
 import { setSongHarmony, rollSongHarmony } from '../../engine/jam-actions'
 import { SONG_ROOTS, SONG_SCALES, SONG_SCALE_LABELS } from '../../engine/note-harmony'
 import { walkConcertNames } from '../../engine/song-seed'
@@ -38,7 +39,15 @@ export function JamShell() {
   const importFileRef = useRef<HTMLInputElement>(null)
 
   const exportJam = () => {
-    downloadAllCode(tracksToAllCode(j.tracks))
+    downloadAllCode(
+      tracksToAllCode(j.tracks),
+      allCodeFilename({
+        kit: j.activeKit?.name,
+        root: j.songRoot,
+        scale: j.songScale,
+        bpm: j.bpm,
+      }),
+    )
   }
 
   const startImport = () => {
@@ -108,6 +117,7 @@ export function JamShell() {
           >
             Import
           </button>
+          <JamShareMix />
         </div>
       </header>
 
