@@ -14,7 +14,7 @@ export function slugJamPart(s: string): string {
   return t.slice(0, 40) || 'jam'
 }
 
-/** kit-root-scale-bpm — used by Export and Share mix. */
+/** kit-root-scale-bpm — used by Export and Take. */
 export function jamFileStem(meta: {
   kit?: string | null
   root?: string | null

@@ -6,6 +6,7 @@ import { downloadBlob, jamFileStem } from './all-code'
 import { getKit } from './kits'
 import { useJamStore } from '../store/jam-store'
 import { useSessionStore } from '../store/session-store'
+import { startPlayback } from './playback'
 
 export const MIX_CAPTURE_LIMIT_MS = 180_000
 
@@ -96,11 +97,6 @@ function clearLimit() {
   }
 }
 
-function engineReady(): boolean {
-  const g = globalThis as { __strudelEngine?: { initialized?: boolean } }
-  return !!g.__strudelEngine?.initialized
-}
-
 export function isMixCapturing(): boolean {
   return !!recorder && recorder.state === 'recording'
 }
@@ -124,15 +120,20 @@ export async function startMixCapture(opts?: {
     emit('error', 'Capture not supported here')
     throw new Error('MediaRecorder unsupported')
   }
-  if (!engineReady()) {
-    emit('error', 'Play first, then Share')
-    throw new Error('Play first, then Share')
+
+  if (!useSessionStore.getState().isPlaying) {
+    const play = await startPlayback()
+    if (!play.ok) {
+      const msg = play.error ?? 'Play blocked — tap again'
+      emit('error', msg)
+      throw new Error(msg)
+    }
   }
 
   const tap = await resolveTap()
   if (!tap) {
-    emit('error', 'Play first, then Share')
-    throw new Error('Play first, then Share')
+    emit('error', 'Audio not ready — tap again')
+    throw new Error('Audio not ready — tap again')
   }
 
   const stream = ensureTap(tap.ctx, tap.gain)
