@@ -3,8 +3,9 @@
  * Keeps Sound / bank / FX chain intact (splitEffectSuffix spirit). Not Shuffle, not Spice.
  */
 import type { Track, TrackRole } from './types'
-import { parseEffectValue, setEffectInCode, splitEffectSuffix } from './code-effects'
+import { splitEffectSuffix } from './code-effects'
 import { isMelodicRole } from './note-harmony'
+import type { IntensityLevel } from './intensity'
 
 export type MutateScope = 'track' | 'song'
 
@@ -47,8 +48,8 @@ export const MUTATIONS: readonly MutateDef[] = [
   { id: 'reverse', label: 'Reverse', hint: 'Flip the pattern', scope: 'track' },
   { id: 'every-other', label: 'Every other', hint: 'Keep alternate hits', scope: 'track' },
   { id: 'double-time', label: 'Double-time', hint: 'Tighten feel · all tracks', scope: 'song' },
-  { id: 'intensity-up', label: 'Intensity+', hint: '1–4 · perc + bass + FX · 3+ adds pad', scope: 'song' },
-  { id: 'intensity-down', label: 'Intensity−', hint: '1–4 · wind down perc + bass + FX + pad', scope: 'song' },
+  { id: 'intensity-up', label: 'Intensity+', hint: '1 as-is · 2 hats · 3 pad/arp · 4 bd+sd+bass', scope: 'song' },
+  { id: 'intensity-down', label: 'Intensity−', hint: 'wind down those same steps', scope: 'song' },
 ] as const
 
 export function getMutation(id: string): MutateDef | undefined {
@@ -120,6 +121,14 @@ function isHatish(tok: string): boolean {
   const { base } = stripMul(tok)
   const bare = base.replace(/^\[|\]$/g, '').split(/[,\s]/)[0] ?? base
   return HAT_RE.test(bare)
+}
+
+const SNARE_RE = /^(sd|sn|snare)/i
+
+function isSnareish(tok: string): boolean {
+  const { base } = stripMul(tok)
+  const bare = base.replace(/^\[|\]$/g, '').split(/[,\s]/)[0] ?? base
+  return SNARE_RE.test(bare)
 }
 
 /** Sparse: turn every other non-rest into ~ (keep first of each pair). */
@@ -327,6 +336,38 @@ function sameHit(a: string, b: string): boolean {
   return stripMul(a).base === stripMul(b).base
 }
 
+export function isKickToken(tok: string): boolean {
+  const b = stripMul(tok).base.toLowerCase()
+  return /^(bd|kick|bassdrum\d*)$/.test(b) || b.startsWith('bd')
+}
+
+/** Fill rests; leave already-dense patterns alone (no 16→32). */
+export function transformTo16NoDup(tokens: string[]): string[] {
+  if (tokens.length === 0 || !tokens.some(isRest)) return tokens
+  let last: string | null = null
+  return tokens.map((t) => {
+    if (!isRest(t)) {
+      last = t
+      return t
+    }
+    return last ?? t
+  })
+}
+
+/** Like 16-fill, but never turn a kick rest into another kick. */
+export function transformTo16KickSafe(tokens: string[]): string[] {
+  if (tokens.length === 0 || !tokens.some(isRest)) return tokens
+  let last: string | null = null
+  return tokens.map((t) => {
+    if (!isRest(t)) {
+      last = t
+      return t
+    }
+    if (last && isKickToken(last)) return t
+    return last ?? t
+  })
+}
+
 /** 8-beat → 16-beat: fill rests with the previous hit; if already dense, duplicate each. */
 export function transformTo16(tokens: string[]): string[] {
   if (tokens.length === 0) return tokens
@@ -347,6 +388,28 @@ export function transformTo16(tokens: string[]): string[] {
   return out
 }
 
+/** Like transformTo16, but only fill/duplicate tokens matching pred (one pass; no stacked fills). */
+export function transformTo16Where(tokens: string[], pred: (tok: string) => boolean): string[] {
+  if (tokens.length === 0) return tokens
+  if (tokens.some(isRest)) {
+    let last: string | null = null
+    return tokens.map((t) => {
+      if (!isRest(t)) {
+        last = t
+        return t
+      }
+      if (last && pred(last)) return last
+      return t
+    })
+  }
+  const out: string[] = []
+  for (const t of tokens) {
+    if (pred(t)) out.push(t, stripMul(t).base)
+    else out.push(t)
+  }
+  return out
+}
+
 /** 16-beat → 8-beat: paired same hits become hit/~; else keep the 8th-note grid. */
 export function transformTo8(tokens: string[]): string[] {
   if (tokens.length < 2) return tokens
@@ -362,44 +425,6 @@ export function transformTo8(tokens: string[]): string[] {
     return tokens.filter((_, i) => i % 2 === 0)
   }
   return transformSparse(tokens)
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100
-}
-
-/** Song-wide directional FX (stronger than one Spice nudge). */
-export function applyIntensityFx(code: string, dir: 1 | -1, role: TrackRole): string {
-  let next = code
-  const gain = parseEffectValue(next, 'gain')
-  if (dir === 1) {
-    next = setEffectInCode(next, 'gain', Math.min(1.45, gain != null ? round2(gain * 1.22) : 1.15))
-  } else {
-    next = setEffectInCode(next, 'gain', Math.max(0.2, gain != null ? round2(gain * 0.78) : 0.68))
-  }
-  const lpf = parseEffectValue(next, 'lpf')
-  if (dir === 1) {
-    if (lpf != null) next = setEffectInCode(next, 'lpf', Math.min(12000, Math.round(lpf * 1.55)))
-  } else if (role === 'bass' && lpf != null) {
-    next = setEffectInCode(next, 'lpf', Math.max(160, Math.round(lpf * 0.78)))
-  } else if (role !== 'drums') {
-    if (lpf != null) next = setEffectInCode(next, 'lpf', Math.max(200, Math.round(lpf * 0.55)))
-    else if (role === 'pad' || role === 'lead' || role === 'arp') next = setEffectInCode(next, 'lpf', 900)
-  }
-  const room = parseEffectValue(next, 'room')
-  if (dir === 1) {
-    const bump = role === 'pad' ? 0.3 : role === 'lead' || role === 'vox' ? 0.22 : 0.14
-    const seed = room ?? (role === 'pad' ? 0.28 : 0.14)
-    next = setEffectInCode(next, 'room', Math.min(1.2, round2(seed + bump)))
-  } else if (room != null) {
-    next = setEffectInCode(next, 'room', Math.max(0, round2(room - 0.22)))
-  }
-  const delay = parseEffectValue(next, 'delay')
-  if (role === 'lead' || role === 'pad' || role === 'arp' || role === 'vox') {
-    if (dir === 1) next = setEffectInCode(next, 'delay', Math.min(0.75, round2((delay ?? 0.16) + 0.16)))
-    else if (delay != null) next = setEffectInCode(next, 'delay', Math.max(0, round2(delay - 0.16)))
-  }
-  return next
 }
 
 export function applyTokenTransform(
@@ -439,7 +464,12 @@ export function applyTokenTransform(
     case 'intensity-down': {
       const dir = intensityDir(id)
       if (!dir) return tokens
-      const hits = dir === 1 ? transformTo16(tokens) : transformTo8(tokens)
+      const hits =
+        dir === 1
+          ? role === 'drums'
+            ? transformTo16KickSafe(tokens)
+            : transformTo16NoDup(tokens)
+          : transformTo8(tokens)
       if (kind === 'note' && role === 'bass') return hits
       if (kind === 's' && PERC_ROLES.has(role)) return hits
       if (kind === 's' && role === 'bass' && tokens.length > 1) return hits
@@ -478,7 +508,11 @@ function mapQuotedCalls(
 }
 
 /** Transform pattern strings inside head; leave FX/sound chain alone. */
-export function mutatePatternCode(code: string, id: MutateId, role: TrackRole): string {
+export function mutatePatternCode(
+  code: string,
+  id: MutateId,
+  role: TrackRole,
+): string {
   const { head, fx } = splitEffectSuffix(code)
   let next = head
   const hasNote = /\bnote\s*\(/.test(head)
@@ -512,11 +546,67 @@ export function mutatePatternCode(code: string, id: MutateId, role: TrackRole): 
     return joinMini(applyTokenTransform(toks, id, 's', role))
   })
 
-  const dir = intensityDir(id)
-  if (next === head && !dir) return code
-  const combined = next + fx
-  if (dir) return applyIntensityFx(combined, dir, role)
-  return combined
+  if (next === head) return code
+  return next + fx
+}
+
+/**
+ * Map s()/note() bodies the same way mutatePatternCode does — FX/sound suffix stays put.
+ */
+function mapIntensityBodies(
+  code: string,
+  mapS: (toks: string[]) => string[] | null,
+  mapNote: (toks: string[]) => string[] | null,
+): string {
+  const { head, fx } = splitEffectSuffix(code)
+  let next = head
+  const hasNote = /\bnote\s*\(/.test(head)
+
+  next = mapQuotedCalls(next, 'note', (body) => {
+    const toks = tokenizeMini(body)
+    if (toks.length === 0) return null
+    const mapped = mapNote(toks)
+    return mapped ? joinMini(mapped) : null
+  })
+
+  next = mapQuotedCalls(next, 's', (body) => {
+    if (hasNote && !isRhythmicSBody(body)) return null
+    if (!isRhythmicSBody(body) && !hasNote) {
+      const toks = tokenizeMini(body)
+      if (toks.length === 1 && !isRest(toks[0]!) && !/\*/.test(toks[0]!)) {
+        return null
+      }
+    }
+    const toks = tokenizeMini(body)
+    if (toks.length === 0) return null
+    const mapped = mapS(toks)
+    return mapped ? joinMini(mapped) : null
+  })
+
+  return next + fx
+}
+
+/** Rebuild intensity pattern from a level-1 generate. Never stacks; no mush FX. */
+export function applyIntensityFromBase(code: string, role: TrackRole, level: IntensityLevel): string {
+  if (level <= 1) return code
+  return mapIntensityBodies(
+    code,
+    (toks) => {
+      if (role === 'hihats' && level >= 2) return transformTo16(toks)
+      if (role === 'drums') {
+        if (level >= 4) {
+          return transformTo16Where(toks, (t) => isHatish(t) || isKickish(t) || isSnareish(t))
+        }
+        if (level >= 2) return transformTo16Where(toks, isHatish)
+      }
+      if (role === 'bass' && level >= 4) return transformTo16(toks)
+      return null
+    },
+    (toks) => {
+      if (role === 'bass' && level >= 4) return transformTo16(toks)
+      return null
+    },
+  )
 }
 
 export type MutateApplyResult = {

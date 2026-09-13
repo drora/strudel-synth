@@ -19,16 +19,16 @@ import {
   shiftNotesByOctaves,
 } from './note-harmony'
 import { liveUpdateEngine, type Quantization } from './live-update'
-import { applyMutateToTracks, getMutation, mutatePatternCode, type MutateId } from './mutate'
+import { applyIntensityFromBase, applyMutateToTracks, getMutation, type MutateId } from './mutate'
 import { planShuffleTargets } from './shuffle-lock'
 import { pickRandomSoundChoice, pickRandomImprovVoice, soundChoicesForKit } from './kit-sound-choices'
 import type { Track } from './types'
 import {
   captureIntensitySnap,
   clampIntensity,
+  intensitySpawnRole,
   nextIntensity,
-  shouldDropSpawnedPad,
-  shouldSpawnIntensityPad,
+  shouldSpawnIntensityLane,
   type IntensityLevel,
 } from './intensity'
 
@@ -493,7 +493,7 @@ function dropSpawnedPad() {
   jam.setSpawnedPadId(null)
 }
 
-function generatePadCode(): { code: string; name: string; color: string } {
+function generateRoleCode(role: 'pad' | 'arp'): { code: string; name: string; color: string } {
   const jam = useJamStore.getState()
   const kit = jam.kitId ? getKit(jam.kitId) : undefined
   const resolved = kit ? resolveShuffleProfile(kit) : null
@@ -512,32 +512,34 @@ function generatePadCode(): { code: string; name: string; color: string } {
     })
     jam.setSongSeed(seed)
   }
-  const preset = ROLE_PRESETS.pad
-  let code = reshuffleTrack('pad', '', {
+  const preset = ROLE_PRESETS[role]
+  let code = reshuffleTrack(role, '', {
     lockKit: jam.lockKit || !!kit,
     bank: kit?.drumsBank,
     shuffle: songAwareShuffle(kit?.shuffle),
     seed,
   })
   const session = useSessionStore.getState()
-  const choices = soundChoicesForKit('pad', kit)
+  const choices = soundChoicesForKit(role, kit)
   const used = session.tracks
-    .filter((tr) => tr.role === 'pad')
+    .filter((tr) => tr.role === role)
     .map((tr) => choices.find((c) => matchSoundChoice(tr.code, c))?.id)
     .filter((id): id is string => !!id)
-  const voice = pickRandomSoundChoice('pad', kit, used)
+  const voice = pickRandomSoundChoice(role, kit, used)
   if (voice) code = applySoundChoiceToCode(code, voice)
   if (!code) code = preset.defaultCode
   return { code, name: preset.label, color: preset.color }
 }
 
-function spawnIntensityPad(): Track {
+function spawnIntensityLane(level: IntensityLevel): Track {
   const jam = useJamStore.getState()
-  const built = generatePadCode()
+  const hasPad = useSessionStore.getState().tracks.some((tr) => tr.role === 'pad')
+  const role = intensitySpawnRole(hasPad)
+  const built = generateRoleCode(role)
   const id = useSessionStore.getState().addTrack({
     name: built.name,
-    role: 'pad',
-    code: built.code,
+    role,
+    code: applyIntensityFromBase(built.code, role, level),
     color: built.color,
     muted: false,
     soloed: false,
@@ -546,12 +548,6 @@ function spawnIntensityPad(): Track {
     octave: 0,
     error: null,
   })
-  const boosted = mutatePatternCode(
-    useSessionStore.getState().tracks.find((tr) => tr.id === id)!.code,
-    'intensity-up',
-    'pad',
-  )
-  useSessionStore.getState().setCode(id, boosted)
   jam.setSpawnedPadId(id)
   jam.touchTrack(id)
   return useSessionStore.getState().tracks.find((tr) => tr.id === id)!
@@ -580,18 +576,24 @@ function restoreIntensitySnap(snap: import('./intensity').IntensitySnap) {
   jam.setSpawnedPadId(snap.spawnedPad?.id ?? null)
 }
 
-function applyIntensityStep(dir: 1 | -1) {
+function realizeIntensityLevel(target: IntensityLevel) {
+  const jam = useJamStore.getState()
   const session = useSessionStore.getState()
-  const result = applyMutateToTracks(session.tracks, dir === 1 ? 'intensity-up' : 'intensity-down')
-  if (!result) return
-  for (const c of result.changes) session.setCode(c.trackId, c.code)
-}
-
-function syncSpawnedPad(level: IntensityLevel) {
-  const session = useSessionStore.getState()
-  const hasPad = session.tracks.some((tr) => tr.role === 'pad')
-  if (shouldSpawnIntensityPad(level, hasPad)) spawnIntensityPad()
-  else if (shouldDropSpawnedPad(level)) dropSpawnedPad()
+  if (!jam.intensitySnaps[1]) {
+    jam.saveIntensitySnap(1, captureIntensitySnap(session.tracks, null))
+  }
+  restoreIntensitySnap(useJamStore.getState().intensitySnaps[1]!)
+  dropSpawnedPad()
+  if (target <= 1) return
+  const fresh = useSessionStore.getState()
+  for (const tr of fresh.tracks) {
+    if (tr.locked) continue
+    const next = applyIntensityFromBase(tr.code, tr.role, target)
+    if (next !== tr.code) fresh.setCode(tr.id, next)
+  }
+  if (shouldSpawnIntensityLane(target, !!useJamStore.getState().spawnedPadId)) {
+    spawnIntensityLane(target)
+  }
 }
 
 function applyIntensityDir(
@@ -613,10 +615,7 @@ function applyIntensityDir(
 
   const existing = useJamStore.getState().intensitySnaps[to]
   if (existing) restoreIntensitySnap(existing)
-  else {
-    applyIntensityStep(dir)
-    syncSpawnedPad(to)
-  }
+  else realizeIntensityLevel(to)
 
   jam.saveIntensitySnap(
     to,
