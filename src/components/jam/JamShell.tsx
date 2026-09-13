@@ -257,6 +257,8 @@ export function JamShell() {
           >
             Mutate
           </button>
+        </div>
+        <div className="flex items-center gap-2">
           <JamIntensityControl />
           <button
             type="button"
