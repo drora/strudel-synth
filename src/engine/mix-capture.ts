@@ -63,6 +63,8 @@ let chunks: BlobPart[] = []
 let mimeType = 'audio/webm'
 let limitTimer: ReturnType<typeof setTimeout> | null = null
 let startedAt = 0
+let arming = false
+let abortStart = false
 let onStateCb: ((s: MixCaptureState, detail?: string) => void) | null = null
 
 function emit(s: MixCaptureState, detail?: string) {
@@ -98,7 +100,7 @@ function clearLimit() {
 }
 
 export function isMixCapturing(): boolean {
-  return !!recorder && recorder.state === 'recording'
+  return arming || (!!recorder && recorder.state === 'recording')
 }
 
 export function mixCaptureElapsedMs(): number {
@@ -115,15 +117,25 @@ export async function startMixCapture(opts?: {
 }): Promise<void> {
   if (isMixCapturing()) return
   onStateCb = opts?.onState ?? null
+  arming = true
+  abortStart = false
+  emit('recording')
 
   if (typeof MediaRecorder === 'undefined') {
+    arming = false
     emit('error', 'Capture not supported here')
     throw new Error('MediaRecorder unsupported')
   }
 
   if (!useSessionStore.getState().isPlaying) {
     const play = await startPlayback()
+    if (abortStart) {
+      arming = false
+      emit('idle')
+      return
+    }
     if (!play.ok) {
+      arming = false
       const msg = play.error ?? 'Play blocked — tap again'
       emit('error', msg)
       throw new Error(msg)
@@ -131,7 +143,13 @@ export async function startMixCapture(opts?: {
   }
 
   const tap = await resolveTap()
+  if (abortStart) {
+    arming = false
+    emit('idle')
+    return
+  }
   if (!tap) {
+    arming = false
     emit('error', 'Audio not ready — tap again')
     throw new Error('Audio not ready — tap again')
   }
@@ -150,6 +168,7 @@ export async function startMixCapture(opts?: {
 
   startedAt = performance.now()
   recorder.start(250)
+  arming = false
   emit('recording')
   clearLimit()
   limitTimer = setTimeout(() => {
@@ -158,6 +177,8 @@ export async function startMixCapture(opts?: {
 }
 
 export async function stopMixCapture(): Promise<void> {
+  abortStart = true
+  arming = false
   clearLimit()
   const rec = recorder
   recorder = null

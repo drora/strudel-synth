@@ -198,5 +198,5 @@ export function downloadBlob(blob: Blob, filename: string): void {
 
 /** Browser download of the all-tracks buffer. */
 export function downloadAllCode(text: string, filename = ALL_CODE_FILENAME): void {
-  downloadBlob(new Blob([text], { type: 'text/javascript;charset=utf-8' }), filename)
+  downloadBlob(new Blob([text], { type: 'text/plain;charset=utf-8' }), filename)
 }

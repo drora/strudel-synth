@@ -60,6 +60,12 @@ export async function stopPlayback(): Promise<void> {
   await stop()
   useSessionStore.getState().setPlaying(false)
   useUIStore.getState().setAudioError(null)
+  try {
+    const mix = await import('./mix-capture')
+    if (mix.isMixCapturing()) await mix.stopMixCapture()
+  } catch {
+    /* take already idle */
+  }
 }
 
 /** If already playing, queue a live update; otherwise start playback. */

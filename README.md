@@ -10,7 +10,7 @@
 2. **Tap a track** — Sound|FX sheet (chips write real Strudel code; sheet stays open while browsing). **M** on the chip mutes. **+ Track** adds a role with preset code without switching kits.
 3. **Edit in Code** / header **Code** — CodeMirror sheet for the **last-modified** track (content edits: Sound/FX/gain, Code apply, Shuffle this, Spice — not mute/solo or mere Code peek). That chip shows a thin purple ring + tiny purple dot. Completions soft-bias to the active kit shuffle profile (in-scale notes with scale detail; already-used pitches demoted in `note()`, kit bank/hits, melodicSounds). Stays in Jam; no mode bounce.
 4. **Liveloop** — BPM ring + per-track phase ticks while playing; **Rec** (red) records mic → sample → track; Stop is neutral (not Rec-red); **A/B** near Kit stashes and punches arrangement variants (tap punch/save; **long-press to save/overwrite**).
-5. **Learn** — challenges with Check / hints; **Apply to Jam** adds a track and opens its Code sheet. Header **Export** / **Import** (right of Learn) save or load the all-tracks Code file (`kit-root-scale-bpm.strudel`); paste marks invalid syntax. **Take** captures the live mix up to 3:00 (auto-stop; starts Play if stopped).
+5. **Learn** — challenges with Check / hints; **Apply to Jam** adds a track and opens its Code sheet. Header **Import** / **Export** (right of Learn) save or load the all-tracks Code file (`kit-root-scale-bpm.strudel`); paste marks invalid syntax. **Take** captures the live mix up to 3:00 (auto-stop; starts Play if stopped).
 
 Mobile: Jam is the default landing; touch targets and sheets are thumb-friendly. Desktop uses the same Jam shell.
 
