@@ -51,6 +51,7 @@ assert.equal(new Set(names).size, names.length, 'duplicate tool names')
 {
   const gs = String(defs.get_session!.description ?? '')
   assert.ok(gs.includes('songWalk'), 'get_session mentions songWalk')
+  assert.ok(gs.includes('intensityLevel'), 'get_session mentions intensityLevel')
   const gj = String(defs.get_jam_state!.description ?? '')
   assert.ok(gj.includes('songWalk') || gj.includes('songRoot'), 'get_jam_state mentions walk/harmony')
   const add = String(defs.add_track!.description ?? '')

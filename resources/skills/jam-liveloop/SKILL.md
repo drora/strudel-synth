@@ -48,6 +48,7 @@ Kits are **identity + shuffle profile**, not baked Strudel recipes. `apply_kit` 
 | Melodic octave | `set_octave` (trackId, −3…+3; melodic roles only) |
 | Pin a lane | `set_track_lock` (trackId, locked) — Lock pins Shuffle / Mutate / harmony remap |
 | Pattern transforms | `list_mutations` → `apply_mutate` (optional trackId; song-scope = all unlocked) |
+| Intensity 1–4 | `apply_mutate` `intensity-up` / `intensity-down` (footer stepper; rebuilds from L1) |
 | Same tune, FX/timbre only | `spice` / `spice_tracks` (Jam footer Spice) |
 | + Track (seed-aware) | `add_track` — without code, generates from current song seed / root / scale |
 | Browse kits | `list_kits` → `get_kit` → `apply_kit` |
@@ -67,6 +68,17 @@ Kits are **identity + shuffle profile**, not baked Strudel recipes. `apply_kit` 
 | **Lock** (`set_track_lock`) | Pins lane from Shuffle / Mutate / harmony remap | Kit-bank lock (`set_lock_kit` is legacy) |
 
 **Spice ≠ Shuffle ≠ Mutate.** Prefer one of these per turn, not stacked.
+
+## Intensity (1–4)
+
+Footer stepper. Rebuilt from the level-1 generate (never stacked). No gain/LPF/reverb/delay mush. Kit / New kit / Shuffle reset to 1.
+
+- **1** — as-is. Song as generated.
+- **2** — double hats only (8→16 fill). Kick, snare, bass, pads, lead stay.
+- **3** — pad, or arp if a pad already exists. Hats stay doubled. Going back to 2 drops only the spawned lane.
+- **4** — double kick + snare + bass. Hats stay doubled.
+
+Use `apply_mutate` with `intensity-up` / `intensity-down`. When hand-editing, match that recipe.
 
 ## Familiar → kit
 
