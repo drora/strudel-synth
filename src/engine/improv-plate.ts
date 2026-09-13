@@ -350,9 +350,27 @@ export type ImprovPadMix = {
 
 export const IMPROV_MIX_DEFAULT: ImprovPadMix = { volume: 0.9, velocity: 0.85 }
 
-/** VCSL `marimba` is only soft-mallet hits — no hard sibling. Linear vs synths. */
+/**
+ * Sample banks that sit well below synths (soft-only VCSL, glass, small pipes).
+ * Applied via pad amp + compose track `.gain` — do not also bake `.gain` into Keep code.
+ */
 export const QUIET_SAMPLE_GAIN: Record<string, number> = {
-  marimba: 4,
+  marimba: 8,
+  glockenspiel: 8,
+  harp: 6,
+  folkharp: 6,
+  dantranh: 6,
+  organ_4inch: 6,
+  ocarina: 6,
+  ocarina_small: 8,
+  recorder_alto_sus: 6,
+  recorder_bass_sus: 6,
+  recorder_soprano_sus: 6,
+  recorder_tenor_sus: 6,
+  wineglass: 12,
+  wineglass_slow: 12,
+  wt_digital_basique: 5,
+  speechless: 5,
 }
 
 export function sampleGainBoost(sound: string): number {

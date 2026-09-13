@@ -8,6 +8,7 @@ import { JamTrackSheet } from './JamTrackSheet'
 import { JamCodeSheet } from './JamCodeSheet'
 import { JamAllCodeSheet } from './JamAllCodeSheet'
 import { JamMutateSheet } from './JamMutateSheet'
+import { JamIntensityControl } from './JamIntensityControl'
 import { JamImprovPlate } from './JamImprovPlate'
 import { liveUpdateEngine } from '../../engine/live-update'
 import { JamKitPicker } from './JamKitPicker'
@@ -256,6 +257,7 @@ export function JamShell() {
           >
             Mutate
           </button>
+          <JamIntensityControl />
           <button
             type="button"
             onClick={j.onShuffle}
