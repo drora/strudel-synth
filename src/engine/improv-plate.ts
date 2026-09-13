@@ -353,12 +353,13 @@ export const IMPROV_MIX_DEFAULT: ImprovPadMix = { volume: 0.9, velocity: 0.85 }
 export const IMPROV_VOL_STEPS = [0, 0.25, 0.5, 0.75, 0.9, 1, 1.25, 1.5]
 export const IMPROV_VEL_STEPS = [0.3, 0.5, 0.7, 0.85, 1, 1.2]
 
-export type FxGroupId = 'reverb' | 'delay' | 'envelope'
+export type FxGroupId = 'filter' | 'envelope' | 'reverb' | 'delay'
 
 export const FX_GROUP_LABEL: Record<FxGroupId, string> = {
+  filter: 'Filter',
+  envelope: 'Envelope',
   reverb: 'Reverb',
   delay: 'Delay',
-  envelope: 'Envelope',
 }
 
 export function groupedFxControls<T extends { key: string; group?: FxGroupId }>(
@@ -381,8 +382,9 @@ export const IMPROV_FX_CONTROLS: Array<{
   off: number
   group?: FxGroupId
 }> = [
-  { key: 'lpf', label: 'LPF', steps: [200, 400, 800, 1200, 2000, 4000, 8000, 12000], off: 12000 },
-  { key: 'hpf', label: 'HPF', steps: [20, 100, 200, 400, 800, 1600, 3200], off: 20 },
+  { key: 'gain', label: 'Gain', steps: [0.3, 0.5, 0.7, 0.85, 1, 1.15, 1.3], off: 0 },
+  { key: 'lpf', label: 'LPF', group: 'filter', steps: [200, 400, 800, 1200, 2000, 4000, 8000, 12000], off: 12000 },
+  { key: 'hpf', label: 'HPF', group: 'filter', steps: [20, 100, 200, 400, 800, 1600, 3200], off: 20 },
   { key: 'attack', label: 'Attack', group: 'envelope', steps: [0.01, 0.05, 0.1, 0.2, 0.4, 0.8], off: -1 },
   { key: 'decay', label: 'Decay', group: 'envelope', steps: [0.05, 0.1, 0.2, 0.4, 0.8, 1.5], off: -1 },
   { key: 'sustain', label: 'Sustain', group: 'envelope', steps: [0, 0.25, 0.5, 0.75, 1], off: -1 },
@@ -391,7 +393,6 @@ export const IMPROV_FX_CONTROLS: Array<{
   { key: 'roomsize', label: 'Room size', group: 'reverb', steps: [0.5, 1, 2, 3, 4], off: 0 },
   { key: 'delay', label: 'Delay', group: 'delay', steps: [0, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 1, 1.5, 2], off: 0 },
   { key: 'delaytime', label: 'Time', group: 'delay', steps: [0.125, 0.25, 0.5, 0.75, 1], off: 0 },
-  { key: 'gain', label: 'Gain', steps: [0.3, 0.5, 0.7, 0.85, 1, 1.15, 1.3], off: 0 },
 ]
 
 export function isImprovFxOn(

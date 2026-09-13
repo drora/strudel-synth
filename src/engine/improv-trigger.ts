@@ -135,12 +135,25 @@ function resolveHap(
   voice: string,
   mix: ImprovPadMix,
 ): Record<string, unknown> {
-  const hap = improvVoiceHapWithMix(note, voice, mix)
-  const want = String(hap.s ?? '')
-  if (!(getSoundFn && want && getSoundFn(want)) && getSoundFn?.('sawtooth')) {
-    hap.s = 'sawtooth'
+  return improvVoiceHapWithMix(note, voice, mix)
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms))
+}
+
+/** Wait for SuperDough to register a sample (VCSL/piano prebake). */
+async function waitForSound(
+  name: string,
+  ms = 2000,
+): Promise<{ onTrigger?: OnTrigger } | undefined> {
+  const start = Date.now()
+  let sound = getSoundFn?.(name)
+  while (!sound?.onTrigger && Date.now() - start < ms) {
+    await sleep(80)
+    sound = getSoundFn?.(name)
   }
-  return hap
+  return sound
 }
 
 function attachSmearVocoder(ac: AudioContext, node: AudioNode): AudioWorkletNode | null {
@@ -255,6 +268,10 @@ async function beginHold(
     void ac.resume()
     if (initAudioFn) void initAudioFn()
   }
+  const want = voice.split(':')[0] ?? voice
+  if (!SYNTH_VOICES.has(want.toLowerCase()) && !getSoundFn?.(want)?.onTrigger) {
+    await waitForSound(want)
+  }
   const hap = resolveHap(note, voice, mix)
   hap.duration = HOLD_SEC
   const s = String(hap.s ?? '')
@@ -275,13 +292,23 @@ async function beginHold(
     isImprovFxOn('sustain', mix.sustain) && mix.sustain != null ? mix.sustain : 1
   hap.release = release
   hap.velocity = velocity
-  const sound = getSoundFn(s)
+  let sound = getSoundFn?.(s)
+  if (!sound?.onTrigger) sound = await waitForSound(s)
   const t = ac.currentTime + improvLookahead(s)
-  if (!sound?.onTrigger) {
-    if (dough) void dough({ ...hap, gain: (mix.volume || 0.9) * velocity * (Number(hap.gain) || 1), cut: 1 }, t, 0.45)
+  if (!sound?.onTrigger) return
+  let handle = await sound.onTrigger(t, hap, () => {}, 0.5)
+  if (mine !== token) {
+    try {
+      handle?.stop?.(ac.currentTime)
+    } catch {
+      /* */
+    }
     return
   }
-  const handle = await sound.onTrigger(t, hap, () => {}, 0.5)
+  // First VCSL hit often loads after t — SuperDough discards. Replay once cached.
+  if (!handle?.node) {
+    handle = await sound.onTrigger(ac.currentTime + WARM_LEAD, hap, () => {}, 0.5)
+  }
   if (mine !== token || !handle?.node) {
     try {
       handle?.stop?.(ac.currentTime)
@@ -382,17 +409,23 @@ export function fireImprovNote(
 }
 
 export function preloadImprovVoice(voice: string): void {
-  if (!voice) return
-  const key = voice.split(':')[0]!.toLowerCase()
-  if (warmed.has(key)) return
-  if (!dough || !getCtx) {
-    void warmImprovTrigger().then(() => preloadImprovVoice(voice))
-    return
-  }
-  const ac = getCtx()
-  const hap = resolveHap('c4', voice, { ...IMPROV_MIX_DEFAULT, volume: 0 })
-  hap.gain = 0
-  const s = String(hap.s ?? '')
-  const t = ac.currentTime + improvLookahead(s)
-  void Promise.resolve(dough!(hap, t, 0.04)).then(() => markImprovVoiceWarm(s))
+  if (!voice || voice.startsWith('jam_mic_')) return
+  const key = voice.split(':')[0]!
+  if (warmed.has(key.toLowerCase())) return
+  void (async () => {
+    await warmImprovTrigger()
+    const sound = SYNTH_VOICES.has(key.toLowerCase())
+      ? getSoundFn?.(key)
+      : await waitForSound(key)
+    if (!sound?.onTrigger || !getCtx) return
+    const ac = getCtx()
+    const hap = { s: key, note: 'c4', gain: 0, duration: 0.05 }
+    try {
+      const handle = await sound.onTrigger(ac.currentTime + 6, hap, () => {}, 0.5)
+      handle?.stop?.(ac.currentTime)
+    } catch {
+      /* */
+    }
+    markImprovVoiceWarm(key)
+  })()
 }
