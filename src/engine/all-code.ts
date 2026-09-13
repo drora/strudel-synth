@@ -3,6 +3,8 @@ import type { Track } from './types'
 /** Header Code sheet — one editor for every track. */
 export const CODE_ALL = '__all__'
 
+export const ALL_CODE_FILENAME = 'strudel-studio.js'
+
 const HEAD = /^\/\/ @track (\S+)(?:\s+.*)?$/
 
 export function isCodeAllOpen(codeTrackId: string | null | undefined): boolean {
@@ -62,4 +64,103 @@ export function applyAllCodeToTracks(
     const t = tracks.find((tr) => tr.id === p.id)
     return t != null && t.code !== p.code
   })
+}
+
+function unbalancedSyntax(text: string): boolean {
+  const pairs: [string, string][] = [
+    ['(', ')'],
+    ['[', ']'],
+    ['{', '}'],
+  ]
+  for (const [open, close] of pairs) {
+    let depth = 0
+    let quote: string | null = null
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i]!
+      if (quote) {
+        if (ch === '\\') {
+          i++
+          continue
+        }
+        if (ch === quote) quote = null
+        continue
+      }
+      if (ch === '"' || ch === "'" || ch === '`') {
+        quote = ch
+        continue
+      }
+      if (ch === open) depth++
+      else if (ch === close) depth--
+      if (depth < 0) return true
+    }
+    if (depth !== 0) return true
+  }
+  let quote: string | null = null
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]!
+    if (quote) {
+      if (ch === '\\') {
+        i++
+        continue
+      }
+      if (ch === quote) quote = null
+      continue
+    }
+    if (ch === '"' || ch === "'" || ch === '`') quote = ch
+  }
+  return quote != null
+}
+
+const SNIPPET_RE = /\b(?:s|note|sound)\s*\(/
+
+export type ImportCheck = { ok: true } | { ok: false; message: string }
+
+/** Paste / file import: syntax + // @track shape. */
+export function checkImportCode(text: string, tracks: Track[]): ImportCheck {
+  const t = text.trim()
+  if (!t) return { ok: false, message: 'Nothing to import' }
+  if (unbalancedSyntax(t)) {
+    return { ok: false, message: 'Invalid syntax — unmatched brackets or quotes' }
+  }
+  const parsed = parseAllCode(text, tracks)
+  if (parsed.length > 0) return { ok: true }
+  if (/\/\/\s*@track\b/.test(text)) {
+    return { ok: false, message: 'No // @track ids match this jam' }
+  }
+  if (SNIPPET_RE.test(t)) return { ok: true }
+  return { ok: false, message: 'Need // @track id lines, or a s()/note() line' }
+}
+
+/**
+ * Apply an import buffer: @track sections, or a single snippet onto last-touched.
+ */
+export function applyImportToTracks(
+  text: string,
+  tracks: Track[],
+  lastTouchedId?: string | null,
+): { id: string; code: string }[] {
+  const fromHeads = applyAllCodeToTracks(text, tracks)
+  if (fromHeads.length > 0 || parseAllCode(text, tracks).length > 0) return fromHeads
+  const t = text.trim()
+  if (!SNIPPET_RE.test(t)) return []
+  const id =
+    lastTouchedId && tracks.some((x) => x.id === lastTouchedId)
+      ? lastTouchedId
+      : tracks[0]?.id
+  if (!id) return []
+  const cur = tracks.find((x) => x.id === id)
+  if (!cur || cur.code === t) return []
+  return [{ id, code: t }]
+}
+
+/** Browser download of the all-tracks buffer. */
+export function downloadAllCode(text: string, filename = ALL_CODE_FILENAME): void {
+  if (typeof document === 'undefined') return
+  const blob = new Blob([text], { type: 'text/javascript;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
 }

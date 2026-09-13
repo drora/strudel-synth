@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { useJamStore } from '../../store/jam-store'
 import { useSessionStore } from '../../store/session-store'
 import { useUIStore } from '../../store/ui-store'
@@ -19,7 +19,7 @@ import { JamABToggle } from './JamABToggle'
 import { useJamShell } from './useJamShell'
 import { JamTrackChip } from './JamTrackChip'
 import { drumsBankShortName } from '../../engine/kit-browser'
-import { CODE_ALL, isCodeAllOpen } from '../../engine/all-code'
+import { CODE_ALL, isCodeAllOpen, downloadAllCode, tracksToAllCode } from '../../engine/all-code'
 import { setSongHarmony, rollSongHarmony } from '../../engine/jam-actions'
 import { SONG_ROOTS, SONG_SCALES, SONG_SCALE_LABELS } from '../../engine/note-harmony'
 import { walkConcertNames } from '../../engine/song-seed'
@@ -35,6 +35,24 @@ export function JamShell() {
   )
   const codeAll = isCodeAllOpen(codeTrackId)
   const codeTrack = codeAll ? undefined : j.tracks.find((t) => t.id === codeTrackId)
+  const importFileRef = useRef<HTMLInputElement>(null)
+
+  const exportJam = () => {
+    downloadAllCode(tracksToAllCode(j.tracks))
+  }
+
+  const startImport = () => {
+    useJamStore.getState().setCodeTrackId(CODE_ALL)
+    importFileRef.current?.click()
+  }
+
+  const onImportFile = (file: File | undefined) => {
+    if (!file) return
+    void file.text().then((text) => {
+      useJamStore.getState().setPendingAllCode(text)
+      useJamStore.getState().setCodeTrackId(CODE_ALL)
+    })
+  }
 
   return (
     <div
@@ -65,6 +83,30 @@ export function JamShell() {
             onClick={() => useUIStore.getState().setAppMode('learn')}
           >
             Learn
+          </button>
+          <button
+            type="button"
+            className="min-h-11 px-3 rounded-lg text-xs font-medium bg-bg-elevated text-text-muted border border-border hover:text-accent"
+            onClick={exportJam}
+          >
+            Export
+          </button>
+          <input
+            ref={importFileRef}
+            type="file"
+            accept=".js,.mjs,.txt,.strudel,text/plain,text/javascript"
+            className="hidden"
+            onChange={(e) => {
+              onImportFile(e.target.files?.[0])
+              e.target.value = ''
+            }}
+          />
+          <button
+            type="button"
+            className="min-h-11 px-3 rounded-lg text-xs font-medium bg-bg-elevated text-text-muted border border-border hover:text-accent"
+            onClick={startImport}
+          >
+            Import
           </button>
         </div>
       </header>
