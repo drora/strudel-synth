@@ -49,6 +49,7 @@ Kits are **identity + shuffle profile**, not baked Strudel recipes. `apply_kit` 
 | Pin a lane | `set_track_lock` (trackId, locked) — Lock pins Shuffle / Mutate / harmony remap |
 | Pattern transforms | `list_mutations` → `apply_mutate` (optional trackId; song-scope = all unlocked) |
 | Intensity 1–4 | `apply_mutate` `intensity-up` / `intensity-down` (footer stepper; rebuilds from L1) |
+| Import / Export | UI (`.strudel` + `// @jam`). To apply a pasted jam, `update_track` per lane + `set_song_harmony` + `set_bpm` from the header; intensity → 1 via `intensity-down` or tell the user Import already resets to 1. Code-only — no pads/A/B/Take. |
 | Same tune, FX/timbre only | `spice` / `spice_tracks` (Jam footer Spice) |
 | + Track (seed-aware) | `add_track` — without code, generates from current song seed / root / scale |
 | Browse kits | `list_kits` → `get_kit` → `apply_kit` |
@@ -80,6 +81,12 @@ Footer stepper. Rebuilt from the level-1 generate (never stacked). No gain/LPF/r
 
 Use `apply_mutate` with `intensity-up` / `intensity-down`. When hand-editing, match that recipe.
 
+## Import / Export / Take
+
+Export writes `// @jam kit= id name= root= scale= bpm=` + `// @track` blocks.
+Import restores chrome (kit/root/scale/tempo), intensity 1, no note remap.
+Take captures live mix (tracks+pads) up to 3:00; ends on Take tap / Stop / 3:00 / Shuffle / New kit; starts Play if stopped.
+
 ## Familiar → kit
 
 When the user asks for a **feel** (dusty boom-bap, punchy 909 techno, etc.) — not a named song:
@@ -101,6 +108,7 @@ When the user asks for a **feel** (dusty boom-bap, punchy 909 techno, etc.) — 
 - Match the current kit **`drumsBank`** and shuffle profile when rewriting drums/hats (see `get_jam_state` / `get_kit`).
 - One change per turn: one track code, OR one FX, OR one kit — not all at once.
 - Mic: `mic_status` only. Rec **must** be user-tapped in the UI (gesture). Do not pretend you started recording.
+- Take is user-gesture only, like Rec. No agent start. `mic_status` stays Rec. Do not pretend you started a Take.
 - Never invent cover charts or song-title recreations.
 
 ## A/B workflow
