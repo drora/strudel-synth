@@ -108,7 +108,7 @@ export function registerWebMcpToolsB1(register: WebMcpRegister) {
   register({
     name: 'list_mutations',
     description:
-      'Catalog of Jam Mutate transforms (id, label, hint, scope song|track). Includes intensity-up/down (footer stepper: 1 as-is · 2 hats fill gaps · 3 pad → arp → keys → fx · 4 bd ~ ~ ~ → bd ~ bd ~ · *N→*2N · perc snares; bass+keys walk @0.5; no mush FX). Song-scope ops apply to all unlocked lanes; track-scope uses last-touched or apply_mutate trackId.',
+      'Catalog of Jam Mutate transforms (id, label, hint, scope song|track). Includes intensity-up/down (footer stepper: 1 as-is · 2 hats fill gaps (incl. hh(3,8) / .euclid) · 3 pad → arp → keys → fx · 4 bd ~ ~ ~ → bd ~ bd ~ · *N→*2N · perc snares; bass+keys walk @0.5; no mush FX). Song-scope ops apply to all unlocked lanes; track-scope uses last-touched or apply_mutate trackId.',
     inputSchema: { type: 'object', properties: {} },
     annotations: { readOnlyHint: true },
     execute: () => {
@@ -124,7 +124,7 @@ export function registerWebMcpToolsB1(register: WebMcpRegister) {
   register({
     name: 'apply_mutate',
     description:
-      'Apply a Mutate transform (same as Mutate sheet). intensity-up/down = footer Intensity stepper (1 as-is · 2 hats fill gaps · 3 pad → arp → keys → fx · 4 bd ~ ~ ~ → bd ~ bd ~ · *N→*2N · perc snares; bass+keys walk @0.5; no mush FX; kit/Shuffle resets to 1). Song-scope = all unlocked (skips locked); track-scope = optional trackId else last-touched/active. Undo snapshots (batch for song).',
+      'Apply a Mutate transform (same as Mutate sheet). intensity-up/down = footer Intensity stepper (1 as-is · 2 hats fill gaps (incl. hh(3,8) / .euclid) · 3 pad → arp → keys → fx · 4 bd ~ ~ ~ → bd ~ bd ~ · *N→*2N · perc snares; bass+keys walk @0.5; no mush FX; kit/Shuffle resets to 1). Song-scope = all unlocked (skips locked); track-scope = optional trackId else last-touched/active. Undo snapshots (batch for song).',
     inputSchema: {
       type: 'object',
       properties: {

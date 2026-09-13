@@ -194,6 +194,17 @@ console.log('  catalog: 15 transforms; half/double/intensity song-scoped')
   const hatsDense = 's("hh*8")'
   assert.equal(applyIntensityFromBase(hatsDense, 'hihats', 2), 's("hh*16")')
 
+  assert.deepEqual(fillSilences(['hh(3,8)'], (x) => x !== '~' && x !== '-'), ['hh(5,8)'])
+  assert.equal(applyIntensityFromBase('s("hh(3,8)")', 'hihats', 2), 's("hh(5,8)")')
+  assert.equal(
+    applyIntensityFromBase('s("hh").bank("RolandTR808").euclid(3,8)', 'hihats', 2),
+    's("hh").bank("RolandTR808").euclid(5,8)',
+  )
+  assert.equal(
+    applyIntensityFromBase('s("hh").euclid(3,8,1)', 'hihats', 2),
+    's("hh").euclid(5,8,1)',
+  )
+
   const drums = 's("bd ~ sd ~ hh ~ oh ~").bank("RolandTR909")'
   assert.equal(applyIntensityFromBase(drums, 'drums', 1), drums)
   const l2 = applyIntensityFromBase(drums, 'drums', 2)

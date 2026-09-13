@@ -74,7 +74,7 @@ Kits are **identity + shuffle profile**, not baked Strudel recipes. `apply_kit` 
 Footer stepper. Rebuilt from the level-1 generate (never stacked). No gain/LPF/reverb/delay mush. Kit / New kit / Shuffle reset to 1.
 
 - **1** — as-is. Song as generated.
-- **2** — more hats (fill rests / `hh*8` → `hh*16`). Kick, snare, bass stay.
+- **2** — more hats (fill rests / `hh*8` → `hh*16` / `hh(3,8)` → `hh(5,8)` / `.euclid(3,8)` → `.euclid(5,8)`). Kick, snare, bass stay.
 - **3** — pad → arp → keys → fx (one spawn; fx even if one exists). Hats stay dense. Going back to 2 drops only the spawned lane.
 - **4** — bd ~ ~ ~ → bd ~ bd ~ · *N→*2N · perc snares; bass+keys walk @0.5
 
