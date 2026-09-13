@@ -1,5 +1,23 @@
 import type { Track } from './types'
+import { hasUnbalancedSyntax } from './all-code'
 import { sampleGainBoost, soundFromCode } from './improv-plate'
+
+/** Copy tracks; replace empty/unbalanced code with silence. Does not mutate store. */
+export function silenceUnplayableTracks(tracks: Track[]): {
+  tracks: Track[]
+  silencedIds: string[]
+} {
+  const silencedIds: string[] = []
+  const out = tracks.map((t) => {
+    const code = t.code.trim()
+    if (!code || hasUnbalancedSyntax(t.code)) {
+      silencedIds.push(t.id)
+      return { ...t, code: 'silence' }
+    }
+    return t
+  })
+  return { tracks: out, silencedIds }
+}
 
 /**
  * Build the Strudel code string for the current session.
