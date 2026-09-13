@@ -1,4 +1,5 @@
 import type { Track } from './types'
+import { sampleGainBoost, soundFromCode } from './improv-plate'
 
 /**
  * Build the Strudel code string for the current session.
@@ -28,7 +29,8 @@ export function composeTracks(tracks: Track[], bpm: number, overlay?: string): s
   const effectiveGain = (t: Track): number => {
     if (t.muted) return 0
     if (anySolo && !t.soloed) return 0
-    return t.volume
+    const sound = soundFromCode(t.code)
+    return t.volume * (sound ? sampleGainBoost(sound) : 1)
   }
 
   const trackParts: string[] = []

@@ -21,6 +21,8 @@ import {
   groupedFxControls,
   IMPROV_FX_CONTROLS,
   setImprovVoiceInCode,
+  sampleGainBoost,
+  soundFromCode,
 } from './improv-plate'
 import { improvLookahead, markImprovVoiceWarm } from './improv-trigger'
 import { composeTracks } from './compose-tracks'
@@ -257,6 +259,25 @@ console.log('=== Improv plate smoke ===')
   const emptyOv = composeTracks([], 120, 'silence')
   assert.equal((emptyOv.match(/\.gain\(/g) ?? []).length, 1)
   console.log('compose overlay ok')
+}
+
+// VCSL marimba is soft-only — pad/Keep/compose share the boost
+{
+  assert.equal(sampleGainBoost('marimba'), 4)
+  assert.equal(sampleGainBoost('sine'), 1)
+  assert.equal(sampleGainBoost('kalimba'), 1)
+  assert.equal(soundFromCode('note("c4").sound("marimba")'), 'marimba')
+  const kept = composeTracks(
+    [track({ id: 'm', code: 'note("c4").sound("marimba")', volume: 1 })],
+    120,
+  )
+  assert.match(kept, /\.gain\(4\)/)
+  const sine = composeTracks(
+    [track({ id: 's', code: 'note("c4").sound("sine")', volume: 1 })],
+    120,
+  )
+  assert.match(sine, /\.gain\(1\)/)
+  console.log('marimba gain boost ok')
 }
 
 {

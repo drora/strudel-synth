@@ -242,7 +242,7 @@ export const KITS_F: Kit[] = [
       density: 'low',
       root: 'c',
       scale: 'dorian',
-      melodicSounds: ['organ_8inch', 'pipeorgan_quiet', 'sine'],
+      melodicSounds: ['organ_8inch', 'pipeorgan_loud', 'sine'],
       fxBias: 'roomy',
     },
   },
