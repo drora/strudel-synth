@@ -4,6 +4,8 @@
  * No new Sessions screen — Studio transport still owns the UI chrome.
  */
 import type { Track, TrackRole, Template } from './types'
+import type { ScaleKind } from './kits-types'
+import type { SongSeed } from './song-seed'
 import { ROLE_COLORS } from './types'
 import {
   AUTOSAVE_KEY,
@@ -33,6 +35,9 @@ export interface LoadedSessionState {
 export interface SectionSnap {
   bpm?: number
   tracks: Array<{ id: string; code: string; muted: boolean }>
+  songRoot?: string
+  songScale?: ScaleKind
+  songSeed?: SongSeed | null
 }
 
 /** Build tracks + bpm from a Template (new ids). */

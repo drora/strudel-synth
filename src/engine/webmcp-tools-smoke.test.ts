@@ -75,6 +75,23 @@ assert.equal(new Set(names).size, names.length, 'duplicate tool names')
   assert.deepEqual(snap.songWalk!.concertNames, walkConcertNames(seed))
   console.log(`  PR C jam songWalk concertNames: ${snap.songWalk!.concertNames.join(' · ')}`)
 
+  const jam = useJamStore.getState()
+  jam.setSongRoot('c')
+  jam.setSongScale('minor')
+  jam.setSongSeed(seed)
+  jam.stashVariant('a')
+  jam.setSongRoot('f')
+  jam.setSongScale('dorian')
+  jam.setSongSeed(rollSeed({ root: 'f', scale: 'dorian' }))
+  jam.stashVariant('b')
+  jam.punchVariant('a')
+  assert.equal(useJamStore.getState().songRoot, 'c', 'punch A restores root')
+  assert.equal(useJamStore.getState().songScale, 'minor', 'punch A restores scale')
+  jam.punchVariant('b')
+  assert.equal(useJamStore.getState().songRoot, 'f', 'punch B restores root')
+  assert.equal(useJamStore.getState().songScale, 'dorian', 'punch B restores scale')
+  console.log('  A/B punch restores Root/Scale')
+
   const eIds = ['lofi-ddm110', 'ambient-tg33', 'house-d110', 'lofi-t3', 'techno-krz']
   for (const id of eIds) {
     assert.ok(getKit(id), `E kit ${id} in catalog`)
