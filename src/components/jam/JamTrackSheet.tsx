@@ -32,8 +32,8 @@ const JAM_FX_CONTROLS: Array<{
   { key: 'lpf', label: 'LPF', steps: [200, 400, 800, 1200, 2000, 4000, 8000, 12000] },
   { key: 'hpf', label: 'HPF', steps: [20, 100, 200, 400, 800, 1600, 3200] },
   { key: 'room', label: 'Reverb', steps: [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2] },
-  { key: 'roomsize', label: 'Size', steps: [0.5, 1, 2, 3, 4] },
-  { key: 'delay', label: 'Delay', steps: [0, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 1] },
+  { key: 'roomsize', label: 'Room size', steps: [0.5, 1, 2, 3, 4] },
+  { key: 'delay', label: 'Delay', steps: [0, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 1, 1.5, 2] },
   { key: 'gain', label: 'Gain', steps: [0.3, 0.5, 0.7, 0.85, 1, 1.15, 1.3] },
 ]
 
@@ -96,8 +96,9 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
   }
 
   const applyFx = (key: string, value: number) => {
+    const name = JAM_FX_CONTROLS.find((c) => c.key === key)?.label ?? key
     if (isPatternedEffect(live.code, key)) {
-      useJamStore.getState().setLastPeek(`FX · ${key} is patterned — Edit in Code`)
+      useJamStore.getState().setLastPeek(`FX · ${name} is patterned — Edit in Code`)
       return
     }
     const jam = useJamStore.getState()
@@ -106,7 +107,7 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
     jam.pushUndo({
       trackId: live.id,
       code: live.code,
-      label: removing ? `FX · clear ${key}` : `FX · ${key}(${value})`,
+      label: removing ? `FX · clear ${name}` : `FX · ${name}(${value})`,
     })
     const next = removing
       ? removeEffectFromCode(live.code, key)
@@ -115,8 +116,8 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
     jam.touchTrack(live.id)
     jam.setLastPeek(
       removing
-        ? `FX · ${live.name} · ${key} off`
-        : `FX · ${live.name} · ${key} ${value}`,
+        ? `FX · ${live.name} · ${name} off`
+        : `FX · ${live.name} · ${name} ${value}`,
     )
     liveUpdateEngine.markDirty()
     queueJam('jam')

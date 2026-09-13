@@ -348,9 +348,7 @@ export function JamImprovPlate({ onClose }: Props) {
             return (
               <div key={fx.key}>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] uppercase tracking-wider text-text-muted">
-                    {fx.label}
-                  </span>
+                  <span className="text-[11px] font-medium text-text-muted">{fx.label}</span>
                   <span className="text-[10px] text-text-muted tabular-nums">
                     {on ? current : '—'}
                   </span>
