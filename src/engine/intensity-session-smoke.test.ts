@@ -1,5 +1,5 @@
 /**
- * Intensity L3/L4 shared spawn: same lane id+code across 3↔4; edits persist.
+ * Intensity L3/L4 shared spawn + L1 code edits flowing into cached L2+.
  * Run: npx --yes tsx src/engine/intensity-session-smoke.test.ts
  * Or:  npm run test:intensity-session
  */
@@ -106,6 +106,73 @@ const { KITS } = await import('./kits.ts')
   assert.equal(restored!.code, editedAt4, '2→3 restores latest spawn code')
 
   console.log('  L3↔L4 keep spawn id+code; 2→3 restores latest shared spawn')
+}
+
+
+{
+  // L1 snare edit must be heard at L2 on the next climb (not stale snap[2]).
+  const kit = KITS.find((k) => k.tracks.some((t) => t.role === 'drums')) ?? KITS[0]!
+  const applied = applyKit(kit.id, { fromPicker: true })
+  assert.equal(applied.ok, true, 'applyKit for L1→L2 flow')
+
+  const jam = useJamStore.getState()
+  jam.resetIntensitySession()
+  jam.setIntensityLevel(1)
+
+  let drums = useSessionStore.getState().tracks.find((t) => t.role === 'drums')
+  assert.ok(drums, 'drums track present')
+  // Prefer a snare-ish line; otherwise force a clear sd pattern.
+  if (!/\b(sd|cp)\b/.test(drums!.code)) {
+    useSessionStore.getState().setCode(drums!.id, 's("sd ~ ~ ~")')
+    drums = useSessionStore.getState().tracks.find((t) => t.id === drums!.id)!
+  }
+  const drumsId = drums!.id
+  const oldSnare = /\b(sd|cp)\b/.exec(drums!.code)?.[1] ?? 'sd'
+  assert.ok(/\b(sd|cp)\b/.test(drums!.code), 'L1 drums has sd or cp')
+
+  // Build cached snaps 2/3/4 from the original snare, then return to L1.
+  for (let i = 0; i < 3; i++) assert.equal(applyMutate('intensity-up').ok, true)
+  assert.equal(useJamStore.getState().intensityLevel, 4)
+  for (let i = 0; i < 3; i++) assert.equal(applyMutate('intensity-down').ok, true)
+  assert.equal(useJamStore.getState().intensityLevel, 1)
+
+  // Re-read L1 code after round-trip (snap restore), then sd/cp → rim
+  drums = useSessionStore.getState().tracks.find((t) => t.id === drumsId)!
+  assert.ok(drums, 'drums present at L1 after round-trip')
+  const edited = /\b(sd|cp)\b/.test(drums.code)
+    ? drums.code.replace(/\b(sd|cp)\b/g, 'rim')
+    : 's("rim ~ ~ ~")'
+  useSessionStore.getState().setCode(drumsId, edited)
+  assert.ok(/\brim\b/.test(useSessionStore.getState().tracks.find((t) => t.id === drumsId)!.code))
+  assert.ok(!new RegExp(`\\b${oldSnare}\\b`).test(
+    useSessionStore.getState().tracks.find((t) => t.id === drumsId)!.code,
+  ))
+
+  // Climb to L2 — must play rim, not stale sd/cp from snap[2]
+  assert.equal(applyMutate('intensity-up').ok, true)
+  assert.equal(useJamStore.getState().intensityLevel, 2)
+  const at2 = useSessionStore.getState().tracks.find((t) => t.id === drumsId)!
+  assert.ok(/\brim\b/.test(at2.code), `L2 drums should contain rim, got: ${at2.code}`)
+  assert.ok(
+    !new RegExp(`\\b${oldSnare}\\b`).test(at2.code),
+    `L2 must not still play old ${oldSnare}, got: ${at2.code}`,
+  )
+
+  // L3/L4 still rim; spawn rules unchanged
+  assert.equal(applyMutate('intensity-up').ok, true)
+  assert.equal(useJamStore.getState().intensityLevel, 3)
+  const spawnId = useJamStore.getState().spawnedPadId
+  assert.ok(spawnId, 'L3 still spawns')
+  const at3 = useSessionStore.getState().tracks.find((t) => t.id === drumsId)!
+  assert.ok(/\brim\b/.test(at3.code), `L3 drums rim, got: ${at3.code}`)
+
+  assert.equal(applyMutate('intensity-up').ok, true)
+  assert.equal(useJamStore.getState().intensityLevel, 4)
+  assert.equal(useJamStore.getState().spawnedPadId, spawnId, 'L4 keeps spawn')
+  const at4 = useSessionStore.getState().tracks.find((t) => t.id === drumsId)!
+  assert.ok(/\brim\b/.test(at4.code), `L4 drums rim, got: ${at4.code}`)
+
+  console.log('  L1 snare edit (sd/cp→rim) flows into cached L2+; spawn unchanged')
 }
 
 console.log('ALL INTENSITY SESSION CHECKS PASSED')
