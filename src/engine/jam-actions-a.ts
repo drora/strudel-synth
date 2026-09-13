@@ -4,7 +4,7 @@
 import { useSessionStore } from '../store/session-store'
 import { useJamStore, type AbSlot } from '../store/jam-store'
 import { useUIStore } from '../store/ui-store'
-import { KITS, getKit, kitToTemplate } from './kits'
+import { KITS, getKit, kitToTemplate, applySoundChoiceToCode, matchSoundChoice } from './kits'
 import { pickRandomKit } from './kit-browser'
 import { reshuffleTrack } from './reshuffle'
 import { resolveShuffleProfile } from './kits-types'
@@ -21,6 +21,7 @@ import {
 import { liveUpdateEngine, type Quantization } from './live-update'
 import { applyMutateToTracks, getMutation, type MutateId } from './mutate'
 import { planShuffleTargets } from './shuffle-lock'
+import { pickRandomSoundChoice, soundChoicesForKit } from './kit-sound-choices'
 
 export type JamQueueReason = 'kit' | 'jam' | 'reshuffle' | 'mute-solo'
 
@@ -262,6 +263,14 @@ export function addJamTrack(
       shuffle: songAwareShuffle(kit?.shuffle),
       seed,
     })
+    const session = useSessionStore.getState()
+    const choices = soundChoicesForKit(role, kit)
+    const used = session.tracks
+      .filter((t) => t.role === role)
+      .map((t) => choices.find((c) => matchSoundChoice(t.code, c))?.id)
+      .filter((id): id is string => !!id)
+    const voice = pickRandomSoundChoice(role, kit, used)
+    if (voice) code = applySoundChoiceToCode(code, voice)
   }
   if (!code) code = preset.defaultCode
   const name = opts?.name ?? preset.label
