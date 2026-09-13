@@ -544,7 +544,7 @@ function spawnIntensityLane(level: IntensityLevel): Track {
   const id = useSessionStore.getState().addTrack({
     name,
     role,
-    code: applyIntensityFromBase(built.code, role, level, { root: jam.songRoot, scale: jam.songScale }),
+    code: applyIntensityFromBase(built.code, role, level, { root: jam.songRoot, scale: jam.songScale, keys: role === 'lead' }),
     color: built.color,
     muted: false,
     soloed: false,
@@ -593,7 +593,7 @@ function realizeIntensityLevel(target: IntensityLevel) {
   const fresh = useSessionStore.getState()
   for (const tr of fresh.tracks) {
     if (tr.locked) continue
-    const next = applyIntensityFromBase(tr.code, tr.role, target, { root: jam.songRoot, scale: jam.songScale })
+    const next = applyIntensityFromBase(tr.code, tr.role, target, { root: jam.songRoot, scale: jam.songScale, keys: isKeysTrack(tr) })
     if (next !== tr.code) fresh.setCode(tr.id, next)
   }
   if (shouldSpawnIntensityLane(target, !!useJamStore.getState().spawnedPadId)) {

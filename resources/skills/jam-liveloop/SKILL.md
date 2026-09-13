@@ -76,7 +76,7 @@ Footer stepper. Rebuilt from the level-1 generate (never stacked). No gain/LPF/r
 - **1** — as-is. Song as generated.
 - **2** — more hats (fill rests / `hh*8` → `hh*16`). Kick, snare, bass stay.
 - **3** — pad → arp → keys → fx (one spawn; fx even if one exists). Hats stay dense. Going back to 2 drops only the spawned lane.
-- **4** — bd ~ ~ ~ → bd ~ bd ~ · *N→*2N · perc snares; bass walk @0.5
+- **4** — bd ~ ~ ~ → bd ~ bd ~ · *N→*2N · perc snares; bass+keys walk @0.5
 
 Use `apply_mutate` with `intensity-up` / `intensity-down`. When hand-editing, match that recipe.
 

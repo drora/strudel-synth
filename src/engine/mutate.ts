@@ -49,7 +49,7 @@ export const MUTATIONS: readonly MutateDef[] = [
   { id: 'reverse', label: 'Reverse', hint: 'Flip the pattern', scope: 'track' },
   { id: 'every-other', label: 'Every other', hint: 'Keep alternate hits', scope: 'track' },
   { id: 'double-time', label: 'Double-time', hint: 'Tighten feel · all tracks', scope: 'song' },
-  { id: 'intensity-up', label: 'Intensity+', hint: '1 as-is · 2 hats fill gaps · 3 pad → arp → keys → fx · 4 bd ~ ~ ~ → bd ~ bd ~ · *N→*2N · perc snares; bass walk @0.5', scope: 'song' },
+  { id: 'intensity-up', label: 'Intensity+', hint: '1 as-is · 2 hats fill gaps · 3 pad → arp → keys → fx · 4 bd ~ ~ ~ → bd ~ bd ~ · *N→*2N · perc snares; bass+keys walk @0.5', scope: 'song' },
   { id: 'intensity-down', label: 'Intensity−', hint: 'wind down those same steps', scope: 'song' },
 ] as const
 
@@ -746,6 +746,8 @@ export function doubleImmediate(tokens: string[], pred: (tok: string) => boolean
 export type BassWalkOpts = {
   root?: string
   scale?: ScaleKind
+  /** Named Keys/Piano/… lane — same L4 walk as bass. */
+  keys?: boolean
 }
 
 function collectPhraseMidis(tokens: string[]): number[] {
@@ -912,11 +914,11 @@ export function applyIntensityFromBase(
       if (role === 'fx' && level >= 4) {
         return doubleImmediate(toks, (t) => isKickish(t) || isSnareish(t) || isClapish(t))
       }
-      if (role === 'bass' && level >= 4) return enrichBassWalk(toks, harmony)
+      if ((role === 'bass' || harmony?.keys) && level >= 4) return enrichBassWalk(toks, harmony)
       return null
     },
     (toks) => {
-      if (role === 'bass' && level >= 4) return enrichBassWalk(toks, harmony)
+      if ((role === 'bass' || harmony?.keys) && level >= 4) return enrichBassWalk(toks, harmony)
       return null
     },
   )

@@ -220,6 +220,13 @@ console.log('  catalog: 15 transforms; half/double/intensity song-scoped')
   assert.equal(applyIntensityFromBase(perc, 'fx', 2), perc)
   assert.equal(applyIntensityFromBase(perc, 'fx', 4), 's("~ sd ~ sd")')
 
+  const keysLine = 'note("c3 ~ g3 ~").sound("piano")'
+  assert.equal(applyIntensityFromBase(keysLine, 'lead', 4), keysLine, 'plain lead is not keys')
+  const keys4 = applyIntensityFromBase(keysLine, 'lead', 4, { keys: true })
+  assert.ok(keys4.includes('c3') && keys4.includes('g3'), `L4 keys keep cores: ${keys4}`)
+  assert.ok(/@0\.5/.test(keys4), `L4 keys walk @0.5: ${keys4}`)
+  assert.ok(!keys4.includes('~'), `L4 keys no rests: ${keys4}`)
+
   const bass = 'note("c2 ~ g2 ~").sound("sawtooth")'
   assert.equal(applyIntensityFromBase(bass, 'bass', 2), bass)
   const bass4 = applyIntensityFromBase(bass, 'bass', 4)
