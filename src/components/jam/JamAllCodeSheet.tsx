@@ -8,11 +8,13 @@ import { liveUpdateEngine, type UpdateStatus } from '../../engine/live-update'
 import { startOrQueueUpdate } from '../../engine/playback'
 import {
   applyImportToTracks,
+  applyJamHeader,
   checkImportCode,
   allCodeFilename,
   IMPORT_FILE_ACCEPT,
   downloadAllCode,
   tracksToAllCode,
+  type AllCodeMeta,
 } from '../../engine/all-code'
 import { getKit } from '../../engine/kits'
 
@@ -28,6 +30,18 @@ export function JamAllCodeSheet() {
   const fileRef = useRef<HTMLInputElement>(null)
   const holdImport = useRef(false)
   const initial = useRef<string | null>(null)
+
+  const jamMeta = (): AllCodeMeta => {
+    const jam = useJamStore.getState()
+    return {
+      kitId: jam.kitId,
+      kitName: jam.kitId ? getKit(jam.kitId)?.name : null,
+      root: jam.songRoot,
+      scale: jam.songScale,
+      bpm: useSessionStore.getState().bpm,
+    }
+  }
+
   if (initial.current == null) {
     const pending = useJamStore.getState().pendingAllCode
     if (pending != null) {
@@ -35,7 +49,7 @@ export function JamAllCodeSheet() {
       holdImport.current = true
       useJamStore.getState().setPendingAllCode(null)
     } else {
-      initial.current = tracksToAllCode(tracks)
+      initial.current = tracksToAllCode(tracks, jamMeta())
     }
   }
   const textRef = useRef(initial.current)
@@ -58,8 +72,14 @@ export function JamAllCodeSheet() {
     for (const d of diffs) {
       session.setCode(d.id, d.code)
     }
+    const chromeChanged = applyJamHeader(text)
+    if (holdImport.current || chromeChanged) {
+      useJamStore.getState().resetIntensitySession()
+    }
     if (diffs.length > 0) {
       useJamStore.getState().touchTrack(diffs[diffs.length - 1]!.id)
+      liveUpdateEngine.markDirty()
+    } else if (chromeChanged) {
       liveUpdateEngine.markDirty()
     }
   }, [])
@@ -135,7 +155,7 @@ export function JamAllCodeSheet() {
       holdImport.current = false
       return
     }
-    const next = tracksToAllCode(tracks)
+    const next = tracksToAllCode(tracks, jamMeta())
     const current = view.state.doc.toString()
     if (current === next) {
       textRef.current = next
@@ -211,13 +231,17 @@ export function JamAllCodeSheet() {
               type="button"
               onClick={() => {
                 const jam = useJamStore.getState()
+                const meta = jamMeta()
                 const name = allCodeFilename({
                   kit: jam.kitId ? getKit(jam.kitId)?.name : null,
                   root: jam.songRoot,
                   scale: jam.songScale,
                   bpm: useSessionStore.getState().bpm,
                 })
-                downloadAllCode(viewRef.current?.state.doc.toString() ?? textRef.current, name)
+                downloadAllCode(
+                  tracksToAllCode(useSessionStore.getState().tracks, meta),
+                  name,
+                )
               }}
               className="min-h-11 px-3 rounded-xl text-xs font-medium bg-bg text-text-muted border border-border hover:text-text"
             >

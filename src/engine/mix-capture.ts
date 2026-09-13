@@ -65,6 +65,8 @@ let limitTimer: ReturnType<typeof setTimeout> | null = null
 let startedAt = 0
 let arming = false
 let abortStart = false
+/** Bumps on each start/stop so a late arm after abort is discarded. */
+let startGen = 0
 let onStateCb: ((s: MixCaptureState, detail?: string) => void) | null = null
 
 function emit(s: MixCaptureState, detail?: string) {
@@ -99,6 +101,10 @@ function clearLimit() {
   }
 }
 
+function stale(gen: number): boolean {
+  return abortStart || gen !== startGen
+}
+
 export function isMixCapturing(): boolean {
   return arming || (!!recorder && recorder.state === 'recording')
 }
@@ -116,6 +122,7 @@ export async function startMixCapture(opts?: {
   onState?: (s: MixCaptureState, detail?: string) => void
 }): Promise<void> {
   if (isMixCapturing()) return
+  const gen = ++startGen
   onStateCb = opts?.onState ?? null
   arming = true
   abortStart = false
@@ -129,9 +136,9 @@ export async function startMixCapture(opts?: {
 
   if (!useSessionStore.getState().isPlaying) {
     const play = await startPlayback()
-    if (abortStart) {
+    if (stale(gen)) {
       arming = false
-      emit('idle')
+      if (gen === startGen) emit('idle')
       return
     }
     if (!play.ok) {
@@ -143,9 +150,9 @@ export async function startMixCapture(opts?: {
   }
 
   const tap = await resolveTap()
-  if (abortStart) {
+  if (stale(gen)) {
     arming = false
-    emit('idle')
+    if (gen === startGen) emit('idle')
     return
   }
   if (!tap) {
@@ -157,17 +164,47 @@ export async function startMixCapture(opts?: {
   const stream = ensureTap(tap.ctx, tap.gain)
   mimeType = pickCaptureMime()
   chunks = []
-  recorder = mimeType
+  const rec = mimeType
     ? new MediaRecorder(stream, { mimeType })
     : new MediaRecorder(stream)
-  mimeType = recorder.mimeType || mimeType || 'audio/webm'
+  mimeType = rec.mimeType || mimeType || 'audio/webm'
 
-  recorder.ondataavailable = (e) => {
+  rec.ondataavailable = (e) => {
     if (e.data && e.data.size > 0) chunks.push(e.data)
   }
 
+  // Re-check abort immediately before recorder.start()
+  if (stale(gen)) {
+    arming = false
+    if (gen === startGen) emit('idle')
+    return
+  }
+
+  recorder = rec
   startedAt = performance.now()
-  recorder.start(250)
+  try {
+    rec.start(250)
+  } catch (err) {
+    recorder = null
+    arming = false
+    startedAt = 0
+    const msg = err instanceof Error ? err.message : String(err)
+    emit('error', msg)
+    throw err instanceof Error ? err : new Error(msg)
+  }
+  if (stale(gen)) {
+    try {
+      if (rec.state === 'recording') rec.stop()
+    } catch {
+      /* */
+    }
+    recorder = null
+    arming = false
+    startedAt = 0
+    chunks = []
+    if (gen === startGen) emit('idle')
+    return
+  }
   arming = false
   emit('recording')
   clearLimit()
@@ -178,40 +215,51 @@ export async function startMixCapture(opts?: {
 
 export async function stopMixCapture(): Promise<void> {
   abortStart = true
+  startGen++ // invalidate any in-flight start
   arming = false
   clearLimit()
   const rec = recorder
   recorder = null
   if (!rec || rec.state === 'inactive') {
     startedAt = 0
+    chunks = []
     emit('idle')
     return
   }
 
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    rec.onstop = () => {
+  const blob = await new Promise<Blob>((resolve) => {
+    let settled = false
+    const finish = () => {
+      if (settled) return
+      settled = true
       resolve(new Blob(chunks, { type: mimeType || 'audio/webm' }))
     }
-    rec.onerror = () => reject(new Error('Capture failed'))
+    rec.onstop = () => finish()
+    rec.onerror = () => finish()
     try {
+      if (typeof rec.requestData === 'function' && rec.state === 'recording') {
+        try {
+          rec.requestData()
+        } catch {
+          /* */
+        }
+      }
       rec.stop()
-    } catch (err) {
-      reject(err instanceof Error ? err : new Error(String(err)))
+    } catch {
+      finish()
+      return
     }
-  }).catch((err) => {
-    startedAt = 0
-    chunks = []
-    emit('error', err instanceof Error ? err.message : String(err))
-    throw err
+    setTimeout(finish, 1000)
   })
 
+  const hadChunks = blob.size > 0
   chunks = []
   startedAt = 0
-  if (blob.size < 64) {
-    emit('error', 'Capture too short')
-    emit('idle')
-    return
+  if (hadChunks && blob.size >= 64) {
+    downloadBlob(blob, `${currentJamStem()}${captureExtension(blob.type || mimeType)}`)
+  } else if (hadChunks) {
+    // Chunks exist but tiny — still download so stop never silently drops a take.
+    downloadBlob(blob, `${currentJamStem()}${captureExtension(blob.type || mimeType)}`)
   }
-  downloadBlob(blob, `${currentJamStem()}${captureExtension(blob.type || mimeType)}`)
   emit('idle')
 }

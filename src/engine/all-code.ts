@@ -1,4 +1,9 @@
 import type { Track } from './types'
+import type { ScaleKind } from './kits-types'
+import { getKit, KITS } from './kits'
+import { SONG_SCALES } from './note-harmony'
+import { useJamStore } from '../store/jam-store'
+import { useSessionStore } from '../store/session-store'
 
 /** Header Code sheet — one editor for every track. */
 export const CODE_ALL = '__all__'
@@ -7,6 +12,22 @@ export const ALL_CODE_FILENAME = 'strudel-studio.strudel'
 
 /** Picker hint. Import is content-based — `.strudel` needs no `.js`. */
 export const IMPORT_FILE_ACCEPT = '.strudel,.txt,text/plain,*/*'
+
+export type AllCodeMeta = {
+  kitId?: string | null
+  kitName?: string | null
+  root?: string | null
+  scale?: string | null
+  bpm?: number | null
+}
+
+export type JamHeader = {
+  kitId?: string
+  kitName?: string
+  root?: string
+  scale?: string
+  bpm?: number
+}
 
 export function slugJamPart(s: string): string {
   const t = s
@@ -42,22 +63,119 @@ export function allCodeFilename(meta: {
 }
 
 const HEAD = /^\/\/ @track (\S+)(?:\s+.*)?$/
+const JAM_LINE = /^\/\/\s*@jam\b(.*)$/
+
+function escapeJamName(name: string): string {
+  return name.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+}
+
+function unescapeJamName(name: string): string {
+  return name.replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+}
+
+/** First-line chrome header so paste Import can restore kit/root/scale/tempo. */
+export function formatJamHeader(meta: AllCodeMeta): string {
+  const kit = (meta.kitId ?? '').trim() || 'none'
+  const name = escapeJamName((meta.kitName ?? '').trim())
+  const root = (meta.root ?? '').trim() || 'c'
+  const scale = (meta.scale ?? '').trim() || 'minor'
+  const bpm = Math.round(Number(meta.bpm))
+  const tempo = Number.isFinite(bpm) && bpm > 0 ? bpm : 120
+  return `// @jam kit=${kit} name="${name}" root=${root} scale=${scale} bpm=${tempo}`
+}
+
+export function parseJamHeader(text: string): JamHeader | null {
+  const lines = text.replace(/\r\n/g, '\n').split('\n')
+  for (const line of lines) {
+    const m = line.match(JAM_LINE)
+    if (!m) continue
+    const rest = m[1] ?? ''
+    const kitM = rest.match(/\bkit=(\S+)/)
+    const nameM = rest.match(/\bname="((?:\\.|[^"\\])*)"/)
+    const rootM = rest.match(/\broot=(\S+)/)
+    const scaleM = rest.match(/\bscale=(\S+)/)
+    const bpmM = rest.match(/\bbpm=(\S+)/)
+    const out: JamHeader = {}
+    if (kitM?.[1] && kitM[1] !== 'none') out.kitId = kitM[1]
+    if (nameM) out.kitName = unescapeJamName(nameM[1]!)
+    if (rootM?.[1]) out.root = rootM[1]
+    if (scaleM?.[1]) out.scale = scaleM[1]
+    if (bpmM?.[1]) {
+      const n = Number(bpmM[1])
+      if (Number.isFinite(n)) out.bpm = n
+    }
+    return out
+  }
+  return null
+}
+
+function isScaleKind(s: string): s is ScaleKind {
+  return (SONG_SCALES as string[]).includes(s)
+}
+
+/**
+ * Restore Jam chrome from `// @jam` — kit/root/scale/bpm only.
+ * Does not remap notes or call applyKit.
+ * @returns true if any chrome field was applied
+ */
+export function applyJamHeader(text: string): boolean {
+  const h = parseJamHeader(text)
+  if (!h) return false
+  const jam = useJamStore.getState()
+  const session = useSessionStore.getState()
+  let changed = false
+
+  let kit = h.kitId ? getKit(h.kitId) : undefined
+  if (!kit && h.kitName) {
+    const want = h.kitName.toLowerCase()
+    kit = KITS.find((k) => k.name.toLowerCase() === want)
+  }
+  if (kit) {
+    if (jam.kitId !== kit.id) {
+      jam.setKitId(kit.id)
+      changed = true
+    }
+    if (jam.vibe !== kit.vibe) {
+      jam.setVibe(kit.vibe)
+      changed = true
+    }
+  }
+  if (h.root && jam.songRoot !== h.root) {
+    jam.setSongRoot(h.root)
+    changed = true
+  }
+  if (h.scale && isScaleKind(h.scale) && jam.songScale !== h.scale) {
+    jam.setSongScale(h.scale)
+    changed = true
+  }
+  if (h.bpm != null && Number.isFinite(h.bpm) && h.bpm > 0) {
+    const bpm = Math.round(h.bpm)
+    if (session.bpm !== bpm) {
+      session.setBpm(bpm)
+      changed = true
+    }
+  }
+  return changed
+}
 
 export function isCodeAllOpen(codeTrackId: string | null | undefined): boolean {
   return codeTrackId === CODE_ALL
 }
 
-/** Serialize session tracks into one editable buffer. */
-export function tracksToAllCode(tracks: Track[]): string {
-  if (tracks.length === 0) return '// no tracks'
-  return tracks
-    .map((t) => `// @track ${t.id}  ${t.name}\n${t.code.trim()}`)
-    .join('\n\n')
+/** Serialize session tracks into one editable buffer. Optional meta prepends `// @jam`. */
+export function tracksToAllCode(tracks: Track[], meta?: AllCodeMeta): string {
+  const body =
+    tracks.length === 0
+      ? '// no tracks'
+      : tracks.map((t) => `// @track ${t.id}  ${t.name}\n${t.code.trim()}`).join('\n\n')
+  if (!meta) return body
+  return `${formatJamHeader(meta)}\n${body}`
 }
 
 /**
  * Split the all-tracks buffer back onto known ids.
  * Unknown headers are ignored. Tracks missing a section stay unchanged.
+ * `// @jam` lines are never treated as tracks.
  */
 export function parseAllCode(
   text: string,
@@ -78,6 +196,7 @@ export function parseAllCode(
   }
 
   for (const line of lines) {
+    if (JAM_LINE.test(line)) continue
     const m = line.match(HEAD)
     if (m) {
       flush()

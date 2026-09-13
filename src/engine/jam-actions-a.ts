@@ -77,10 +77,21 @@ function songAwareShuffle(kitShuffle: import('./kits-types').KitShuffleProfile |
   }
 }
 
+
+/** Fire-and-forget: end Take + download if capturing (New kit / Shuffle). */
+function endTakeIfCapturing(): void {
+  void import('./mix-capture')
+    .then((m) => {
+      if (m.isMixCapturing()) void m.stopMixCapture()
+    })
+    .catch(() => {})
+}
+
 export function applyKit(
   id: string,
   opts?: { fromPicker?: boolean; randomizeRoot?: boolean },
 ): { ok: true; kitId: string; name: string; bpm: number; preservedBpm: boolean } | { ok: false; error: string } {
+  endTakeIfCapturing()
   const kit = getKit(id)
   if (!kit) return { ok: false, error: `Unknown kit: ${id}` }
   const resolved = resolveShuffleProfile(kit)
@@ -174,6 +185,7 @@ export function reshuffleUnlocked(): {
   shuffled: number
   lockKit: boolean
 } {
+  endTakeIfCapturing()
   const state = useSessionStore.getState()
   const pinEffects = useUIStore.getState().pinEffects
   const jam = useJamStore.getState()

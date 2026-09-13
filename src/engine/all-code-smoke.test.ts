@@ -15,6 +15,8 @@ import {
   IMPORT_FILE_ACCEPT,
   allCodeFilename,
   jamFileStem,
+  formatJamHeader,
+  parseJamHeader,
 } from './all-code'
 import type { Track } from './types'
 
@@ -99,8 +101,45 @@ console.log('=== all-code smoke ===')
   assert.equal(jamFileStem({ kit: 'Amen Chop', root: 'c', scale: 'minor', bpm: 174 }), 'amen-chop-c-minor-174')
   assert.match(IMPORT_FILE_ACCEPT, /\.strudel/)
   assert.doesNotMatch(IMPORT_FILE_ACCEPT, /javascript/)
+  assert.doesNotMatch(allCodeFilename({ kit: 'x', root: 'c', scale: 'minor', bpm: 120 }), /\.js/)
   console.log('filename slug ok')
 }
 
+{
+  const meta = {
+    kitId: 'techno-punch909',
+    kitName: 'Punch 909',
+    root: 'f#',
+    scale: 'dorian',
+    bpm: 128,
+  }
+  const line = formatJamHeader(meta)
+  assert.equal(
+    line,
+    '// @jam kit=techno-punch909 name="Punch 909" root=f# scale=dorian bpm=128',
+  )
+  const parsed = parseJamHeader(line)
+  assert.deepEqual(parsed, {
+    kitId: 'techno-punch909',
+    kitName: 'Punch 909',
+    root: 'f#',
+    scale: 'dorian',
+    bpm: 128,
+  })
+  const tracks = [track('a', 'Kick', 's("bd")'), track('b', 'Hats', 's("hh")')]
+  const buf = tracksToAllCode(tracks, meta)
+  assert.ok(buf.startsWith('// @jam '))
+  assert.deepEqual(parseJamHeader(buf), parsed)
+  const sections = parseAllCode(buf, tracks)
+  assert.deepEqual(sections, [
+    { id: 'a', code: 's("bd")' },
+    { id: 'b', code: 's("hh")' },
+  ])
+  // @jam must not become a fake track
+  assert.equal(sections.some((s) => s.id.includes('jam') || s.code.includes('@jam')), false)
+  const onlyJam = parseAllCode('// @jam kit=x name="Y" root=c scale=minor bpm=120\n', tracks)
+  assert.equal(onlyJam.length, 0)
+  console.log('jam header roundtrip ok')
+}
 
 console.log('all-code-smoke.test.ts: ok')
