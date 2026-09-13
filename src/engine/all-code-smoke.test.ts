@@ -9,6 +9,8 @@ import {
   tracksToAllCode,
   parseAllCode,
   applyAllCodeToTracks,
+  checkImportCode,
+  applyImportToTracks,
 } from './all-code'
 import type { Track } from './types'
 
@@ -64,6 +66,24 @@ console.log('=== all-code smoke ===')
   const unknown = parseAllCode('// @track z  Ghost\ns("xx")', tracks)
   assert.equal(unknown.length, 0)
   console.log('partial parse ok')
+}
+
+{
+  const tracks = [track('a', 'Kick', 's("bd")'), track('b', 'Hats', 's("hh")')]
+  assert.equal(checkImportCode('', tracks).ok, false)
+  assert.equal(checkImportCode('s("bd sd"', tracks).ok, false)
+  const bad = checkImportCode('s("bd sd"', tracks)
+  assert.equal(bad.ok, false)
+  if (!bad.ok) assert.match(bad.message, /Invalid syntax/)
+  const unknown = checkImportCode('// @track z  Ghost\ns("xx")', tracks)
+  assert.equal(unknown.ok, false)
+  assert.equal(checkImportCode('hello world', tracks).ok, false)
+  assert.equal(checkImportCode('s("bd sd")', tracks).ok, true)
+  const buf = tracksToAllCode(tracks)
+  assert.equal(checkImportCode(buf, tracks).ok, true)
+  const snip = applyImportToTracks('s("cp")', tracks, 'b')
+  assert.deepEqual(snip, [{ id: 'b', code: 's("cp")' }])
+  console.log('import check ok')
 }
 
 console.log('all-code-smoke.test.ts: ok')

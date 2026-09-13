@@ -417,7 +417,7 @@ export const IMPROV_FX_CONTROLS: Array<{
   off: number
   group?: FxGroupId
 }> = [
-  { key: 'gain', label: 'Gain', steps: [0.3, 0.5, 0.7, 0.85, 1, 1.15, 1.3], off: 0 },
+  { key: 'gain', label: 'Gain', steps: [0.3, 0.5, 0.7, 0.85, 1, 1.15, 1.3, 1.6, 2], off: 0 },
   { key: 'lpf', label: 'LPF', group: 'filter', steps: [200, 400, 800, 1200, 2000, 4000, 8000, 12000], off: 12000 },
   { key: 'hpf', label: 'HPF', group: 'filter', steps: [20, 100, 200, 400, 800, 1600, 3200], off: 20 },
   { key: 'attack', label: 'Attack', group: 'envelope', steps: [0.01, 0.05, 0.1, 0.2, 0.4, 0.8], off: -1 },

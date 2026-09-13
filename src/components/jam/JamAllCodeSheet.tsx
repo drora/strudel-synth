@@ -7,7 +7,9 @@ import { useSessionStore } from '../../store/session-store'
 import { liveUpdateEngine, type UpdateStatus } from '../../engine/live-update'
 import { startOrQueueUpdate } from '../../engine/playback'
 import {
-  applyAllCodeToTracks,
+  applyImportToTracks,
+  checkImportCode,
+  downloadAllCode,
   tracksToAllCode,
 } from '../../engine/all-code'
 
@@ -17,17 +19,39 @@ import {
  */
 export function JamAllCodeSheet() {
   const tracks = useSessionStore((s) => s.tracks)
+  const pendingAllCode = useJamStore((s) => s.pendingAllCode)
   const editorRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
-  const textRef = useRef(tracksToAllCode(tracks))
+  const fileRef = useRef<HTMLInputElement>(null)
+  const holdImport = useRef(false)
+  const initial = useRef<string | null>(null)
+  if (initial.current == null) {
+    const pending = useJamStore.getState().pendingAllCode
+    if (pending != null) {
+      initial.current = pending
+      holdImport.current = true
+      useJamStore.getState().setPendingAllCode(null)
+    } else {
+      initial.current = tracksToAllCode(tracks)
+    }
+  }
+  const textRef = useRef(initial.current)
   const [status, setStatus] = useState<UpdateStatus>('idle')
+  const [issue, setIssue] = useState<string | null>(null)
 
-  const close = () => useJamStore.getState().setCodeTrackId(null)
+  const close = () => {
+    useJamStore.getState().setPendingAllCode(null)
+    useJamStore.getState().setCodeTrackId(null)
+  }
 
   const applyText = useCallback((text: string) => {
     textRef.current = text
     const session = useSessionStore.getState()
-    const diffs = applyAllCodeToTracks(text, session.tracks)
+    const check = checkImportCode(text, session.tracks)
+    setIssue(check.ok ? null : check.message)
+    if (!check.ok) return
+    const last = useJamStore.getState().lastTouchedTrackId
+    const diffs = applyImportToTracks(text, session.tracks, last)
     for (const d of diffs) {
       session.setCode(d.id, d.code)
     }
@@ -36,6 +60,22 @@ export function JamAllCodeSheet() {
       liveUpdateEngine.markDirty()
     }
   }, [])
+
+  const setDoc = useCallback((text: string) => {
+    textRef.current = text
+    const view = viewRef.current
+    if (view) {
+      const main = view.state.selection.main
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: text },
+        selection: EditorSelection.range(
+          Math.min(main.anchor, text.length),
+          Math.min(main.head, text.length),
+        ),
+      })
+    }
+    applyText(text)
+  }, [applyText])
 
   const handleEvaluate = useCallback(async () => {
     try {
@@ -71,6 +111,7 @@ export function JamAllCodeSheet() {
       parent: editorRef.current,
     })
     viewRef.current = view
+    applyRef.current(textRef.current)
     return () => {
       view.destroy()
       viewRef.current = null
@@ -78,8 +119,19 @@ export function JamAllCodeSheet() {
   }, [])
 
   useEffect(() => {
+    if (pendingAllCode == null) return
+    holdImport.current = true
+    useJamStore.getState().setPendingAllCode(null)
+    setDoc(pendingAllCode)
+  }, [pendingAllCode, setDoc])
+
+  useEffect(() => {
     const view = viewRef.current
     if (!view) return
+    if (holdImport.current) {
+      holdImport.current = false
+      return
+    }
     const next = tracksToAllCode(tracks)
     const current = view.state.doc.toString()
     if (current === next) {
@@ -96,6 +148,14 @@ export function JamAllCodeSheet() {
       ),
     })
   }, [tracks])
+
+  const onPickFile = (file: File | undefined) => {
+    if (!file) return
+    void file.text().then((text) => {
+      holdImport.current = true
+      setDoc(text)
+    })
+  }
 
   const updateCls =
     status === 'queued'
@@ -127,6 +187,30 @@ export function JamAllCodeSheet() {
             </div>
           </div>
           <div className="flex items-center gap-1.5">
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".js,.mjs,.txt,.strudel,text/plain,text/javascript"
+              className="hidden"
+              onChange={(e) => {
+                onPickFile(e.target.files?.[0])
+                e.target.value = ''
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="min-h-11 px-3 rounded-xl text-xs font-medium bg-bg text-text-muted border border-border hover:text-text"
+            >
+              Load file
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadAllCode(viewRef.current?.state.doc.toString() ?? textRef.current)}
+              className="min-h-11 px-3 rounded-xl text-xs font-medium bg-bg text-text-muted border border-border hover:text-text"
+            >
+              Export
+            </button>
             <button
               type="button"
               onClick={() => void handleEvaluate()}
@@ -143,6 +227,14 @@ export function JamAllCodeSheet() {
             </button>
           </div>
         </div>
+        {issue && (
+          <div
+            className="shrink-0 px-3 py-2 bg-error/15 border-b border-error/40 text-error text-xs font-medium"
+            role="alert"
+          >
+            {issue}
+          </div>
+        )}
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
           <div ref={editorRef} className="flex-1 min-h-0 overflow-auto" />
         </div>

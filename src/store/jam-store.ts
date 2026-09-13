@@ -13,6 +13,7 @@ import {
 import { IMPROV_MIX_DEFAULT, type ImprovPadMix } from '../engine/improv-plate'
 import type { IntensityLevel, IntensitySnap } from '../engine/intensity'
 import type { Track } from '../engine/types'
+import { CODE_ALL } from '../engine/all-code'
 
 export interface JamUndoEntry {
   trackId: string
@@ -50,6 +51,8 @@ interface JamState {
   soundTrackId: string | null
   /** Track id for the Jam Code sheet overlay (null = closed). */
   codeTrackId: string | null
+  /** File / paste buffer waiting for the all-tracks editor. Not persisted. */
+  pendingAllCode: string | null
   /**
    * Last-touched track for header Code + chip mark: chip tap / open Code / content edits.
    * Mute/solo do not update. Separate from activeTrackId.
@@ -83,6 +86,7 @@ interface JamState {
   setLastPeek: (peek: string | null) => void
   setSoundTrackId: (id: string | null) => void
   setCodeTrackId: (id: string | null) => void
+  setPendingAllCode: (text: string | null) => void
   setLastTouchedTrackId: (id: string | null) => void
   /** Mark a track as last-touched (no-op if falsy). Mute must not call this. */
   touchTrack: (id: string | null | undefined) => void
@@ -150,6 +154,7 @@ export const useJamStore = create<JamState>()(
       lastPeek: null,
       soundTrackId: null,
       codeTrackId: null,
+      pendingAllCode: null,
       lastTouchedTrackId: null,
       variantA: null,
       variantB: null,
@@ -191,10 +196,11 @@ export const useJamStore = create<JamState>()(
         ),
       setCodeTrackId: (codeTrackId) =>
         set(
-          codeTrackId
+          codeTrackId && codeTrackId !== CODE_ALL
             ? { codeTrackId, lastTouchedTrackId: codeTrackId }
             : { codeTrackId },
         ),
+      setPendingAllCode: (pendingAllCode) => set({ pendingAllCode }),
       setLastTouchedTrackId: (lastTouchedTrackId) => set({ lastTouchedTrackId }),
       touchTrack: (id) => {
         if (!id) return
