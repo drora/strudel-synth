@@ -13,12 +13,12 @@ import {
   resetFreshStartGuard,
   reshuffleUnlocked,
   spiceTracks,
+  undoJam,
 } from '../../engine/jam-actions'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useVisualViewportHeight } from '../../hooks/useVisualViewport'
 import {
   PREBAKE_MIN_VISIBLE_MS,
-  queueJam,
   useMinVisible,
 } from './jam-shell-utils'
 
@@ -79,20 +79,7 @@ export function useJamShell() {
   }, [])
 
   const onUndo = () => {
-    const entry = useJamStore.getState().popUndo()
-    if (!entry) return
-    const session = useSessionStore.getState()
-    if (entry.batch && entry.batch.length > 0) {
-      for (const snap of entry.batch) {
-        session.setCode(snap.trackId, snap.code)
-      }
-    } else {
-      session.setCode(entry.trackId, entry.code)
-    }
-    const jam = useJamStore.getState()
-    jam.touchTrack(entry.trackId)
-    jam.setLastPeek(`Undo · ${entry.label}`)
-    queueJam('jam')
+    undoJam()
   }
 
   const onShuffle = () => {

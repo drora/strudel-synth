@@ -11,6 +11,8 @@ import {
   afterTrackRemoved,
 } from '../engine/last-touched'
 import { IMPROV_MIX_DEFAULT, type ImprovPadMix } from '../engine/improv-plate'
+import type { IntensityLevel, IntensitySnap } from '../engine/intensity'
+import type { Track } from '../engine/types'
 
 export interface JamUndoEntry {
   trackId: string
@@ -18,6 +20,9 @@ export interface JamUndoEntry {
   label: string
   /** Song-global Mutate (half/double-time): restore all codes in one Undo. */
   batch?: { trackId: string; code: string }[]
+  addedTrackIds?: string[]
+  removedTracks?: Track[]
+  intensityLevel?: IntensityLevel
 }
 
 export type AbSlot = 'a' | 'b'
@@ -34,6 +39,12 @@ interface JamState {
   lockKit: boolean
   showKitPicker: boolean
   hasPickedKit: boolean
+  /** Current song Intensity 1–4. Kit select resets to 1 (not persisted). */
+  intensityLevel: IntensityLevel
+  /** Edits at each intensity for this generate. Cleared on kit select. */
+  intensitySnaps: Partial<Record<IntensityLevel, IntensitySnap>>
+  /** Pad lane spawned by Intensity 3+ (removed on wind-down). */
+  spawnedPadId: string | null
   undoStack: JamUndoEntry[]
   lastPeek: string | null
   soundTrackId: string | null
@@ -63,6 +74,10 @@ interface JamState {
   setLockKit: (lock: boolean) => void
   setShowKitPicker: (show: boolean) => void
   setHasPickedKit: (v: boolean) => void
+  setIntensityLevel: (level: IntensityLevel) => void
+  saveIntensitySnap: (level: IntensityLevel, snap: IntensitySnap) => void
+  resetIntensitySession: () => void
+  setSpawnedPadId: (id: string | null) => void
   pushUndo: (entry: JamUndoEntry) => void
   popUndo: () => JamUndoEntry | null
   setLastPeek: (peek: string | null) => void
@@ -128,6 +143,9 @@ export const useJamStore = create<JamState>()(
       lockKit: true,
       showKitPicker: true,
       hasPickedKit: false,
+      intensityLevel: 1,
+      intensitySnaps: {},
+      spawnedPadId: null,
       undoStack: [],
       lastPeek: null,
       soundTrackId: null,
@@ -149,6 +167,12 @@ export const useJamStore = create<JamState>()(
       setLockKit: (lockKit) => set({ lockKit }),
       setShowKitPicker: (showKitPicker) => set({ showKitPicker }),
       setHasPickedKit: (hasPickedKit) => set({ hasPickedKit }),
+      setIntensityLevel: (intensityLevel) => set({ intensityLevel }),
+      saveIntensitySnap: (level, snap) =>
+        set((s) => ({ intensitySnaps: { ...s.intensitySnaps, [level]: snap } })),
+      resetIntensitySession: () =>
+        set({ intensityLevel: 1, intensitySnaps: {}, spawnedPadId: null }),
+      setSpawnedPadId: (spawnedPadId) => set({ spawnedPadId }),
       pushUndo: (entry) =>
         set((s) => ({ undoStack: [...s.undoStack.slice(-19), entry] })),
       popUndo: () => {
