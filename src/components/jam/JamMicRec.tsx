@@ -9,7 +9,7 @@ import {
  * Big Rec control — record mic → register sample → assign to track.
  * Quantizes start/stop to cycle when playing. iOS unlock inside startMicRecording.
  */
-export function JamMicRec({ large = false }: { large?: boolean }) {
+export function JamMicRec({ large = false, fill = false }: { large?: boolean; fill?: boolean }) {
   const [state, setState] = useState<MicRecState>('idle')
   const [detail, setDetail] = useState<string | null>(null)
   const ctlRef = useRef<MicController | null>(null)
@@ -70,7 +70,7 @@ export function JamMicRec({ large = false }: { large?: boolean }) {
       className={`
         flex items-center justify-center rounded-xl
         transition-all font-bold shrink-0 active:scale-95
-        ${large ? 'w-16 h-12 min-w-12 min-h-12 text-lg' : 'w-14 h-11 text-base'}
+        ${fill ? 'w-full min-w-0 h-12 min-h-12 text-lg' : large ? 'w-16 h-12 min-w-12 min-h-12 text-lg' : 'w-14 h-11 text-base'}
         ${recording
           ? 'bg-error text-white shadow-[0_0_16px_rgba(239,68,68,0.5)] animate-pulse'
           : errored

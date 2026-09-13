@@ -242,8 +242,8 @@ export function JamShell() {
         <div className="flex items-stretch gap-2">
           <div className="flex-1 min-w-0 flex flex-col gap-1.5">
             <div className="grid grid-cols-4 gap-2 [&>*]:min-w-0 [&>button]:!w-full [&>button]:!min-w-0 [&>button]:min-h-12">
-              <PlayButton large={!!j.isMobile} />
-              <JamMicRec large={!!j.isMobile} />
+              <PlayButton large={!!j.isMobile} fill />
+              <JamMicRec large={!!j.isMobile} fill />
               <button
                 type="button"
                 onClick={j.onNewKit}
@@ -260,18 +260,18 @@ export function JamShell() {
                 Mutate
               </button>
             </div>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={j.onShuffle}
-                className="col-span-3 min-h-12 rounded-xl text-xs font-medium bg-accent/20 text-accent border border-accent/30"
+                className="min-h-12 rounded-xl text-xs font-medium bg-accent/20 text-accent border border-accent/30"
               >
                 Shuffle
               </button>
               <button
                 type="button"
                 onClick={j.onSpice}
-                className="col-span-1 min-h-12 px-2 rounded-xl text-xs font-medium bg-accent/20 text-accent border border-accent/30"
+                className="min-h-12 rounded-xl text-xs font-medium bg-accent/20 text-accent border border-accent/30"
                 title="FX/timbre nudge — same tune, spiced up"
               >
                 Spice
