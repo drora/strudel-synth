@@ -307,7 +307,11 @@ async function beginHold(
     const orbit = getCtrl?.().getOrbit(1, [1, 2])
     orbit?.connectToOutput(gain)
     if (orbit && isImprovFxOn('room', mix.room) && mix.room != null) {
-      orbit.getReverb()
+      const size =
+        isImprovFxOn('roomsize', mix.roomsize) && mix.roomsize != null
+          ? mix.roomsize
+          : undefined
+      orbit.getReverb(size)
       orbit.sendReverb(gain, mix.room)
     }
     if (orbit && isImprovFxOn('delay', mix.delay) && mix.delay != null) {

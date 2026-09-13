@@ -267,12 +267,14 @@ console.log('=== Improv plate smoke ===')
     gain: 0.7,
     lpf: 800,
     room: 0.6,
+    roomsize: 2,
     delay: 0,
     hpf: 20,
   })
   assert.equal(wet.gain, 0.7)
   assert.equal(wet.lpf, 800)
   assert.equal(wet.room, 0.6)
+  assert.equal(wet.roomsize, 2)
   assert.equal(wet.delay, undefined)
   assert.equal(wet.hpf, undefined)
   const kept = applyImprovMixToCode('note("c4 eb4").sound("sine")', {
@@ -280,9 +282,11 @@ console.log('=== Improv plate smoke ===')
     gain: 0.7,
     lpf: 800,
     room: 0.6,
+    roomsize: 2,
   })
   assert.match(kept, /\.lpf\(800\)/)
   assert.match(kept, /\.room\(0.6\)/)
+  assert.match(kept, /\.roomsize\(2\)/)
   assert.match(kept, /\.gain\(0.7\)/)
   const keptVolOnly = applyImprovMixToCode('note("c4").sound("sine")', { volume: 0.5 })
   assert.doesNotMatch(keptVolOnly, /\.gain\(/)
