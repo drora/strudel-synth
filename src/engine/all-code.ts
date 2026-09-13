@@ -221,7 +221,7 @@ export function applyAllCodeToTracks(
   })
 }
 
-function unbalancedSyntax(text: string): boolean {
+export function hasUnbalancedSyntax(text: string): boolean {
   const pairs: [string, string][] = [
     ['(', ')'],
     ['[', ']'],
@@ -274,7 +274,7 @@ export type ImportCheck = { ok: true } | { ok: false; message: string }
 export function checkImportCode(text: string, tracks: Track[]): ImportCheck {
   const t = text.trim()
   if (!t) return { ok: false, message: 'Nothing to import' }
-  if (unbalancedSyntax(t)) {
+  if (hasUnbalancedSyntax(t)) {
     return { ok: false, message: 'Invalid syntax — unmatched brackets or quotes' }
   }
   const parsed = parseAllCode(text, tracks)
