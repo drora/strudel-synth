@@ -93,13 +93,6 @@ export function JamShell() {
           >
             Learn
           </button>
-          <button
-            type="button"
-            className="min-h-11 px-3 rounded-lg text-xs font-medium bg-bg-elevated text-text-muted border border-border hover:text-accent"
-            onClick={exportJam}
-          >
-            Export
-          </button>
           <input
             ref={importFileRef}
             type="file"
@@ -116,6 +109,13 @@ export function JamShell() {
             onClick={startImport}
           >
             Import
+          </button>
+          <button
+            type="button"
+            className="min-h-11 px-3 rounded-lg text-xs font-medium bg-bg-elevated text-text-muted border border-border hover:text-accent"
+            onClick={exportJam}
+          >
+            Export
           </button>
           <JamTakeMix />
         </div>
