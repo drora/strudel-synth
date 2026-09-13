@@ -50,8 +50,7 @@ Never stack these in one turn. See SKILL.md for the intensity talk-recipe (do no
 | Ignoring quantization | Default `"1"`; structural → `"2"` |
 | Removing tracks to “clean up” | Ask first; mute instead |
 | Faking mic Rec | Report `mic_status`; user taps Rec |
-| Faking Take / treating Take as Rec | User taps **Take** (header); you cannot start it; Take is not Rec |
-| Reconstructing Import via harmony/BPM | Ask them to tap **Import**; pasted code → `update_track` that lane only (no `set_song_harmony` remap) |
+| Faking Import / Export / Take | Header taps only — no tools; Take ≠ Rec; do not `set_song_harmony` to “restore” |
 | Editing walk chips as targets | Display-only concert names — use `set_song_harmony` for key/scale |
 
 ## Phone Jam constraints
