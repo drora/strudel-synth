@@ -15,7 +15,7 @@ import { JamKitPicker } from './JamKitPicker'
 import { JamAddTrack } from './JamAddTrack'
 import { JamPhaseRing } from './JamPhaseRing'
 import { JamMicRec } from './JamMicRec'
-import { JamShareMix } from './JamShareMix'
+import { JamTakeMix } from './JamTakeMix'
 import { JamABToggle } from './JamABToggle'
 import { useJamShell } from './useJamShell'
 import { JamTrackChip } from './JamTrackChip'
@@ -117,7 +117,7 @@ export function JamShell() {
           >
             Import
           </button>
-          <JamShareMix />
+          <JamTakeMix />
         </div>
       </header>
 

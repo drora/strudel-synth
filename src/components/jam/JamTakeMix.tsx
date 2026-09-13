@@ -9,10 +9,10 @@ import {
 } from '../../engine/mix-capture'
 
 /**
- * Header Share — capture the live mix (tracks + pads) for up to 3:00.
+ * Header Take — capture the live mix (tracks + pads) for up to 3:00.
  * Not Rec (mic). Accent, not red.
  */
-export function JamShareMix() {
+export function JamTakeMix() {
   const [state, setState] = useState<MixCaptureState>('idle')
   const [left, setLeft] = useState(0)
   const [detail, setDetail] = useState<string | null>(null)
@@ -59,7 +59,7 @@ export function JamShareMix() {
   }, [state, onState])
 
   const recording = state === 'recording'
-  const label = recording ? formatCaptureClock(left) : state === 'error' ? '!' : 'Share'
+  const label = recording ? formatCaptureClock(left) : state === 'error' ? '!' : 'Take'
 
   return (
     <button
@@ -72,8 +72,8 @@ export function JamShareMix() {
             ? 'bg-error/30 text-error border-error/40'
             : 'bg-bg-elevated text-text-muted border-border hover:text-accent'
       }`}
-      title={detail ?? (recording ? 'Stop and download (auto-stops at 3:00)' : 'Share mix — up to 3:00')}
-      aria-label={recording ? 'Stop mix capture' : 'Share mix'}
+      title={detail ?? (recording ? 'Stop and download (auto-stops at 3:00)' : 'Take — up to 3:00, starts Play if stopped')}
+      aria-label={recording ? 'Stop take' : 'Take'}
       aria-pressed={recording}
     >
       {label}
