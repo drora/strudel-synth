@@ -34,7 +34,7 @@ export const HIDDEN_PITCHED_CHOICES: SoundChoice[] = [
   { id: 'super64', label: 'Super 64', sound: 'super64' },
   { id: 'tubularbells', label: 'Tubular bells', sound: 'tubularbells' },
   { id: 'tubularbells2', label: 'Tubular bells 2', sound: 'tubularbells2' },
-  { id: 'wineglass', label: 'Wineglass', sound: 'wineglass' },
+  { id: 'wineglass', label: 'Wineglass', sound: 'wineglass_slow' },
   { id: 'wt-bad-day', label: 'WT bad day', sound: 'wt_digital_bad_day' },
   { id: 'wt-basique', label: 'WT basique', sound: 'wt_digital_basique' },
   { id: 'wt-crickets', label: 'WT crickets', sound: 'wt_digital_crickets' },

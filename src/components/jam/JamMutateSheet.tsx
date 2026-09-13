@@ -22,7 +22,9 @@ export function JamMutateSheet({ onClose }: Props) {
     const track = MUTATIONS.filter((m) => m.scope === 'track')
       .slice()
       .sort((a, b) => a.label.localeCompare(b.label))
-    const song = MUTATIONS.filter((m) => m.scope === 'song')
+    const song = MUTATIONS.filter(
+      (m) => m.scope === 'song' && m.id !== 'intensity-up' && m.id !== 'intensity-down',
+    )
     return { trackMutations: track, songMutations: song }
   }, [])
 

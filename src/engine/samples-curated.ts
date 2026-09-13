@@ -70,4 +70,5 @@ export const EXTRA_AUTOCOMPLETE_SAMPLES: string[] = [
   'tubularbells',
   'tubularbells2',
   'wineglass',
+  'wineglass_slow',
 ]

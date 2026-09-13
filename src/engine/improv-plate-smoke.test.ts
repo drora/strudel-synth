@@ -263,7 +263,7 @@ console.log('=== Improv plate smoke ===')
 
 // VCSL marimba is soft-only — pad/Keep/compose share the boost
 {
-  assert.equal(sampleGainBoost('marimba'), 4)
+  assert.equal(sampleGainBoost('marimba'), 8)
   assert.equal(sampleGainBoost('sine'), 1)
   assert.equal(sampleGainBoost('kalimba'), 1)
   assert.equal(soundFromCode('note("c4").sound("marimba")'), 'marimba')
@@ -271,13 +271,17 @@ console.log('=== Improv plate smoke ===')
     [track({ id: 'm', code: 'note("c4").sound("marimba")', volume: 1 })],
     120,
   )
-  assert.match(kept, /\.gain\(4\)/)
+  assert.match(kept, /\.gain\(8\)/)
   const sine = composeTracks(
     [track({ id: 's', code: 'note("c4").sound("sine")', volume: 1 })],
     120,
   )
   assert.match(sine, /\.gain\(1\)/)
-  console.log('marimba gain boost ok')
+  assert.equal(sampleGainBoost('glockenspiel'), 8)
+  assert.equal(sampleGainBoost('wineglass_slow'), 12)
+  assert.equal(sampleGainBoost('speechless'), 5)
+  assert.equal(sampleGainBoost('wt_digital_basique'), 5)
+  console.log('quiet sample gain boost ok')
 }
 
 {
