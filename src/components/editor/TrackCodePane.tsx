@@ -49,15 +49,22 @@ export function TrackCodePane({ track, isActive, focusMode = false }: TrackCodeP
 
   const handleEvaluate = useCallback(async (quant?: Quantization) => {
     const q = quant ?? useUIStore.getState().getEffectiveQuantization(track.id)
-    try {
-      await startOrQueueUpdate(q)
-      useSessionStore.getState().setError(track.id, null)
-    } catch (err) {
-      useSessionStore.getState().setError(
-        track.id,
-        err instanceof Error ? err.message : String(err),
-      )
+    // Flush editor document into the store first (Save while stopped → Play this buffer).
+    const code = viewRef.current?.state.doc.toString() ?? codeRef.current
+    codeRef.current = code
+    const session = useSessionStore.getState()
+    session.setCode(track.id, code)
+    useJamStore.getState().touchTrack(track.id)
+    const result = await startOrQueueUpdate(q)
+    if (!result.ok) {
+      const msg =
+        result.error ??
+        (result.reason === 'blocked' ? 'Tap Play again — iOS blocked audio' : 'Play failed')
+      useJamStore.getState().setLastPeek(`Play · ${msg}`)
+      if (result.error) session.setError(track.id, result.error)
+      return
     }
+    useSessionStore.getState().setError(track.id, null)
   }, [track.id])
 
   const handleStop = useCallback(async () => {

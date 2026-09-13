@@ -8,16 +8,26 @@ import {
   maybeLoadCommunityBanks,
   stop,
 } from './strudel'
+import { silenceUnplayableTracks } from './compose-tracks'
 import { ensureAudioUnlocked, getAudioContextState } from './audio-context'
 import { liveUpdateEngine, type Quantization, type QueueReason } from './live-update'
+import { coalesceInFlight } from './async-coalesce'
 
 export type StartPlaybackResult = { ok: true } | { ok: false; reason: 'blocked' | 'error'; error?: string }
+
+/** Shared in-flight start so Save+Play / double-Play await one init (no double CDN prebake). */
+const startInFlightHolder: { current: Promise<StartPlaybackResult> | null } = { current: null }
 
 /**
  * Single start path: unlock → init → compose → evaluate.
  * Call only from a user-gesture turn on iOS.
+ * Concurrent calls share one in-flight promise.
  */
 export async function startPlayback(): Promise<StartPlaybackResult> {
+  return coalesceInFlight(startInFlightHolder, runStartPlayback)
+}
+
+async function runStartPlayback(): Promise<StartPlaybackResult> {
   const state = useSessionStore.getState()
   try {
     const unlock = await ensureAudioUnlocked()
@@ -36,21 +46,30 @@ export async function startPlayback(): Promise<StartPlaybackResult> {
     }
 
     const latest = useSessionStore.getState()
-    latest.setPlaying(true)
     const overlay = useJamStore.getState().improvHold ?? 'silence'
-    const code = composeTracks(latest.tracks, latest.bpm, overlay)
+    const { tracks: playable, silencedIds } = silenceUnplayableTracks(latest.tracks)
+    const code = composeTracks(playable, latest.bpm, overlay)
     await evaluateCode(code)
+    latest.setPlaying(true)
     // Epoch after evaluate so wall/audio clocks align with audible start
     liveUpdateEngine.markPlayStarted()
     maybeLoadCommunityBanks()
+    if (silencedIds.length) {
+      const name =
+        latest.tracks.find((tr) => tr.id === silencedIds[0])?.name ?? silencedIds[0]
+      useJamStore.getState().setLastPeek(`Play · ${name} skipped — syntax`)
+    }
     return { ok: true }
   } catch (err) {
     console.error('Playback error:', err)
     liveUpdateEngine.markPlayStopped()
     state.setPlaying(false)
     const msg = err instanceof Error ? err.message : String(err)
-    const activeId = useSessionStore.getState().activeTrackId
-    if (activeId) useSessionStore.getState().setError(activeId, msg)
+    useJamStore.getState().setLastPeek('Play · ' + msg)
+    const session = useSessionStore.getState()
+    const errId = useJamStore.getState().lastTouchedTrackId || session.activeTrackId
+    if (errId) session.setError(errId, msg)
+    useUIStore.getState().setAudioError(msg)
     return { ok: false, reason: 'error', error: msg }
   }
 }

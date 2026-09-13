@@ -17,6 +17,7 @@ import {
   jamFileStem,
   formatJamHeader,
   parseJamHeader,
+  hasUnbalancedSyntax,
 } from './all-code'
 import type { Track } from './types'
 
@@ -140,6 +141,49 @@ console.log('=== all-code smoke ===')
   const onlyJam = parseAllCode('// @jam kit=x name="Y" root=c scale=minor bpm=120\n', tracks)
   assert.equal(onlyJam.length, 0)
   console.log('jam header roundtrip ok')
+}
+
+
+{
+  assert.equal(hasUnbalancedSyntax('s("bd sd"'), true)
+  assert.equal(hasUnbalancedSyntax('s("bd sd")'), false)
+  console.log('hasUnbalancedSyntax ok')
+}
+
+{
+  // Live typing must persist @track diffs even when import-check false-negatives
+  // (comment with `(`, mid-type unbalanced in another lane, etc.).
+  const tracks = [track('a', 'Kick', 's("bd")'), track('b', 'Hats', 's("hh")')]
+  const withCommentParen = [
+    '// @jam kit=none name="" root=c scale=minor bpm=120',
+    '// @track a  Kick',
+    's("bd sd")',
+    '// TODO: tweak (later',  // unmatched `(` in comment — import-check false-negative
+    '',
+    '// @track b  Hats',
+    's("hh*8")',
+  ].join('\n')
+  const check = checkImportCode(withCommentParen, tracks)
+  assert.equal(check.ok, false, 'comment `(` should trip import-check')
+  const diffs = applyImportToTracks(withCommentParen, tracks)
+  assert.ok(
+    diffs.some((d) => d.id === 'a' && d.code.includes('bd sd')),
+    'parseable @track diffs must still apply when check fails',
+  )
+  const midBuf = [
+    '// @track a  Kick',
+    's("bd cp")',
+    '',
+    '// @track b  Hats',
+    's("hh*4"',
+  ].join('\n')
+  assert.equal(checkImportCode(midBuf, tracks).ok, false)
+  const midDiffs = applyImportToTracks(midBuf, tracks)
+  assert.deepEqual(
+    midDiffs.find((d) => d.id === 'a'),
+    { id: 'a', code: 's("bd cp")' },
+  )
+  console.log('persist @track diffs when check fails ok')
 }
 
 console.log('all-code-smoke.test.ts: ok')

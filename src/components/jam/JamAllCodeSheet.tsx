@@ -64,9 +64,10 @@ export function JamAllCodeSheet() {
   const applyText = useCallback((text: string) => {
     textRef.current = text
     const session = useSessionStore.getState()
+    // Import-check is for the banner / paste-import UX only — never block setCode.
+    // Mid-type / comment-with-`(` can false-negative; still persist parseable @track diffs.
     const check = checkImportCode(text, session.tracks)
     setIssue(check.ok ? null : check.message)
-    if (!check.ok) return
     const last = useJamStore.getState().lastTouchedTrackId
     const diffs = applyImportToTracks(text, session.tracks, last)
     for (const d of diffs) {
@@ -101,16 +102,21 @@ export function JamAllCodeSheet() {
   }, [applyText])
 
   const handleEvaluate = useCallback(async () => {
-    try {
-      await startOrQueueUpdate('1')
-      for (const t of useSessionStore.getState().tracks) {
-        useSessionStore.getState().setError(t.id, null)
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
+    // Flush editor buffer into the store first — Save while stopped must start THIS code.
+    const text = viewRef.current?.state.doc.toString() ?? textRef.current
+    applyText(text)
+    const result = await startOrQueueUpdate('1')
+    if (!result.ok) {
+      const msg =
+        result.error ??
+        (result.reason === 'blocked' ? 'Tap Play again — iOS blocked audio' : 'Play failed')
       useJamStore.getState().setLastPeek(`Code · ${msg}`)
+      return
     }
-  }, [])
+    for (const t of useSessionStore.getState().tracks) {
+      useSessionStore.getState().setError(t.id, null)
+    }
+  }, [applyText])
 
   const applyRef = useRef(applyText)
   const evalRef = useRef(handleEvaluate)
