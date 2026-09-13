@@ -239,42 +239,46 @@ export function JamShell() {
             )}
           </div>
         )}
-        <div className="flex items-center gap-2">
-          <PlayButton large={!!j.isMobile} />
-          <JamMicRec large={!!j.isMobile} />
-          <button
-            type="button"
-            onClick={j.onNewKit}
-            className="min-h-11 px-3 rounded-xl text-xs font-medium bg-bg-elevated border border-border"
-          >
-            New kit
-          </button>
-          <button
-            type="button"
-            onClick={() => j.setShowMutateSheet(true)}
-            className="min-h-11 px-3 rounded-xl text-xs font-medium bg-bg-elevated border border-border"
-            title="Deterministic pattern transforms — not Shuffle, not Spice"
-          >
-            Mutate
-          </button>
-        </div>
-        <div className="flex items-center gap-2">
-          <JamIntensityControl />
-          <button
-            type="button"
-            onClick={j.onShuffle}
-            className="min-h-11 flex-1 rounded-xl text-xs font-medium bg-accent/20 text-accent border border-accent/30"
-          >
-            Shuffle
-          </button>
-          <button
-            type="button"
-            onClick={j.onSpice}
-            className="min-h-11 px-3 rounded-xl text-xs font-medium bg-accent/20 text-accent border border-accent/30"
-            title="FX/timbre nudge — same tune, spiced up"
-          >
-            Spice
-          </button>
+        <div className="flex items-stretch gap-2">
+          <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+            <div className="grid grid-cols-4 gap-2 [&>*]:min-w-0 [&>button]:!w-full [&>button]:!min-w-0 [&>button]:min-h-12">
+              <PlayButton large={!!j.isMobile} />
+              <JamMicRec large={!!j.isMobile} />
+              <button
+                type="button"
+                onClick={j.onNewKit}
+                className="min-h-12 px-2 rounded-xl text-xs font-medium bg-bg-elevated border border-border"
+              >
+                New kit
+              </button>
+              <button
+                type="button"
+                onClick={() => j.setShowMutateSheet(true)}
+                className="min-h-12 px-2 rounded-xl text-xs font-medium bg-bg-elevated border border-border"
+                title="Deterministic pattern transforms — not Shuffle, not Spice"
+              >
+                Mutate
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={j.onShuffle}
+                className="col-span-3 min-h-12 rounded-xl text-xs font-medium bg-accent/20 text-accent border border-accent/30"
+              >
+                Shuffle
+              </button>
+              <button
+                type="button"
+                onClick={j.onSpice}
+                className="col-span-1 min-h-12 px-2 rounded-xl text-xs font-medium bg-accent/20 text-accent border border-accent/30"
+                title="FX/timbre nudge — same tune, spiced up"
+              >
+                Spice
+              </button>
+            </div>
+          </div>
+          <JamIntensityControl vertical />
         </div>
       </div>
 
