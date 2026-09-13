@@ -339,6 +339,7 @@ export type ImprovPadMix = {
   lpf?: number | null
   hpf?: number | null
   room?: number | null
+  roomsize?: number | null
   delay?: number | null
 }
 
@@ -348,15 +349,16 @@ export const IMPROV_VOL_STEPS = [0, 0.25, 0.5, 0.75, 0.9, 1, 1.25, 1.5]
 export const IMPROV_VEL_STEPS = [0.3, 0.5, 0.7, 0.85, 1, 1.2]
 
 export const IMPROV_FX_CONTROLS: Array<{
-  key: keyof Pick<ImprovPadMix, 'lpf' | 'hpf' | 'room' | 'delay' | 'gain'>
+  key: keyof Pick<ImprovPadMix, 'lpf' | 'hpf' | 'room' | 'roomsize' | 'delay' | 'gain'>
   label: string
   steps: number[]
   off: number
 }> = [
   { key: 'lpf', label: 'LPF', steps: [200, 400, 800, 1200, 2000, 4000, 8000, 12000], off: 12000 },
   { key: 'hpf', label: 'HPF', steps: [20, 100, 200, 400, 800, 1600, 3200], off: 20 },
-  { key: 'room', label: 'Room', steps: [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2], off: 0 },
-  { key: 'delay', label: 'Delay', steps: [0, 0.1, 0.2, 0.35, 0.5, 0.7], off: 0 },
+  { key: 'room', label: 'Reverb', steps: [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2], off: 0 },
+  { key: 'roomsize', label: 'Size', steps: [0.5, 1, 2, 3, 4], off: 0 },
+  { key: 'delay', label: 'Delay', steps: [0, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 1], off: 0 },
   { key: 'gain', label: 'Gain', steps: [0.3, 0.5, 0.7, 0.85, 1, 1.15, 1.3], off: 0 },
 ]
 

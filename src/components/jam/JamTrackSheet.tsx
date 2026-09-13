@@ -31,8 +31,9 @@ const JAM_FX_CONTROLS: Array<{
 }> = [
   { key: 'lpf', label: 'LPF', steps: [200, 400, 800, 1200, 2000, 4000, 8000, 12000] },
   { key: 'hpf', label: 'HPF', steps: [20, 100, 200, 400, 800, 1600, 3200] },
-  { key: 'room', label: 'Room', steps: [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2] },
-  { key: 'delay', label: 'Delay', steps: [0, 0.1, 0.2, 0.35, 0.5, 0.7] },
+  { key: 'room', label: 'Reverb', steps: [0, 0.15, 0.3, 0.45, 0.6, 0.9, 1.2] },
+  { key: 'roomsize', label: 'Size', steps: [0.5, 1, 2, 3, 4] },
+  { key: 'delay', label: 'Delay', steps: [0, 0.1, 0.2, 0.35, 0.5, 0.7, 0.85, 1] },
   { key: 'gain', label: 'Gain', steps: [0.3, 0.5, 0.7, 0.85, 1, 1.15, 1.3] },
 ]
 
