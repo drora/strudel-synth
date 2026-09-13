@@ -11,6 +11,7 @@ import {
   applyAllCodeToTracks,
   checkImportCode,
   applyImportToTracks,
+  ALL_CODE_FILENAME,
 } from './all-code'
 import type { Track } from './types'
 
@@ -85,5 +86,7 @@ console.log('=== all-code smoke ===')
   assert.deepEqual(snip, [{ id: 'b', code: 's("cp")' }])
   console.log('import check ok')
 }
+
+{ assert.equal(ALL_CODE_FILENAME, 'strudel-studio.strudel') }
 
 console.log('all-code-smoke.test.ts: ok')

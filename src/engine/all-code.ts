@@ -3,7 +3,7 @@ import type { Track } from './types'
 /** Header Code sheet — one editor for every track. */
 export const CODE_ALL = '__all__'
 
-export const ALL_CODE_FILENAME = 'strudel-studio.js'
+export const ALL_CODE_FILENAME = 'strudel-studio.strudel'
 
 const HEAD = /^\/\/ @track (\S+)(?:\s+.*)?$/
 
