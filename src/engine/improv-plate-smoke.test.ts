@@ -12,6 +12,8 @@ import {
   lastImprovPhrase,
   bridgeImprovPhrase,
   hitsToNoteCode,
+  quantizeBeats,
+  tokenBeats,
   walkTriadPcs,
   smearFromHold,
   noteTransposeRate,
@@ -134,7 +136,7 @@ console.log('=== Improv plate smoke ===')
     ],
     'triangle',
   )
-  assert.match(code, /note\("c4 eb4 g4"\)\.sound\("triangle"\)/)
+  assert.match(code, /note\("c4@0.5 eb4@0.5 g4@0.5"\)\.sound\("triangle"\)/)
   assert.doesNotMatch(code, /velocity/)
 }
 
@@ -147,10 +149,10 @@ console.log('=== Improv plate smoke ===')
     'sine',
     120,
   )
-  assert.match(held, /note\("c4 g4@4"\)/)
+  assert.match(held, /note\("c4@0.5 g4@4"\)/)
   assert.match(held, /\.velocity\("0.4 1"\)/)
   assert.match(held, /\.clip\(1\)/)
-  assert.match(held, /\.slow\(1\.25\)/)
+  assert.match(held, /\.slow\(1\.125\)/)
   const even = hitsToNoteCode(
     [
       { note: 'c4', cycle: 1, dur: 0.3, velocity: 0.85 },
@@ -158,10 +160,40 @@ console.log('=== Improv plate smoke ===')
     ],
     'sine',
   )
-  assert.match(even, /note\("c4 eb4"\)/)
+  assert.match(even, /note\("c4@0.5 eb4@0.5"\)/)
   assert.match(even, /\.velocity\(0.85\)/)
   assert.doesNotMatch(even, /clip/)
   console.log('keep hold+velocity ok')
+}
+
+{
+  assert.equal(quantizeBeats(0.08, 120), 0.25)
+  assert.equal(quantizeBeats(0.15, 120), 0.25)
+  assert.equal(quantizeBeats(0.25, 120), 0.5)
+  assert.equal(quantizeBeats(0.5, 120), 1)
+  assert.equal(quantizeBeats(1.0, 120), 2)
+  assert.equal(quantizeBeats(2.0, 120), 4)
+  assert.equal(tokenBeats('c4'), 1)
+  assert.equal(tokenBeats('c4@0.25'), 0.25)
+  assert.equal(tokenBeats('c4@0.5'), 0.5)
+  assert.equal(tokenBeats('c4@4'), 4)
+  const tap = hitsToNoteCode(
+    [{ note: 'c4', cycle: 0, dur: 0.1, velocity: 1, at: 20_000 }],
+    'sine',
+    120,
+  )
+  assert.match(tap, /note\("c4@0.25"\)/, tap)
+  assert.doesNotMatch(tap, /slow/)
+  const eighths = hitsToNoteCode(
+    [
+      { note: 'c4', cycle: 0, dur: 0.25, velocity: 1, at: 20_000 },
+      { note: 'eb4', cycle: 0, dur: 0.25, velocity: 1, at: 20_250 },
+    ],
+    'sine',
+    120,
+  )
+  assert.match(eighths, /note\("c4@0.5 eb4@0.5"\)/, eighths)
+  console.log('keep staccato 0.25/0.5 ok')
 }
 
 {
@@ -176,10 +208,10 @@ console.log('=== Improv plate smoke ===')
     'sine',
     120,
   )
-  assert.match(code, /note\("c4 ~ eb4 ~@2 g4"\)/, code)
+  assert.match(code, /note\("c4@0.5 ~ eb4@0.5 ~@2 g4@0.5"\)/, code)
   assert.doesNotMatch(code, /c3/)
   assert.match(code, /\.velocity\("0.8 1 0.8 1 0.8"\)/)
-  assert.match(code, /\.slow\(1\.5\)/)
+  assert.match(code, /\.slow\(1\.125\)/)
   const lone = hitsToNoteCode(
     [{ note: 'c4', cycle: 0, dur: 2.0, velocity: 1, at: t0 }],
     'sine',

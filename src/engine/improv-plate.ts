@@ -169,10 +169,11 @@ export function smearFromHold(
   }
 }
 
-/** 0 = too small, else 1/2/3/4/6/8 beats at song tempo. */
+/** Hold weight: 0.25 / 0.5 / 1 / 2 / 3 / 4 / 6 / 8 beats. 0.12 is too short for SuperDough. */
 export function quantizeBeats(sec: number, bpm: number): number {
   const b = sec / (60 / Math.max(bpm, 40))
-  if (b < 0.7) return 0
+  if (b < 0.38) return 0.25
+  if (b < 0.75) return 0.5
   if (b < 1.4) return 1
   if (b < 2.4) return 2
   if (b < 3.4) return 3
@@ -183,12 +184,12 @@ export function quantizeBeats(sec: number, bpm: number): number {
 
 function stretchMark(dur: number, bpm: number): string {
   const beats = quantizeBeats(dur, bpm)
-  return beats <= 1 ? '' : `@${beats}`
+  return beats === 1 ? '' : `@${beats}`
 }
 
 /** Mini-notation `@n` is relative weight; jam cycle is 4 beats. */
 export function tokenBeats(token: string): number {
-  const m = token.match(/@(\d+)$/)
+  const m = token.match(/@(\d*\.?\d+)$/)
   return m ? Number(m[1]) : 1
 }
 
@@ -199,7 +200,8 @@ export function phraseCycles(tokens: string[], beatsPerCycle = 4): number {
 
 function restToken(gapSec: number, bpm: number): string | null {
   const beats = quantizeBeats(gapSec, bpm)
-  if (beats <= 0) return null
+  // Gaps shorter than a beat stay glued — do not insert ~@0.25 between staccato taps.
+  if (beats < 1) return null
   return beats === 1 ? '~' : `~@${beats}`
 }
 
