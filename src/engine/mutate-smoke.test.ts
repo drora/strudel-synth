@@ -21,6 +21,7 @@ import {
   transformStraighten,
   transformTo16,
   transformTo8,
+  fillSilences,
   applyIntensityFromBase,
 } from './mutate'
 import {
@@ -29,6 +30,7 @@ import {
   shouldDropSpawnedPad,
   shouldSpawnIntensityPad,
   intensitySpawnRole,
+  isKeysTrack,
   shouldSpawnIntensityLane,
 } from './intensity'
 import { splitEffectSuffix } from './code-effects'
@@ -173,34 +175,73 @@ console.log('  catalog: 15 transforms; half/double/intensity song-scoped')
   assert.deepEqual(transformTo16(['bd', '~', 'sd', '~']), ['bd', 'bd', 'sd', 'sd'])
   assert.deepEqual(transformTo8(['bd', 'bd', 'sd', 'sd']), ['bd', '~', 'sd', '~'])
   assert.deepEqual(transformTo8(transformTo16(['bd', '~', 'sd', '~'])), ['bd', '~', 'sd', '~'])
+  assert.deepEqual(fillSilences(['~', 'hh', '~', 'hh'], (x) => x !== '~' && x !== '-'), [
+    'hh',
+    'hh',
+    'hh',
+    'hh',
+  ])
+
+  const hatsSparse = 's("~ hh ~ hh")'
+  const hatsFilled = 's("hh hh hh hh")'
+  assert.equal(applyIntensityFromBase(hatsSparse, 'hihats', 2), hatsFilled)
+  assert.equal(applyIntensityFromBase(hatsSparse, 'hihats', 3), hatsFilled)
+  assert.equal(applyIntensityFromBase(hatsSparse, 'hihats', 4), hatsFilled)
+
+  const hatsDense = 's("hh*8")'
+  assert.equal(applyIntensityFromBase(hatsDense, 'hihats', 2), 's("hh*16")')
 
   const drums = 's("bd ~ sd ~ hh ~ oh ~").bank("RolandTR909")'
   assert.equal(applyIntensityFromBase(drums, 'drums', 1), drums)
   const l2 = applyIntensityFromBase(drums, 'drums', 2)
-  assert.ok(l2.includes('bd ~ sd ~'), `L2 kick/snare stay: ${l2}`)
-  assert.ok(l2.includes('hh hh') || l2.includes('oh oh'), `L2 doubled hats: ${l2}`)
+  assert.ok(!l2.includes('bd bd') && !l2.includes('sd sd'), `L2 kick/snare not doubled: ${l2}`)
+  assert.ok(/hh/.test(l2) && !/hh ~/.test(l2.replace(/oh[^"]*/, '')), `L2 hats filled: ${l2}`)
+  // lookahead may yield bd hh sd hh hh hh oh oh
+  assert.ok(l2.includes('hh'), `L2 has hats: ${l2}`)
   assert.ok(!/\.gain\(/.test(l2) && !/\.room\(/.test(l2), `L2 no mush FX: ${l2}`)
   const l3 = applyIntensityFromBase(drums, 'drums', 3)
   assert.equal(l3, l2, 'L3 spawn is jam-actions, not pattern')
   const l4 = applyIntensityFromBase(drums, 'drums', 4)
-  assert.ok(l4.includes('bd bd'), `L4 kick: ${l4}`)
-  assert.ok(l4.includes('sd sd'), `L4 snare: ${l4}`)
-  assert.ok(l4.includes('hh hh') || l4.includes('oh oh'), `L4 hats stay doubled: ${l4}`)
-
-  const hats = 's("hh ~ oh ~")'
-  const hats16 = 's("hh hh oh oh")'
-  assert.equal(applyIntensityFromBase(hats, 'hihats', 2), hats16)
-  assert.equal(applyIntensityFromBase(hats, 'hihats', 3), hats16)
-  assert.equal(applyIntensityFromBase(hats, 'hihats', 4), hats16)
+  assert.ok(
+    l4.includes('bd bd') || !l4.includes('bd ~'),
+    `L4 kick filled: ${l4}`,
+  )
+  assert.ok(
+    l4.includes('sd sd') || !l4.includes('sd ~'),
+    `L4 snare filled: ${l4}`,
+  )
+  assert.ok(/hh/.test(l4), `L4 hats stay dense: ${l4}`)
 
   const bass = 'note("c2 ~ g2 ~").sound("sawtooth")'
   assert.equal(applyIntensityFromBase(bass, 'bass', 2), bass)
   const bass4 = applyIntensityFromBase(bass, 'bass', 4)
-  assert.ok(bass4.includes('note("c2 c2 g2 g2")'), bass4)
+  assert.ok(bass4.includes('c2') && bass4.includes('g2'), `L4 bass keeps cores: ${bass4}`)
+  assert.ok(/@0\.5/.test(bass4), `L4 bass walks @0.5: ${bass4}`)
+  assert.ok(!bass4.includes('~'), `L4 bass no rests: ${bass4}`)
+  // cores in order: c2 before g2, and not same-pitch double fill
+  const bassBody = bass4.match(/note\("([^"]+)"\)/)?.[1] ?? ''
+  const bassToks = bassBody.split(/\s+/)
+  assert.ok(bassToks[0] === 'c2', `first core c2: ${bassBody}`)
+  assert.ok(bassToks.includes('g2'), `has g2: ${bassBody}`)
+  assert.ok(bassToks.indexOf('c2') < bassToks.indexOf('g2'), `order c2…g2: ${bassBody}`)
+  assert.ok(!bassBody.includes('c2 c2') && !bassBody.includes('g2 g2'), `not same-pitch fill: ${bassBody}`)
+
+  const bassSparse = 'note("c2 ~ ~ ~").sound("sawtooth")'
+  const bassSparse4 = applyIntensityFromBase(bassSparse, 'bass', 4)
+  assert.ok(!bassSparse4.includes('~'), `L4 bass sparse no rests: ${bassSparse4}`)
+  assert.ok(/c2/.test(bassSparse4) && /@0\.5/.test(bassSparse4), `L4 walk fills: ${bassSparse4}`)
+
+  const bassDense = 'note("c2 eb2 g2").sound("sawtooth")'
+  const bassDense4 = applyIntensityFromBase(bassDense, 'bass', 4)
+  assert.ok(/c2/.test(bassDense4) && /eb2/.test(bassDense4) && /g2/.test(bassDense4), bassDense4)
+  assert.ok(/@0\.5/.test(bassDense4), `dense bass inserts walks: ${bassDense4}`)
+  const denseBody = bassDense4.match(/note\("([^"]+)"\)/)?.[1] ?? ''
+  const dToks = denseBody.split(/\s+/)
+  assert.equal(dToks.filter((x) => x === 'c2' || x === 'eb2' || x === 'g2').join(' '), 'c2 eb2 g2')
 
   const pad = 'note("c3 eb3 g3").sound("triangle").gain(0.6)'
   assert.equal(applyIntensityFromBase(pad, 'pad', 4), pad)
-  console.log('  intensity: 1 as-is · 2 hats · 3 same pattern · 4 bd+sd+bass; no mush')
+  console.log('  intensity: 1 as-is · 2 hats fill/bump · 3 same · 4 bd+sd+bass-walk; no mush')
 }
 
 {
@@ -213,13 +254,18 @@ console.log('  catalog: 15 transforms; half/double/intensity song-scoped')
   assert.equal(shouldSpawnIntensityPad(2, false), false)
   assert.equal(shouldSpawnIntensityPad(3, false), true)
   assert.equal(shouldSpawnIntensityPad(3, true), false)
-  assert.equal(intensitySpawnRole(false), 'pad')
-  assert.equal(intensitySpawnRole(true), 'arp')
+  assert.equal(intensitySpawnRole({ hasPad: false, hasArp: false, hasKeys: false }), 'pad')
+  assert.equal(intensitySpawnRole({ hasPad: true, hasArp: false, hasKeys: false }), 'arp')
+  assert.equal(intensitySpawnRole({ hasPad: true, hasArp: true, hasKeys: false }), 'lead')
+  assert.equal(intensitySpawnRole({ hasPad: true, hasArp: true, hasKeys: true }), 'fx')
+  assert.equal(isKeysTrack({ name: 'Keys' }), true)
+  assert.equal(isKeysTrack({ name: 'Lead' }), false)
+  assert.equal(isKeysTrack({ name: 'Piano' }), true)
   assert.equal(shouldSpawnIntensityLane(3, false), true)
   assert.equal(shouldSpawnIntensityLane(3, true), false)
   assert.equal(shouldDropSpawnedPad(2), true)
   assert.equal(shouldDropSpawnedPad(3), false)
-  console.log('  intensity levels: 1–4; pad or arp at 3')
+  console.log('  intensity levels: 1–4; 3 pad → arp → keys → fx')
 }
 
 console.log('ALL MUTATE CHECKS PASSED')
