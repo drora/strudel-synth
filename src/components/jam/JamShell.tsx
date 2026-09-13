@@ -20,7 +20,7 @@ import { JamABToggle } from './JamABToggle'
 import { useJamShell } from './useJamShell'
 import { JamTrackChip } from './JamTrackChip'
 import { drumsBankShortName } from '../../engine/kit-browser'
-import { CODE_ALL, isCodeAllOpen, downloadAllCode, tracksToAllCode, allCodeFilename } from '../../engine/all-code'
+import { CODE_ALL, isCodeAllOpen, downloadAllCode, tracksToAllCode, allCodeFilename, IMPORT_FILE_ACCEPT } from '../../engine/all-code'
 import { setSongHarmony, rollSongHarmony } from '../../engine/jam-actions'
 import { SONG_ROOTS, SONG_SCALES, SONG_SCALE_LABELS } from '../../engine/note-harmony'
 import { walkConcertNames } from '../../engine/song-seed'
@@ -96,7 +96,7 @@ export function JamShell() {
           <input
             ref={importFileRef}
             type="file"
-            accept=".strudel,.js,.txt,.mjs,text/plain,text/javascript"
+            accept={IMPORT_FILE_ACCEPT}
             className="hidden"
             onChange={(e) => {
               onImportFile(e.target.files?.[0])

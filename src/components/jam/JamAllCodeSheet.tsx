@@ -10,6 +10,7 @@ import {
   applyImportToTracks,
   checkImportCode,
   allCodeFilename,
+  IMPORT_FILE_ACCEPT,
   downloadAllCode,
   tracksToAllCode,
 } from '../../engine/all-code'
@@ -192,7 +193,7 @@ export function JamAllCodeSheet() {
             <input
               ref={fileRef}
               type="file"
-              accept=".strudel,.js,.txt,.mjs,text/plain,text/javascript"
+              accept={IMPORT_FILE_ACCEPT}
               className="hidden"
               onChange={(e) => {
                 onPickFile(e.target.files?.[0])
