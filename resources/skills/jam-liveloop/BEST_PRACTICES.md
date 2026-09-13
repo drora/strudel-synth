@@ -50,6 +50,7 @@ Never stack all four in one turn. Peek labels: `Shuffle · …` / `Spice · room
 | Ignoring quantization | Default `"1"`; structural → `"2"` |
 | Removing tracks to “clean up” | Ask first; mute instead |
 | Faking mic Rec | Report `mic_status`; user taps Rec |
+| Faking Take | User-gesture only (like Rec); no agent start; do not pretend you started a Take |
 | Editing walk chips as targets | Display-only concert names — use `set_song_harmony` for key/scale |
 
 ## Phone Jam constraints
