@@ -116,6 +116,34 @@ function withMul(base: string, mul: number | null): string {
   return `${base}*${mul}`
 }
 
+/** Euclid hits: +2 or half the remaining rests, cap at pulses. */
+export function bumpEuclidHits(k: number, n: number): number {
+  if (!Number.isFinite(k) || !Number.isFinite(n) || n <= 0) return k
+  return Math.min(n, k + Math.max(2, Math.floor((n - k) / 2)))
+}
+
+const EUCLID_MINI_RE = /^(.+)\((\d+)\s*,\s*(\d+)(?:\s*,\s*(\d+))?\)$/
+
+function parseEuclidMini(
+  tok: string,
+): { name: string; k: number; n: number; rot: string | null } | null {
+  const { base } = stripMul(tok)
+  const m = base.match(EUCLID_MINI_RE)
+  if (!m) return null
+  return { name: m[1]!, k: Number(m[2]), n: Number(m[3]), rot: m[4] ?? null }
+}
+
+function formatEuclidMini(name: string, k: number, n: number, rot: string | null): string {
+  return rot != null ? `${name}(${k},${n},${rot})` : `${name}(${k},${n})`
+}
+
+function bumpEuclidCalls(code: string): string {
+  return code.replace(/\.euclid\((\d+)\s*,\s*(\d+)(\s*,\s*\d+)?\)/g, (_full, k, n, rot) => {
+    const k2 = bumpEuclidHits(Number(k), Number(n))
+    return `.euclid(${k2},${n}${rot ?? ''})`
+  })
+}
+
 const KICK_RE = /^(bd|kick|bassdrum|lt|kick:|bd:)/i
 const HAT_RE = /^(hh|oh|ch|ph|hat|shaker|sh|rim|clap|cp|hc|ride|rd|cr)/i
 
@@ -505,6 +533,7 @@ export function isRhythmicSBody(body: string): boolean {
   const t = toks[0]!
   if (isRest(t)) return true
   if (/\*|~|<|>|\[|\]/.test(t)) return true
+  if (parseEuclidMini(t)) return true
   return false
 }
 
@@ -541,7 +570,12 @@ export function mutatePatternCode(
     if (hasNote && !isRhythmicSBody(body)) return null
     if (!isRhythmicSBody(body) && !hasNote) {
       const toks = tokenizeMini(body)
-      if (toks.length === 1 && !isRest(toks[0]!) && !/\*/.test(toks[0]!)) {
+      if (
+        toks.length === 1 &&
+        !isRest(toks[0]!) &&
+        !/\*/.test(toks[0]!) &&
+        !parseEuclidMini(toks[0]!)
+      ) {
         if (
           id === 'stutter' ||
           id === 'skeleton' ||
@@ -587,7 +621,12 @@ function mapIntensityBodies(
     if (hasNote && !isRhythmicSBody(body)) return null
     if (!isRhythmicSBody(body) && !hasNote) {
       const toks = tokenizeMini(body)
-      if (toks.length === 1 && !isRest(toks[0]!) && !/\*/.test(toks[0]!)) {
+      if (
+        toks.length === 1 &&
+        !isRest(toks[0]!) &&
+        !/\*/.test(toks[0]!) &&
+        !parseEuclidMini(toks[0]!)
+      ) {
         return null
       }
     }
@@ -687,13 +726,9 @@ export function fillSilences(tokens: string[], pred: (tok: string) => boolean): 
       out.push(withMul(base, Math.min(16, mul * 2)))
       continue
     }
-    const eu = base.match(/^(.+)\((\d+),(\d+)\)$/)
+    const eu = parseEuclidMini(base)
     if (eu) {
-      const name = eu[1]!
-      const euN = Number(eu[2])
-      const euD = Number(eu[3])
-      const n2 = Math.min(euD, euN + Math.max(2, Math.floor((euD - euN) / 2)))
-      out.push(`${name}(${n2},${euD})`)
+      out.push(formatEuclidMini(eu.name, bumpEuclidHits(eu.k, eu.n), eu.n, eu.rot))
       continue
     }
     out.push(t, stripMul(t).base)
@@ -900,7 +935,7 @@ export function applyIntensityFromBase(
   harmony?: BassWalkOpts,
 ): string {
   if (level <= 1) return code
-  return mapIntensityBodies(
+  let next = mapIntensityBodies(
     code,
     (toks) => {
       if (role === 'hihats' && level >= 2) return fillSilences(toks, (t) => !isRest(t))
@@ -922,6 +957,8 @@ export function applyIntensityFromBase(
       return null
     },
   )
+  if ((role === 'hihats' || role === 'drums') && level >= 2) next = bumpEuclidCalls(next)
+  return next
 }
 
 export type MutateApplyResult = {
