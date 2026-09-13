@@ -75,7 +75,7 @@ interface JamState {
   reconcileLastTouchedAfterSongReshuffle: () => void
   /** Clear mark if it pointed at a removed track. */
   clearLastTouchedIfRemoved: (removedId: string) => void
-  /** Capture current track codes+mute (+bpm) into A or B. */
+  /** Capture current track codes+mute (+bpm + key) into A or B. */
   stashVariant: (slot: AbSlot) => void
   /** Apply A or B (no-op if empty). */
   punchVariant: (slot: AbSlot) => void
@@ -87,11 +87,25 @@ interface JamState {
   patchImprovMix: (patch: Partial<ImprovPadMix>) => void
 }
 
+function cloneSeed(seed: SongSeed | null): SongSeed | null {
+  if (!seed) return null
+  return {
+    ...seed,
+    walk: seed.walk.map((c) => ({ ...c })),
+    budget: seed.budget ? { ...seed.budget } : seed.budget,
+    mix: seed.mix ? { ...seed.mix } : seed.mix,
+  }
+}
+
 function snapshotSection(): SectionSnap {
   const s = useSessionStore.getState()
+  const j = useJamStore.getState()
   return {
     bpm: s.bpm,
     tracks: s.tracks.map((t) => ({ id: t.id, code: t.code, muted: t.muted })),
+    songRoot: j.songRoot,
+    songScale: j.songScale,
+    songSeed: cloneSeed(j.songSeed),
   }
 }
 
@@ -198,10 +212,14 @@ export const useJamStore = create<JamState>()(
           return
         }
         useSessionStore.getState().applySection(snap)
+        if (snap.songRoot) set({ songRoot: snap.songRoot })
+        if (snap.songScale) set({ songScale: snap.songScale })
+        if ('songSeed' in snap) set({ songSeed: cloneSeed(snap.songSeed ?? null) })
         set({ activeVariant: slot })
         get().setLastPeek(`A/B · punch ${slot.toUpperCase()}`)
         queueSectionUpdate()
       },
+
 
       setImprovHold: (improvHold) => set({ improvHold }),
       setImprovOctave: (improvOctave) => set({ improvOctave }),
