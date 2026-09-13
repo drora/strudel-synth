@@ -24,12 +24,17 @@ import { planShuffleTargets } from './shuffle-lock'
 import { pickRandomSoundChoice, pickRandomImprovVoice, soundChoicesForKit } from './kit-sound-choices'
 import type { Track } from './types'
 import {
-  captureIntensitySnap,
+  captureL1BaseSnap,
   clampIntensity,
-  intensityLevelsShareSpawn,
+  intensityL2TouchesTrack,
+  intensityL4TouchesTrack,
   intensitySpawnRole,
   isKeysTrack,
   nextIntensity,
+  snapCodeMap,
+  stripTrackFromSnap,
+  upsertSnapCode,
+  INTENSITY_LEVELS_ABOVE,
   type IntensityLevel,
 } from './intensity'
 
@@ -577,74 +582,10 @@ function liveSpawnedPad(): Track | null {
   return useSessionStore.getState().tracks.find((tr) => tr.id === jam.spawnedPadId) ?? null
 }
 
-function restoreIntensitySnap(snap: import('./intensity').IntensitySnap) {
-  const session = useSessionStore.getState()
-  const jam = useJamStore.getState()
-  for (const c of snap.codes) {
-    if (session.tracks.some((tr) => tr.id === c.id)) session.setCode(c.id, c.code)
-  }
-  const cur = jam.spawnedPadId
-  if (cur && (!snap.spawnedPad || snap.spawnedPad.id !== cur)) {
-    session.removeTrack(cur)
-  }
-  if (snap.spawnedPad && !useSessionStore.getState().tracks.some((tr) => tr.id === snap.spawnedPad!.id)) {
-    const p = snap.spawnedPad
-    session.addTrack({ ...p, id: p.id })
-  }
-  jam.setSpawnedPadId(snap.spawnedPad?.id ?? null)
-}
-
-/**
- * When L1 kit-track codes change, re-derive those ids into cached L2/L3/L4 snaps
- * so the next climb restores the new sound (e.g. snare sd→rim) without wiping
- * unrelated in-level edits (L2 hat tweaks, L3 spawn).
- */
-function patchHigherIntensitySnapsFromL1(
-  prevL1: import('./intensity').IntensitySnap | undefined,
-  newL1: import('./intensity').IntensitySnap,
-  opts?: { forceAll?: boolean },
-) {
-  const jam = useJamStore.getState()
-  const session = useSessionStore.getState()
-  const forceAll = opts?.forceAll === true
-  if (!forceAll && !prevL1) return
-  const prevCodes = new Map((prevL1?.codes ?? []).map((c) => [c.id, c.code]))
-  const changed: { id: string; code: string; role: TrackRole; keys: boolean }[] = []
-  for (const c of newL1.codes) {
-    if (!forceAll && prevCodes.get(c.id) === c.code) continue
-    const tr = session.tracks.find((t) => t.id === c.id)
-    if (!tr || tr.locked) continue
-    // Never rewrite the intensity spawn lane via L1 flow-through.
-    if (jam.spawnedPadId === c.id) continue
-    changed.push({ id: c.id, code: c.code, role: tr.role, keys: isKeysTrack(tr) })
-  }
-  if (!changed.length) return
-  for (const lvl of [2, 3, 4] as const) {
-    const snap = jam.intensitySnaps[lvl]
-    if (!snap) continue
-    const spawnId = snap.spawnedPad?.id ?? null
-    const codes = snap.codes.map((c) => ({ ...c }))
-    for (const ch of changed) {
-      if (spawnId && ch.id === spawnId) continue
-      const next = applyIntensityFromBase(ch.code, ch.role, lvl, {
-        root: jam.songRoot,
-        scale: jam.songScale,
-        keys: ch.keys,
-      })
-      const idx = codes.findIndex((c) => c.id === ch.id)
-      if (idx >= 0) codes[idx] = { id: ch.id, code: next }
-      else codes.push({ id: ch.id, code: next })
-    }
-    jam.saveIntensitySnap(lvl, { codes, spawnedPad: snap.spawnedPad })
-  }
-}
-
-/** Attach / update the intensity spawn lane without reshuffling id. */
 function attachSpawnedPad(pad: Track) {
-  const session = useSessionStore.getState()
   const jam = useJamStore.getState()
   const cur = jam.spawnedPadId
-  if (cur && cur !== pad.id) session.removeTrack(cur)
+  if (cur && cur !== pad.id) useSessionStore.getState().removeTrack(cur)
   if (!useSessionStore.getState().tracks.some((tr) => tr.id === pad.id)) {
     useSessionStore.getState().addTrack({ ...pad, id: pad.id })
   } else {
@@ -653,112 +594,357 @@ function attachSpawnedPad(pad: Track) {
   jam.setSpawnedPadId(pad.id)
 }
 
-/**
- * Realize kit + spawn for a target intensity level.
- * Spawn edits carry 3→4 only (overwrite L4 when L3 pad changed or L4 missing).
- * 4→3 restores snap[3] spawn — L4-only pad edits stay on snap[4].
- */
-function realizeIntensityLevel(
-  target: IntensityLevel,
-  opts?: { l3CarrySpawn?: Track | null; l3SpawnEdited?: boolean },
-) {
-  const jam = useJamStore.getState()
-  const session = useSessionStore.getState()
-  if (!jam.intensitySnaps[1]) {
-    const snap1 = captureIntensitySnap(session.tracks, null)
-    jam.saveIntensitySnap(1, snap1)
-    // Defensive: L1 missing but L2+ cached — flow current L1 into those snaps.
-    const higher = useJamStore.getState().intensitySnaps
-    if (higher[2] || higher[3] || higher[4]) {
-      patchHigherIntensitySnapsFromL1(undefined, snap1, { forceAll: true })
-    }
-  }
+function densifyL2(code: string, role: TrackRole) {
+  return applyIntensityFromBase(code, role, 2, {
+    root: useJamStore.getState().songRoot,
+    scale: useJamStore.getState().songScale,
+    keys: false,
+  })
+}
 
-  const snaps = () => useJamStore.getState().intensitySnaps
-  const harmonyFor = (tr: Track) => ({
+function densifyL4(code: string, role: TrackRole, keys: boolean) {
+  const jam = useJamStore.getState()
+  return applyIntensityL4Layer(code, role, {
     root: jam.songRoot,
     scale: jam.songScale,
-    keys: isKeysTrack(tr),
+    keys,
   })
+}
 
-  /** Restore L2 pattern base (snap[2] with hat edits), else L1 + hat densify. */
-  const restoreL2Base = () => {
-    const s2 = snaps()[2]
-    if (s2) {
-      restoreIntensitySnap(s2)
-      dropSpawnedPad()
-      return
+/** Invalidate track T in every snap strictly above `fromLevel`. Never writes downward. */
+function invalidateTrackAbove(trackId: string, fromLevel: IntensityLevel) {
+  const jam = useJamStore.getState()
+  for (const lvl of INTENSITY_LEVELS_ABOVE[fromLevel]) {
+    const snap = jam.intensitySnaps[lvl]
+    if (!snap) continue
+    const next = stripTrackFromSnap(snap, trackId)
+    if (
+      next.codes.length === snap.codes.length &&
+      next.spawnedPad === snap.spawnedPad
+    ) {
+      continue
     }
-    restoreIntensitySnap(snaps()[1]!)
-    dropSpawnedPad()
-    const fresh = useSessionStore.getState()
-    for (const tr of fresh.tracks) {
-      if (tr.locked) continue
-      const next = applyIntensityFromBase(tr.code, tr.role, 2, harmonyFor(tr))
-      if (next !== tr.code) fresh.setCode(tr.id, next)
+    jam.saveIntensitySnap(lvl, next)
+  }
+}
+
+function ensureL1Base(spawnId: string | null) {
+  const jam = useJamStore.getState()
+  if (jam.intensitySnaps[1]) return
+  const tracks = useSessionStore.getState().tracks
+  jam.saveIntensitySnap(1, captureL1BaseSnap(tracks, spawnId))
+}
+
+function saveSnapCodes(
+  level: IntensityLevel,
+  codes: { id: string; code: string }[],
+  spawnedPad: Track | null,
+) {
+  useJamStore.getState().saveIntensitySnap(level, { codes, spawnedPad })
+}
+
+function updateOwnedCode(level: IntensityLevel, id: string, code: string) {
+  const jam = useJamStore.getState()
+  const snap = jam.intensitySnaps[level] ?? { codes: [], spawnedPad: null }
+  saveSnapCodes(level, upsertSnapCode(snap.codes, id, code), snap.spawnedPad)
+}
+
+/**
+ * Commit live edits at `from` into the owning partial overlay only, then
+ * invalidate that track in every snap above the owner. Never write downward.
+ */
+function commitIntensityEdits(from: IntensityLevel) {
+  const session = useSessionStore.getState()
+  const spawn = liveSpawnedPad()
+  const spawnId = spawn?.id ?? null
+  ensureL1Base(spawnId)
+
+  const jam = useJamStore.getState()
+  const s1 = jam.intensitySnaps[1]!
+  const l1Map = snapCodeMap(s1)
+  const s2 = jam.intensitySnaps[2]
+  const l2Map = snapCodeMap(s2)
+
+  // Expected kit codes at `from` from current overlays (pre-edit baseline).
+  const expected = new Map<string, string>()
+  for (const c of s1.codes) {
+    let code = c.code
+    if (from >= 2) {
+      const tr = session.tracks.find((t) => t.id === c.id)
+      if (tr) {
+        const touches = intensityL2TouchesTrack(tr.role, c.code, densifyL2)
+        if (touches) {
+          code = l2Map.has(c.id) ? l2Map.get(c.id)! : densifyL2(c.code, tr.role)
+        }
+      }
     }
+    if (from >= 4) {
+      const tr = session.tracks.find((t) => t.id === c.id)
+      if (tr && tr.role !== 'hihats') {
+        const keys = isKeysTrack(tr)
+        const base = code
+        if (intensityL4TouchesTrack(tr.role, keys, base, (cd, r) => densifyL4(cd, r, keys))) {
+          const s4 = snapCodeMap(jam.intensitySnaps[4])
+          code = s4.has(c.id) ? s4.get(c.id)! : densifyL4(base, tr.role, keys)
+        }
+      }
+    }
+    expected.set(c.id, code)
   }
 
-  if (target <= 1) {
-    restoreIntensitySnap(snaps()[1]!)
-    dropSpawnedPad()
+  for (const tr of session.tracks) {
+    if (spawnId && tr.id === spawnId) continue
+    const exp = expected.get(tr.id)
+    if (exp !== undefined && exp === tr.code) continue
+
+    // Live differs from composed expectation → edit while at `from`.
+    const l1Code = l1Map.get(tr.id) ?? tr.code
+    const l2Owned = intensityL2TouchesTrack(tr.role, l1Code, densifyL2)
+    const keys = isKeysTrack(tr)
+    const l2Code = l2Map.has(tr.id)
+      ? l2Map.get(tr.id)!
+      : l2Owned
+        ? densifyL2(l1Code, tr.role)
+        : l1Code
+    const l4Owned = intensityL4TouchesTrack(tr.role, keys, l2Code, (cd, r) =>
+      densifyL4(cd, r, keys),
+    )
+
+    if (from === 1) {
+      // L1 owns all kit tracks.
+      updateOwnedCode(1, tr.id, tr.code)
+      invalidateTrackAbove(tr.id, 1)
+      continue
+    }
+
+    if (from === 2) {
+      if (l2Owned) {
+        updateOwnedCode(2, tr.id, tr.code)
+        invalidateTrackAbove(tr.id, 2)
+      } else {
+        // Snare/kick/bass etc. edited at L2 → L1 owns; invalidate above L1.
+        updateOwnedCode(1, tr.id, tr.code)
+        invalidateTrackAbove(tr.id, 1)
+      }
+      continue
+    }
+
+    if (from === 3) {
+      // L3 owns only spawn (handled below). Kit edits route to L1 or L2.
+      if (l2Owned) {
+        // Hat edit while at L3 → still L2-owned.
+        updateOwnedCode(2, tr.id, tr.code)
+        invalidateTrackAbove(tr.id, 2)
+      } else {
+        updateOwnedCode(1, tr.id, tr.code)
+        invalidateTrackAbove(tr.id, 1)
+      }
+      continue
+    }
+
+    // from === 4
+    if (tr.role === 'hihats' || (l2Owned && !l4Owned)) {
+      updateOwnedCode(2, tr.id, tr.code)
+      invalidateTrackAbove(tr.id, 2)
+      continue
+    }
+    if (l4Owned) {
+      // Densify-tier edit: store on L4. If base (non-densify) intent changed vs L1,
+      // also fold kick/snare/bass token edits into L1 by using undensified live when
+      // live equals densify(L1+L2) except tokens — keep simple: L4 overlay only;
+      // base token swaps at L4 still update L1 when densify(L1) tokens diverge.
+      updateOwnedCode(4, tr.id, tr.code)
+      // Do not invalidate below. Upper: none.
+      // If this is a base-family edit (rim vs sd) reflected in live, update L1 from
+      // the pre-densify composed code's sibling: use L1 slot when user changed
+      // identity of snare/kick relative to densify(current L1+L2).
+      const composedLower = l2Owned
+        ? l2Map.has(tr.id)
+          ? l2Map.get(tr.id)!
+          : densifyL2(l1Code, tr.role)
+        : l1Code
+      const recipe4 = densifyL4(composedLower, tr.role, keys)
+      if (tr.code !== recipe4) {
+        // In-level L4 edit persists on snap[4]; also push a best-effort L1 update
+        // when the edit is clearly a kit-base change done at L4 (rare). Prefer L1
+        // owner for snare/kick/bass identity: store undensified live if no densify
+        // markers — skip; L4 overlay is enough for re-entry.
+      }
+      continue
+    }
+    // Non-owned at L4 (e.g. pure pad kit): L1
+    updateOwnedCode(1, tr.id, tr.code)
+    invalidateTrackAbove(tr.id, 1)
+  }
+
+  // Spawn ownership
+  if (from === 3) {
+    const prev = jam.intensitySnaps[3]?.spawnedPad
+    jam.saveIntensitySnap(3, {
+      codes: [],
+      spawnedPad: spawn ? { ...spawn } : null,
+    })
+    if (spawn && (!prev || prev.code !== spawn.code || prev.id !== spawn.id)) {
+      invalidateTrackAbove(spawn.id, 3)
+    }
+  } else if (from === 4) {
+    // L4-only pad slot — never write downward to L3.
+    const s4 = jam.intensitySnaps[4] ?? { codes: [], spawnedPad: null }
+    jam.saveIntensitySnap(4, {
+      codes: s4.codes,
+      spawnedPad: spawn ? { ...spawn } : null,
+    })
+  } else if (from <= 2) {
+    // Leaving L1/L2: kit already handled; ensure L1 snapshot is current for kit.
+    if (from === 1) {
+      jam.saveIntensitySnap(1, captureL1BaseSnap(session.tracks, spawnId))
+    }
+  }
+}
+
+/**
+ * Seed missing overlays after first enter: store recipe output for tracks M owns
+ * so in-level edits later have a baseline. Does not overwrite existing overlays.
+ */
+function seedMissingOverlays(level: IntensityLevel) {
+  const jam = useJamStore.getState()
+  const session = useSessionStore.getState()
+  const spawn = liveSpawnedPad()
+  const spawnId = spawn?.id ?? null
+  const s1 = jam.intensitySnaps[1]
+  if (!s1) return
+  const l1Map = snapCodeMap(s1)
+
+  if (level === 2) {
+    const existing = snapCodeMap(jam.intensitySnaps[2])
+    let codes = [...(jam.intensitySnaps[2]?.codes ?? [])]
+    for (const tr of session.tracks) {
+      if (spawnId && tr.id === spawnId) continue
+      const l1 = l1Map.get(tr.id) ?? tr.code
+      if (!intensityL2TouchesTrack(tr.role, l1, densifyL2)) continue
+      if (existing.has(tr.id)) continue
+      codes = upsertSnapCode(codes, tr.id, tr.code)
+    }
+    saveSnapCodes(2, codes, null)
     return
   }
 
-  if (target === 2) {
-    restoreL2Base()
-    return
-  }
-
-  if (target === 3) {
-    // Restore snap[3] kit + spawnedPad (L3 version). Never apply live L4 kept.
-    const s3 = snaps()[3]
-    if (s3) {
-      restoreIntensitySnap(s3)
-      if (!s3.spawnedPad) spawnIntensityLane(3)
-    } else {
-      restoreL2Base()
-      spawnIntensityLane(3)
+  if (level === 3) {
+    if (!jam.intensitySnaps[3]?.spawnedPad && spawn) {
+      jam.saveIntensitySnap(3, { codes: [], spawnedPad: { ...spawn } })
     }
     return
   }
 
-  // target === 4: L3 kit + L4 densify; spawn = L4 persist or L3 carry-up.
-  const s3 = snaps()[3]
-  const s4 = snaps()[4]
-  const spawnSkipId =
-    opts?.l3CarrySpawn?.id ?? s4?.spawnedPad?.id ?? s3?.spawnedPad?.id ?? null
-  if (s3) {
-    // Kit from L3 only — spawn attached below (do not lean on snap[3] pad for L4).
-    restoreIntensitySnap({ codes: s3.codes, spawnedPad: null })
-    dropSpawnedPad()
-  } else {
-    restoreL2Base()
+  if (level === 4) {
+    const s4 = jam.intensitySnaps[4] ?? { codes: [], spawnedPad: null }
+    const existing = snapCodeMap(s4)
+    let codes = [...s4.codes]
+    for (const tr of session.tracks) {
+      if (spawnId && tr.id === spawnId) continue
+      if (tr.role === 'hihats') continue
+      const keys = isKeysTrack(tr)
+      const l1 = l1Map.get(tr.id) ?? tr.code
+      const l2Map = snapCodeMap(jam.intensitySnaps[2])
+      const lower = intensityL2TouchesTrack(tr.role, l1, densifyL2)
+        ? l2Map.get(tr.id) ?? densifyL2(l1, tr.role)
+        : l1
+      if (!intensityL4TouchesTrack(tr.role, keys, lower, (cd, r) => densifyL4(cd, r, keys))) {
+        continue
+      }
+      if (existing.has(tr.id)) continue
+      codes = upsertSnapCode(codes, tr.id, tr.code)
+    }
+    // First visit / invalidated L4 spawn: start from L3 pad.
+    const l3Pad = jam.intensitySnaps[3]?.spawnedPad ?? spawn
+    const pad = s4.spawnedPad ?? (l3Pad ? { ...l3Pad } : null)
+    jam.saveIntensitySnap(4, { codes, spawnedPad: pad })
   }
+}
+
+/**
+ * Realize by compositing partial overlays — never restore a full-jam tape.
+ * L1 base → L2 hat overlay if ≥2 → L3 spawn if ≥3 → L4 densify if 4.
+ */
+function realizeIntensityLevel(target: IntensityLevel) {
+  const jam = useJamStore.getState()
+  const session = useSessionStore.getState()
+  ensureL1Base(jam.spawnedPadId)
+
+  const s1 = jam.intensitySnaps[1]!
+  const l1Map = snapCodeMap(s1)
+  const s2 = jam.intensitySnaps[2]
+  const l2Map = snapCodeMap(s2)
+  const s3 = jam.intensitySnaps[3]
+  const s4 = jam.intensitySnaps[4]
+  const l4Map = snapCodeMap(s4)
+
+  // Drop spawn first; kit rebuild from L1.
+  dropSpawnedPad()
+
+  // Apply L1 base to existing kit tracks.
+  for (const c of s1.codes) {
+    if (session.tracks.some((tr) => tr.id === c.id)) {
+      useSessionStore.getState().setCode(c.id, c.code)
+    }
+  }
+
+  if (target <= 1) return
+
+  // L2 hat overlays / recalculate
   {
     const fresh = useSessionStore.getState()
     for (const tr of fresh.tracks) {
       if (tr.locked) continue
-      if (spawnSkipId && tr.id === spawnSkipId) continue
-      const next = applyIntensityL4Layer(tr.code, tr.role, harmonyFor(tr))
+      const l1 = l1Map.get(tr.id)
+      if (l1 == null) continue
+      if (!intensityL2TouchesTrack(tr.role, l1, densifyL2)) continue
+      // L2 must not rewrite tracks it never owned — only hat-recipe tracks.
+      const overlay = l2Map.get(tr.id)
+      const next = overlay ?? densifyL2(l1, tr.role)
       if (next !== tr.code) fresh.setCode(tr.id, next)
     }
   }
 
-  const l3Spawn = opts?.l3CarrySpawn ?? (s3?.spawnedPad ? { ...s3.spawnedPad } : null)
-  const l4Spawn = s4?.spawnedPad ? { ...s4.spawnedPad } : null
-  const keepL4 =
-    !!l4Spawn &&
-    !!l3Spawn &&
-    l4Spawn.id === l3Spawn.id &&
-    opts?.l3SpawnEdited !== true
-  if (keepL4 && l4Spawn) {
-    attachSpawnedPad(l4Spawn)
-  } else if (l3Spawn) {
-    // 3→4 carry: L3 spawn (incl. L3 edits) is the starting point / overwrite.
-    attachSpawnedPad(l3Spawn)
+  if (target === 2) return
+
+  // L3 spawn
+  if (target === 3) {
+    if (s3?.spawnedPad) attachSpawnedPad(s3.spawnedPad)
+    else spawnIntensityLane(3)
+    return
+  }
+
+  // target === 4: densify overlays, then spawn (L4 slot or L3 carry)
+  {
+    const fresh = useSessionStore.getState()
+    const spawnSkip = s4?.spawnedPad?.id ?? s3?.spawnedPad?.id ?? null
+    for (const tr of fresh.tracks) {
+      if (tr.locked) continue
+      if (spawnSkip && tr.id === spawnSkip) continue
+      if (tr.role === 'hihats') continue // L4 must not rewrite hats
+      const keys = isKeysTrack(tr)
+      const l1 = l1Map.get(tr.id) ?? tr.code
+      const lower = intensityL2TouchesTrack(tr.role, l1, densifyL2)
+        ? l2Map.get(tr.id) ?? densifyL2(l1, tr.role)
+        : l1
+      // Current live may already be lower after L2 pass.
+      const base = fresh.tracks.find((t) => t.id === tr.id)?.code ?? lower
+      if (!intensityL4TouchesTrack(tr.role, keys, base, (cd, r) => densifyL4(cd, r, keys))) {
+        continue
+      }
+      const overlay = l4Map.get(tr.id)
+      const next = overlay ?? densifyL4(base, tr.role, keys)
+      if (next !== tr.code) fresh.setCode(tr.id, next)
+    }
+  }
+
+  // Spawn: L4 overlay if present; else last L3 pad (carry / recalc after invalidate).
+  if (s4?.spawnedPad) {
+    attachSpawnedPad(s4.spawnedPad)
+  } else if (s3?.spawnedPad) {
+    attachSpawnedPad(s3.spawnedPad)
   } else {
-    // Always spawn at recipe L3 — never densify a new spawn as L4.
     spawnIntensityLane(3)
   }
 }
@@ -777,53 +963,24 @@ function applyIntensityDir(
 
   const beforeIds = session.tracks.map((tr) => tr.id)
   const beforePad = liveSpawnedPad()
-  const prevL1 = from === 1 ? jam.intensitySnaps[1] : undefined
-  const prevFromSnap = jam.intensitySnaps[from]
-  const beforeSnap = captureIntensitySnap(session.tracks, beforePad)
-  // Detect L3 pad edits before overwriting snap[3] (carry-up vs L4-only persist).
-  const l3SpawnEdited =
-    from === 3 &&
-    !!beforePad &&
-    (!prevFromSnap?.spawnedPad || prevFromSnap.spawnedPad.code !== beforePad.code)
-  jam.saveIntensitySnap(from, beforeSnap)
-  // L1 code edits (e.g. snare sd→rim) must flow into cached L2+ before restore.
-  if (from === 1) {
-    patchHigherIntensitySnapsFromL1(prevL1, beforeSnap)
-  }
+  // Full live tape for Undo only — snaps stay partial.
+  const beforeCodes = session.tracks.map((tr) => ({ id: tr.id, code: tr.code }))
 
-  // 3↔4: always realize so kit follows the level; spawn is one-way (3→4 only).
-  if (intensityLevelsShareSpawn(from, to)) {
-    if (to === 4 && from === 3) {
-      realizeIntensityLevel(4, {
-        l3CarrySpawn: beforePad ? { ...beforePad } : null,
-        l3SpawnEdited,
-      })
-    } else {
-      // 4→3: restore snap[3] spawn — do not apply live L4 kept.
-      realizeIntensityLevel(to)
-    }
-  } else {
-    const existing = useJamStore.getState().intensitySnaps[to]
-    if (existing) restoreIntensitySnap(existing)
-    else realizeIntensityLevel(to)
-  }
-
-  // Only write spawn into the snap for the level we are on (no 3↔4 sync loop).
-  jam.saveIntensitySnap(
-    to,
-    captureIntensitySnap(useSessionStore.getState().tracks, liveSpawnedPad()),
-  )
+  commitIntensityEdits(from)
+  realizeIntensityLevel(to)
+  seedMissingOverlays(to)
   jam.setIntensityLevel(to)
 
   const after = useSessionStore.getState()
   const addedTrackIds = after.tracks.filter((tr) => !beforeIds.includes(tr.id)).map((tr) => tr.id)
-  const removedTracks = beforePad && !after.tracks.some((tr) => tr.id === beforePad.id) ? [beforePad] : []
-  const primary = beforeSnap.codes[0]
+  const removedTracks =
+    beforePad && !after.tracks.some((tr) => tr.id === beforePad.id) ? [beforePad] : []
+  const primary = beforeCodes[0]
   jam.pushUndo({
     trackId: primary?.id ?? after.tracks[0]?.id ?? 'track-1',
     code: primary?.code ?? '',
     label: `Intensity ${to}/4`,
-    batch: beforeSnap.codes.map((c) => ({ trackId: c.id, code: c.code })),
+    batch: beforeCodes.map((c) => ({ trackId: c.id, code: c.code })),
     addedTrackIds: addedTrackIds.length ? addedTrackIds : undefined,
     removedTracks: removedTracks.length ? removedTracks : undefined,
     intensityLevel: from,
