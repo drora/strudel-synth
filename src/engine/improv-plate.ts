@@ -350,6 +350,23 @@ export type ImprovPadMix = {
 
 export const IMPROV_MIX_DEFAULT: ImprovPadMix = { volume: 0.9, velocity: 0.85 }
 
+/** VCSL `marimba` is only soft-mallet hits — no hard sibling. Linear vs synths. */
+export const QUIET_SAMPLE_GAIN: Record<string, number> = {
+  marimba: 4,
+}
+
+export function sampleGainBoost(sound: string): number {
+  const key = (sound.split(':')[0] ?? '').toLowerCase()
+  return QUIET_SAMPLE_GAIN[key] ?? 1
+}
+
+export function soundFromCode(code: string): string | null {
+  const sound = code.match(/\.sound\(\s*["']([^"']+)["']\s*\)/)
+  if (sound?.[1]) return sound[1]
+  const s = code.match(/\.s\(\s*["']([^"']+)["']\s*\)/)
+  return s?.[1] ?? null
+}
+
 export const IMPROV_VOL_STEPS = [0, 0.25, 0.5, 0.75, 0.9, 1, 1.25, 1.5]
 export const IMPROV_VEL_STEPS = [0.3, 0.5, 0.7, 0.85, 1, 1.2]
 

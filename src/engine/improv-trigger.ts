@@ -12,6 +12,7 @@ import {
   IMPROV_MIX_DEFAULT,
   isImprovFxOn,
   noteTransposeRate,
+  sampleGainBoost,
   type ImprovPadMix,
 } from './improv-plate'
 import { micSampleDuration } from './mic-sample'
@@ -338,7 +339,7 @@ async function beginHold(
   }
 
   const gain = ac.createGain()
-  const amp = Math.max(0.001, (mix.volume || 0.9) * velocity)
+  const amp = Math.max(0.001, (mix.volume || 0.9) * velocity * sampleGainBoost(s))
   gain.gain.setValueAtTime(0.0001, t)
   gain.gain.exponentialRampToValueAtTime(amp, t + Math.max(0.008, Math.min(attack, 0.4)))
   node.connect(gain)
