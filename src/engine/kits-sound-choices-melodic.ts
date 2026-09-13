@@ -1,6 +1,47 @@
 import type { TrackRole } from './types'
 import type { SoundChoice } from './kits-types'
 
+/** Pitched VCSL / extra wavetables that actually play. Soft/stacc/vib clones omitted. */
+export const HIDDEN_PITCHED_CHOICES: SoundChoice[] = [
+  { id: 'vibraphone', label: 'Vibraphone', sound: 'vibraphone' },
+  { id: 'harmonica', label: 'Harmonica', sound: 'harmonica' },
+  { id: 'balafon', label: 'Balafon', sound: 'balafon_hard' },
+  { id: 'xylophone', label: 'Xylophone', sound: 'xylophone_hard_ff' },
+  { id: 'glockenspiel', label: 'Glockenspiel', sound: 'glockenspiel' },
+  { id: 'harp', label: 'Harp', sound: 'harp' },
+  { id: 'folkharp', label: 'Folk harp', sound: 'folkharp' },
+  { id: 'psaltery', label: 'Psaltery', sound: 'psaltery_pluck' },
+  { id: 'psaltery-bow', label: 'Psaltery bow', sound: 'psaltery_bow' },
+  { id: 'dantranh', label: 'Dan tranh', sound: 'dantranh' },
+  { id: 'clavisynth', label: 'Clavisynth', sound: 'clavisynth' },
+  { id: 'fmpiano', label: 'FM piano', sound: 'fmpiano' },
+  { id: 'piano1', label: 'Piano 1', sound: 'piano1' },
+  { id: 'kawai', label: 'Kawai', sound: 'kawai' },
+  { id: 'steinway', label: 'Steinway', sound: 'steinway' },
+  { id: 'kalimba2', label: 'Kalimba 2', sound: 'kalimba2' },
+  { id: 'kalimba3', label: 'Kalimba 3', sound: 'kalimba3' },
+  { id: 'kalimba4', label: 'Kalimba 4', sound: 'kalimba4' },
+  { id: 'kalimba5', label: 'Kalimba 5', sound: 'kalimba5' },
+  { id: 'organ-4inch', label: 'Organ 4 inch', sound: 'organ_4inch' },
+  { id: 'ocarina', label: 'Ocarina', sound: 'ocarina' },
+  { id: 'ocarina-small', label: 'Ocarina small', sound: 'ocarina_small' },
+  { id: 'recorder-alto', label: 'Recorder alto', sound: 'recorder_alto_sus' },
+  { id: 'recorder-bass', label: 'Recorder bass', sound: 'recorder_bass_sus' },
+  { id: 'recorder-soprano', label: 'Recorder soprano', sound: 'recorder_soprano_sus' },
+  { id: 'recorder-tenor', label: 'Recorder tenor', sound: 'recorder_tenor_sus' },
+  { id: 'saxello', label: 'Saxello', sound: 'saxello' },
+  { id: 'strumstick', label: 'Strumstick', sound: 'strumstick' },
+  { id: 'super64', label: 'Super 64', sound: 'super64' },
+  { id: 'tubularbells', label: 'Tubular bells', sound: 'tubularbells' },
+  { id: 'tubularbells2', label: 'Tubular bells 2', sound: 'tubularbells2' },
+  { id: 'wineglass', label: 'Wineglass', sound: 'wineglass' },
+  { id: 'wt-bad-day', label: 'WT bad day', sound: 'wt_digital_bad_day' },
+  { id: 'wt-basique', label: 'WT basique', sound: 'wt_digital_basique' },
+  { id: 'wt-crickets', label: 'WT crickets', sound: 'wt_digital_crickets' },
+  { id: 'wt-curses', label: 'WT curses', sound: 'wt_digital_curses' },
+  { id: 'wt-echoes', label: 'WT echoes', sound: 'wt_digital_echoes' },
+]
+
 export const MELODIC_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = {
   bass: [
     { id: 'saw', label: 'Saw bass', sound: 'sawtooth' },
@@ -33,6 +74,7 @@ export const MELODIC_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = 
     { id: 'juno', label: 'Juno', sound: 'juno' },
     { id: 'stab', label: 'Stab', sound: 'stab' },
     { id: 'hoover', label: 'Hoover', sound: 'hoover' },
+    ...HIDDEN_PITCHED_CHOICES,
   ],
   pad: [
     { id: 'sine', label: 'Sine pad', sound: 'sine' },
@@ -49,6 +91,7 @@ export const MELODIC_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = 
     { id: 'padlong', label: 'Pad long', sound: 'padlong' },
     { id: 'wt-vgame', label: 'WT pad', sound: 'wt_vgame' },
     { id: 'wt-digital', label: 'WT digital', sound: 'wt_digital' },
+    ...HIDDEN_PITCHED_CHOICES,
   ],
   arp: [
     { id: 'tri', label: 'Tri arp', sound: 'triangle' },
@@ -61,6 +104,7 @@ export const MELODIC_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = 
     { id: 'pluck', label: 'Pluck', sound: 'pluck' },
     { id: 'arpy', label: 'Arpy', sound: 'arpy' },
     { id: 'wt-digital', label: 'WT digital', sound: 'wt_digital' },
+    ...HIDDEN_PITCHED_CHOICES,
   ],
   vox: [
     { id: 'hmm', label: 'Hmm', sound: 'hmm' },
@@ -77,5 +121,6 @@ export const MELODIC_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = 
     { id: 'organ-8inch', label: 'Organ 8 inch', sound: 'organ_8inch' },
     { id: 'wt-digital', label: 'WT digital', sound: 'wt_digital' },
     { id: 'wt-vgame', label: 'WT vgame', sound: 'wt_vgame' },
-  ]
+    ...HIDDEN_PITCHED_CHOICES,
+  ],
 }
