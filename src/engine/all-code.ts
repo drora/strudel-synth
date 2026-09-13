@@ -5,6 +5,39 @@ export const CODE_ALL = '__all__'
 
 export const ALL_CODE_FILENAME = 'strudel-studio.strudel'
 
+export function slugJamPart(s: string): string {
+  const t = s
+    .toLowerCase()
+    .replace(/#/g, 's')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return t.slice(0, 40) || 'jam'
+}
+
+/** kit-root-scale-bpm — used by Export and Share mix. */
+export function jamFileStem(meta: {
+  kit?: string | null
+  root?: string | null
+  scale?: string | null
+  bpm?: number | null
+}): string {
+  const kit = slugJamPart(meta.kit ?? 'jam')
+  const root = slugJamPart(meta.root ?? 'c')
+  const scale = slugJamPart(meta.scale ?? 'minor')
+  const bpm = Math.round(Number(meta.bpm))
+  const tempo = Number.isFinite(bpm) && bpm > 0 ? String(bpm) : '120'
+  return `${kit}-${root}-${scale}-${tempo}`
+}
+
+export function allCodeFilename(meta: {
+  kit?: string | null
+  root?: string | null
+  scale?: string | null
+  bpm?: number | null
+}): string {
+  return `${jamFileStem(meta)}.strudel`
+}
+
 const HEAD = /^\/\/ @track (\S+)(?:\s+.*)?$/
 
 export function isCodeAllOpen(codeTrackId: string | null | undefined): boolean {
@@ -153,14 +186,17 @@ export function applyImportToTracks(
   return [{ id, code: t }]
 }
 
-/** Browser download of the all-tracks buffer. */
-export function downloadAllCode(text: string, filename = ALL_CODE_FILENAME): void {
+export function downloadBlob(blob: Blob, filename: string): void {
   if (typeof document === 'undefined') return
-  const blob = new Blob([text], { type: 'text/javascript;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
   a.download = filename
   a.click()
   URL.revokeObjectURL(url)
+}
+
+/** Browser download of the all-tracks buffer. */
+export function downloadAllCode(text: string, filename = ALL_CODE_FILENAME): void {
+  downloadBlob(new Blob([text], { type: 'text/javascript;charset=utf-8' }), filename)
 }
