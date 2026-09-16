@@ -191,7 +191,7 @@ export function mixChain(role: TrackRole, mix?: MixCard | null): string {
   return s
 }
 
-type WalkPattern = { id: string; centers: WalkCenter[] }
+export type WalkPattern = { id: string; centers: WalkCenter[] }
 
 const I: WalkCenter = { degree: 0, quality: 'min' }
 const Imaj: WalkCenter = { degree: 0, quality: 'maj' }
@@ -232,7 +232,9 @@ export const NEIGHBORS: Record<ScaleKind, WalkCenter[]> = {
  */
 export const WALK_PATTERNS: Record<ScaleKind, WalkPattern[]> = {
   minor: [
+    { id: 'hold_i', centers: [I] },
     { id: 'hold_i_i', centers: [I, I] },
+    { id: 'i_v', centers: [I, v] },
     { id: 'fifth_i_v_i', centers: [I, v, I] },
     { id: 'cadence_i_V_i', centers: [I, I, V] },
     { id: 'i_iv_v_i', centers: [I, iv, v, I] },
@@ -241,37 +243,51 @@ export const WALK_PATTERNS: Record<ScaleKind, WalkPattern[]> = {
     { id: 'i_bVII_bVI_v', centers: [I, bVII, bVI, v] },
   ],
   major: [
+    { id: 'hold_I', centers: [Imaj] },
+    { id: 'I_V', centers: [Imaj, V] },
     { id: 'I_V_I', centers: [Imaj, V, Imaj] },
     { id: 'I_V_vi_IV', centers: [Imaj, V, vi, IV] },
     { id: 'I_vi_IV_V', centers: [Imaj, vi, IV, V] },
     { id: 'I_IV_V_I', centers: [Imaj, IV, V, Imaj] },
   ],
   dorian: [
+    { id: 'hold_i', centers: [I] },
+    { id: 'i_IV', centers: [I, IV] },
     { id: 'i_IV_i', centers: [I, IV, I] },
     { id: 'i_bVII_IV_i', centers: [I, bVII, IV, I] },
     { id: 'i_IV_v_i', centers: [I, IV, v, I] },
   ],
   pentatonic: [
+    { id: 'hold_i', centers: [I] },
+    { id: 'i_v', centers: [I, v] },
     { id: 'i_v_i', centers: [I, v, I] },
     { id: 'i_bVII_v_i', centers: [I, bVII, v, I] },
     { id: 'i_iv_v_i', centers: [I, iv, v, I] },
   ],
   mixolydian: [
+    { id: 'hold_I', centers: [Imaj] },
+    { id: 'I_bVII', centers: [Imaj, bVII] },
     { id: 'I_bVII_I', centers: [Imaj, bVII, Imaj] },
     { id: 'I_IV_bVII_I', centers: [Imaj, IV, bVII, Imaj] },
     { id: 'I_bVII_IV_I', centers: [Imaj, bVII, IV, Imaj] },
   ],
   phrygian: [
+    { id: 'hold_i', centers: [I] },
+    { id: 'i_bII', centers: [I, bII] },
     { id: 'i_bII_i', centers: [I, bII, I] },
     { id: 'i_bVII_i', centers: [I, bVII, I] },
     { id: 'i_bII_bVII_i', centers: [I, bII, bVII, I] },
   ],
   lydian: [
+    { id: 'hold_I', centers: [Imaj] },
+    { id: 'I_II', centers: [Imaj, II] },
     { id: 'I_II_I', centers: [Imaj, II, Imaj] },
     { id: 'I_V_I', centers: [Imaj, V, Imaj] },
     { id: 'I_II_V_I', centers: [Imaj, II, V, Imaj] },
   ],
   harmonic_minor: [
+    { id: 'hold_i', centers: [I] },
+    { id: 'i_V', centers: [I, V] },
     { id: 'i_V_i', centers: [I, V, I] },
     { id: 'i_iv_V_i', centers: [I, iv, V, I] },
     { id: 'i_bVI_V_i', centers: [I, bVI, V, I] },
@@ -297,6 +313,27 @@ function weightPatterns(
   return base
 }
 
+export type WalkLength = 1 | 2 | 3 | 4
+
+const WALK_LENGTHS: WalkLength[] = [1, 2, 3, 4]
+
+/** Pick a walk pattern with exactly `n` centers (weightPatterns still applies within that length). */
+export function pickWalkOfLength(
+  scale: ScaleKind,
+  n: WalkLength,
+  vibe?: VibeId,
+  density?: Density,
+): WalkPattern {
+  const weighted = weightPatterns(scale, vibe, density).filter((p) => p.centers.length === n)
+  const pool = weighted.length
+    ? weighted
+    : WALK_PATTERNS[scale].filter((p) => p.centers.length === n)
+  if (!pool.length) {
+    throw new Error(`No walk of length ${n} for scale ${scale}`)
+  }
+  return pick(pool)
+}
+
 export function rollSeed(opts: {
   root: string
   scale: ScaleKind
@@ -304,9 +341,12 @@ export function rollSeed(opts: {
   density?: Density
   groove?: GrooveFamily
   fxBias?: FxBias
+  /** When set, only patterns of this length (sticky N / picker / dice). */
+  walkLength?: WalkLength
 }): SongSeed {
-  const patterns = weightPatterns(opts.scale, opts.vibe, opts.density)
-  const pat = pick(patterns)
+  const pat = opts.walkLength
+    ? pickWalkOfLength(opts.scale, opts.walkLength, opts.vibe, opts.density)
+    : pick(weightPatterns(opts.scale, opts.vibe, opts.density))
   const density = opts.density ?? 'mid'
   const groove = opts.groove ?? 'four_on_floor'
   const kickPool = DRUM_POOLS[groove][density]
@@ -324,9 +364,16 @@ export function rollSeed(opts: {
 /**
  * Root-only: keep walk degrees.
  * Scale change: pick a same-length (or any) walk from the new scale table.
+ * Optional walkLength overrides same-length preference (dice rolls a new N).
  */
-export function retargetSeed(seed: SongSeed, root: string, scale: ScaleKind): SongSeed {
-  if (seed.scale === scale) {
+export function retargetSeed(
+  seed: SongSeed,
+  root: string,
+  scale: ScaleKind,
+  opts?: { walkLength?: WalkLength },
+): SongSeed {
+  const targetLen = opts?.walkLength
+  if (seed.scale === scale && targetLen == null) {
     return {
       ...seed,
       root,
@@ -336,10 +383,15 @@ export function retargetSeed(seed: SongSeed, root: string, scale: ScaleKind): So
       mix: seed.mix,
     }
   }
-  const patterns = WALK_PATTERNS[scale]
-  const sameLen = patterns.filter((p) => p.centers.length === seed.walk.length)
-  const pool = sameLen.length ? sameLen : patterns
-  const pat = pick(pool)
+  const n: WalkLength | undefined =
+    targetLen ??
+    (seed.walk.length >= 1 && seed.walk.length <= 4
+      ? (seed.walk.length as WalkLength)
+      : undefined)
+  const pat =
+    n != null
+      ? pickWalkOfLength(scale, n)
+      : pick(WALK_PATTERNS[scale])
   return {
     root,
     scale,
@@ -359,6 +411,12 @@ export function randomSongRoot(avoid?: string): string {
 export function randomSongScale(avoid?: ScaleKind): ScaleKind {
   const pool = avoid ? SONG_SCALES.filter((s) => s !== avoid) : [...SONG_SCALES]
   return pick(pool.length ? pool : [...SONG_SCALES])
+}
+
+/** Random walk length 1–4; avoid current when possible (dice). */
+export function randomWalkLength(avoid?: WalkLength): WalkLength {
+  const pool = avoid != null ? WALK_LENGTHS.filter((n) => n !== avoid) : [...WALK_LENGTHS]
+  return pick(pool.length ? pool : [...WALK_LENGTHS])
 }
 
 

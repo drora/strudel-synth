@@ -27,7 +27,7 @@ Read from it:
 - last-touched track (mutate / Code target)
 - A/B stash state
 
-Walk chips are **display-only** concert-name hints — not song titles and not edit targets. Change key/scale with `set_song_harmony`, not by editing chips.
+Walk chips highlight the current center while playing; **1–4** / `set_walk_length` sets phrase length (sticky on Shuffle); dice (`rollSongHarmony`) also rolls length. Chips are not edit targets — use `set_song_harmony` / `set_walk_length`. Do not invent Import/Export/Take tools.
 
 ## 2. How to liveloop here
 
