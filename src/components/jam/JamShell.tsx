@@ -229,9 +229,41 @@ export function JamShell() {
         </div>
 
         <div className="flex items-center gap-2 min-h-9">
-          <div className="min-w-0 flex-1 flex items-center gap-2">
+          <div
+            className="inline-flex items-center rounded-xl border border-border bg-bg-elevated shrink-0"
+            role="group"
+            aria-label="Chord walk length"
+          >
+            <button
+              type="button"
+              disabled={walkN <= 1}
+              className="min-h-11 min-w-11 text-base font-semibold text-text rounded-l-xl disabled:opacity-30 disabled:pointer-events-none"
+              aria-label="Decrease walk length"
+              title={walkN <= 1 ? 'Walk length 1 — min' : 'Walk length −'}
+              onClick={() => { if (walkN > 1) setWalkLength((walkN - 1) as WalkLength) }}
+            >
+              −
+            </button>
+            <div className="px-1 text-center leading-tight min-w-[2.25rem]">
+              <div className="text-[9px] uppercase tracking-wide text-text-muted">Walk</div>
+              <div className="text-xs font-semibold tabular-nums text-text">
+                {walkN}
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={walkN >= 4}
+              className="min-h-11 min-w-11 text-base font-semibold text-text rounded-r-xl disabled:opacity-30 disabled:pointer-events-none"
+              aria-label="Increase walk length"
+              title={walkN >= 4 ? 'Walk length 4 — max' : 'Walk length +'}
+              onClick={() => { if (walkN < 4) setWalkLength((walkN + 1) as WalkLength) }}
+            >
+              +
+            </button>
+          </div>
+          <div className="min-w-0 flex-1 flex items-center justify-end gap-2">
             <div
-              className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0"
+              className="flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5 min-w-0"
               aria-label="Chord walk"
             >
               {walkChips.map((label, i) => (
@@ -248,38 +280,6 @@ export function JamShell() {
                   {label}
                 </span>
               ))}
-            </div>
-            <div
-              className="inline-flex items-center rounded-xl border border-border bg-bg-elevated shrink-0"
-              role="group"
-              aria-label="Chord walk length"
-            >
-              <button
-                type="button"
-                disabled={walkN <= 1}
-                className="min-h-11 min-w-11 text-base font-semibold text-text rounded-l-xl disabled:opacity-30 disabled:pointer-events-none"
-                aria-label="Decrease walk length"
-                title={walkN <= 1 ? 'Walk length 1 — min' : 'Walk length −'}
-                onClick={() => { if (walkN > 1) setWalkLength((walkN - 1) as WalkLength) }}
-              >
-                −
-              </button>
-              <div className="px-1 text-center leading-tight min-w-[2.25rem]">
-                <div className="text-[9px] uppercase tracking-wide text-text-muted">Walk</div>
-                <div className="text-xs font-semibold tabular-nums text-text">
-                  {walkN}
-                </div>
-              </div>
-              <button
-                type="button"
-                disabled={walkN >= 4}
-                className="min-h-11 min-w-11 text-base font-semibold text-text rounded-r-xl disabled:opacity-30 disabled:pointer-events-none"
-                aria-label="Increase walk length"
-                title={walkN >= 4 ? 'Walk length 4 — max' : 'Walk length +'}
-                onClick={() => { if (walkN < 4) setWalkLength((walkN + 1) as WalkLength) }}
-              >
-                +
-              </button>
             </div>
           </div>
           <div className="shrink-0">
