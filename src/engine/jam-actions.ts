@@ -10,6 +10,7 @@ export {
   undoJam,
   reshuffleUnlocked,
   reshuffleTrackById,
+  setSongBarsLength,
   stashAb,
   resetFreshStartGuard,
   resetFreshStartGuardForTests,

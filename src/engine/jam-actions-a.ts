@@ -24,6 +24,11 @@ import { planShuffleTargets } from './shuffle-lock'
 import { pickRandomSoundChoice, pickRandomImprovVoice, soundChoicesForKit } from './kit-sound-choices'
 import type { Track } from './types'
 import {
+  clampSongBars,
+  fitCodeToSongBars,
+  type SongBars,
+} from './song-bars'
+import {
   captureL1BaseSnap,
   clampIntensity,
   intensityL2TouchesTrack,
@@ -137,6 +142,13 @@ export function applyKit(
   jam.setHasPickedKit(true)
   if (opts?.fromPicker) jam.setShowKitPicker(false)
   // ONE generate only — do not reshuffleUnlocked here.
+  const bars = clampSongBars(jam.songBars)
+  if (bars > 1) {
+    const after = useSessionStore.getState()
+    for (const tr of after.tracks) {
+      after.setCode(tr.id, fitCodeToSongBars(tr.code, bars))
+    }
+  }
   jam.resetIntensitySession()
   jam.setLastPeek(`kit · ${kit.name} · shuffled`)
   queueLive('kit')
@@ -209,6 +221,7 @@ export function reshuffleUnlocked(): {
   const plan = planShuffleTargets(state.tracks)
   const targets = plan.ok ? plan.targets : []
   let shuffled = 0
+  const bars = clampSongBars(jam.songBars)
   for (const t of targets) {
     let next = reshuffleTrack(t.role, t.code, {
       pinEffects,
@@ -219,6 +232,7 @@ export function reshuffleUnlocked(): {
     })
     const oct = t.octave ?? 0
     if (oct && isMelodicRole(t.role)) next = shiftNotesByOctaves(next, oct)
+    next = fitCodeToSongBars(next, bars)
     state.setCode(t.id, next)
     shuffled++
   }
@@ -228,6 +242,66 @@ export function reshuffleUnlocked(): {
   jam.setLastPeek(activeKit ? `Shuffle · ${activeKit.name}` : jam.lockKit ? 'Shuffle · same kit' : 'Shuffle · free')
   queueLive('reshuffle')
   return { ok: true, shuffled, lockKit: jam.lockKit }
+}
+
+
+/** Change song bar length. Locked: tile/trim; unlocked: Shuffle (Sound pin) then fit. */
+export function setSongBarsLength(bars: SongBars | number): {
+  ok: true
+  bars: SongBars
+  shuffled: number
+  tiled: number
+} {
+  const next = clampSongBars(bars)
+  const jam = useJamStore.getState()
+  if (jam.songBars === next) {
+    return { ok: true, bars: next, shuffled: 0, tiled: 0 }
+  }
+  endTakeIfCapturing()
+  jam.setSongBars(next)
+  const state = useSessionStore.getState()
+  const pinEffects = useUIStore.getState().pinEffects
+  const activeKit = jam.kitId ? getKit(jam.kitId) : undefined
+  const resolved = activeKit ? resolveShuffleProfile(activeKit) : null
+  const seed = rollSeed({
+    root: jam.songRoot,
+    scale: jam.songScale,
+    vibe: activeKit?.vibe ?? jam.vibe,
+    density: resolved?.density ?? activeKit?.shuffle.density ?? 'mid',
+    groove: resolved?.groove ?? 'four_on_floor',
+    fxBias: resolved?.fxBias ?? 'dry',
+  })
+  jam.setSongSeed(seed)
+  let shuffled = 0
+  let tiled = 0
+  for (const t of state.tracks) {
+    if (t.locked) {
+      const fitted = fitCodeToSongBars(t.code, next)
+      if (fitted !== t.code) {
+        state.setCode(t.id, fitted)
+        tiled++
+      }
+      continue
+    }
+    let code = reshuffleTrack(t.role, t.code, {
+      pinEffects,
+      lockKit: jam.lockKit || !!activeKit,
+      bank: activeKit?.drumsBank,
+      shuffle: songAwareShuffle(activeKit?.shuffle),
+      seed,
+    })
+    const oct = t.octave ?? 0
+    if (oct && isMelodicRole(t.role)) code = shiftNotesByOctaves(code, oct)
+    code = fitCodeToSongBars(code, next)
+    state.setCode(t.id, code)
+    shuffled++
+  }
+  jam.reconcileLastTouchedAfterSongReshuffle()
+  dropSpawnedPad()
+  jam.resetIntensitySession()
+  jam.setLastPeek(`Bars · ${next}`)
+  queueLive('reshuffle')
+  return { ok: true, bars: next, shuffled, tiled }
 }
 
 export function reshuffleTrackById(
@@ -269,6 +343,7 @@ export function reshuffleTrackById(
   })
   const oct = track.octave ?? 0
   if (oct && isMelodicRole(track.role)) next = shiftNotesByOctaves(next, oct)
+  next = fitCodeToSongBars(next, clampSongBars(jam.songBars))
   state.setCode(track.id, next)
   jam.touchTrack(track.id)
   jam.setLastPeek(`Shuffle · ${track.name}`)

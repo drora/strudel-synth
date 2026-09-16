@@ -14,6 +14,8 @@ import { IMPROV_MIX_DEFAULT, type ImprovPadMix } from '../engine/improv-plate'
 import type { IntensityLevel, IntensitySnap } from '../engine/intensity'
 import type { Track } from '../engine/types'
 import { CODE_ALL } from '../engine/all-code'
+import type { SongBars } from '../engine/song-bars'
+import { clampSongBars } from '../engine/song-bars'
 
 export interface JamUndoEntry {
   trackId: string
@@ -37,6 +39,8 @@ interface JamState {
   songScale: ScaleKind
   /** Shared chord walk for melodic generate / track shuffle. */
   songSeed: SongSeed | null
+  /** Song length in bars (1 cycle = 1 bar). */
+  songBars: SongBars
   lockKit: boolean
   showKitPicker: boolean
   hasPickedKit: boolean
@@ -74,6 +78,7 @@ interface JamState {
   setSongRoot: (root: string) => void
   setSongScale: (scale: ScaleKind) => void
   setSongSeed: (seed: SongSeed | null) => void
+  setSongBars: (bars: SongBars) => void
   setLockKit: (lock: boolean) => void
   setShowKitPicker: (show: boolean) => void
   setHasPickedKit: (v: boolean) => void
@@ -144,6 +149,7 @@ export const useJamStore = create<JamState>()(
       songRoot: 'c',
       songScale: 'minor',
       songSeed: null,
+      songBars: 1,
       lockKit: true,
       showKitPicker: true,
       hasPickedKit: false,
@@ -169,6 +175,7 @@ export const useJamStore = create<JamState>()(
       setSongRoot: (songRoot) => set({ songRoot }),
       setSongScale: (songScale) => set({ songScale }),
       setSongSeed: (songSeed) => set({ songSeed }),
+      setSongBars: (bars) => set({ songBars: clampSongBars(bars) }),
       setLockKit: (lockKit) => set({ lockKit }),
       setShowKitPicker: (showKitPicker) => set({ showKitPicker }),
       setHasPickedKit: (hasPickedKit) => set({ hasPickedKit }),
@@ -283,6 +290,7 @@ export const useJamStore = create<JamState>()(
         songRoot: s.songRoot,
         songScale: s.songScale,
         songSeed: s.songSeed,
+        songBars: s.songBars,
         lockKit: s.lockKit,
         hasPickedKit: s.hasPickedKit,
         improvOctave: s.improvOctave,
