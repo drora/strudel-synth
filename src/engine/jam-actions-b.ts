@@ -215,7 +215,6 @@ export function getJamStateSnapshot() {
     vibe: jam.vibe,
     songRoot: jam.songRoot,
     songScale: jam.songScale,
-    songBars: jam.songBars ?? 1,
     songWalk: jam.songSeed
       ? {
           walk: jam.songSeed.walk,
@@ -246,13 +245,10 @@ export function getPhaseSnapshot() {
   const cycle = liveUpdateEngine.getCurrentCycle()
   const schedulerCycle = getSchedulerCycle()
   const cycleInt = Math.floor(cycle)
-  const bars = useJamStore.getState().songBars ?? 1
   return {
     cycle,
     phase: cycle - cycleInt,
     cycleInt,
-    songBars: bars,
-    barIndex: ((cycleInt % bars) + bars) % bars + 1,
     schedulerCycle,
     isPlaying: useSessionStore.getState().isPlaying,
   }

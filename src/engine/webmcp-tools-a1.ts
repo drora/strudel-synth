@@ -10,7 +10,6 @@ import {
   applyKit,
   reshuffleUnlocked,
   reshuffleTrackById,
-  setSongBarsLength,
   setLockKit,
   setSongHarmony,
   setTrackOctave,
@@ -32,7 +31,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'get_session',
     description:
-      'Get the full current Strudel Studio session + Jam state: tracks (name, role, code, muted, soloed, volume, locked, octave), BPM, playback, kitId, songRoot/songScale, songBars (1|2|4), songWalk (centers + patternId + concertNames chips), intensityLevel (1–4), spawnedPadId, A/B active, and cheap phase. Always call this first.',
+      'Get the full current Strudel Studio session + Jam state: tracks (name, role, code, muted, soloed, volume, locked, octave), BPM, playback, kitId, songRoot/songScale, songWalk (centers + patternId + concertNames chips), intensityLevel (1–4), spawnedPadId, A/B active, and cheap phase. Always call this first.',
     inputSchema: { type: 'object', properties: {} },
     annotations: { readOnlyHint: true },
     execute: () => {
@@ -47,7 +46,6 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
         vibe: jam.vibe,
         songRoot: jam.songRoot,
         songScale: jam.songScale,
-        songBars: jam.songBars ?? 1,
         songWalk: jam.songSeed
           ? {
               walk: jam.songSeed.walk,
@@ -86,7 +84,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'get_jam_state',
     description:
-      'Jam-only snapshot: kitId, vibe, songRoot/songScale, songBars (1|2|4), songWalk (centers + concertNames), intensityLevel (1–4), spawnedPadId, lockKit, A/B slots, activeVariant, lastPeek, undoDepth, soundTrackId/codeTrackId.',
+      'Jam-only snapshot: kitId, vibe, songRoot/songScale, songWalk (centers + concertNames), intensityLevel (1–4), spawnedPadId, lockKit, A/B slots, activeVariant, lastPeek, undoDepth, soundTrackId/codeTrackId.',
     inputSchema: { type: 'object', properties: {} },
     annotations: { readOnlyHint: true },
     execute: () => ok('get_jam_state', {}, getJamStateSnapshot(), 'Jam state'),
@@ -112,20 +110,6 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
       useSessionStore.getState().setBpm(bpm)
       setBpm(bpm)
       return ok('set_bpm', { bpm }, { bpm, cps: bpm / 60 / 4 }, `BPM set to ${bpm}`)
-    },
-  })
-  register({
-    name: 'set_song_bars',
-    description:
-      'Set song length to 1, 2, or 4 bars (same as Jam bars picker by tempo). Locked lanes tile/trim; unlocked reshuffle (Sound pinned) then fit; intensity → 1; Take stops if capturing. BPM unchanged — no time-stretch.',
-    inputSchema: {
-      type: 'object',
-      properties: { bars: { type: 'number', enum: [1, 2, 4], description: 'Song length in bars' } },
-      required: ['bars'],
-    },
-    execute: ({ bars }: { bars: number }) => {
-      const r = setSongBarsLength(bars)
-      return ok('set_song_bars', { bars }, r, `Song bars · ${r.bars}`)
     },
   })
   register({
