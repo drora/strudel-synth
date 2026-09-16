@@ -30,6 +30,7 @@ const required = [
   'update_track',
   'shuffle_sounds',
   'set_song_harmony',
+  'set_walk_length',
   'set_octave',
   'set_track_lock',
   'list_kits',
@@ -74,6 +75,7 @@ assert.equal(new Set(names).size, names.length, 'duplicate tool names')
   assert.deepEqual(snap.songWalk!.walk, seed.walk)
   assert.equal(snap.songWalk!.patternId, seed.patternId)
   assert.deepEqual(snap.songWalk!.concertNames, walkConcertNames(seed))
+  assert.equal(snap.songWalk!.walkLength, seed.walk.length)
   console.log(`  PR C jam songWalk concertNames: ${snap.songWalk!.concertNames.join(' · ')}`)
 
   const jam = useJamStore.getState()

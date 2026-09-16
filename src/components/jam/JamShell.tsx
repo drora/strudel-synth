@@ -21,9 +21,11 @@ import { useJamShell } from './useJamShell'
 import { JamTrackChip } from './JamTrackChip'
 import { drumsBankShortName } from '../../engine/kit-browser'
 import { CODE_ALL, isCodeAllOpen, downloadAllCode, tracksToAllCode, allCodeFilename, IMPORT_FILE_ACCEPT } from '../../engine/all-code'
-import { setSongHarmony, rollSongHarmony } from '../../engine/jam-actions'
+import { setSongHarmony, rollSongHarmony, setWalkLength } from '../../engine/jam-actions'
 import { SONG_ROOTS, SONG_SCALES, SONG_SCALE_LABELS } from '../../engine/note-harmony'
 import { walkConcertNames } from '../../engine/song-seed'
+import { usePlayingLoopPhase } from '../../hooks/useLoopPhase'
+import type { WalkLength } from '../../engine/song-seed'
 import type { ScaleKind } from '../../engine/kits'
 
 export function JamShell() {
@@ -34,6 +36,10 @@ export function JamShell() {
     () => (songSeed ? walkConcertNames(songSeed) : []),
     [songSeed],
   )
+  const { cycleInt } = usePlayingLoopPhase()
+  const walkLen = (songSeed?.walk.length ?? 0) as number
+  const currentWalkIdx =
+    j.isPlaying && walkChips.length > 0 ? cycleInt % walkChips.length : -1
   const codeAll = isCodeAllOpen(codeTrackId)
   const codeTrack = codeAll ? undefined : j.tracks.find((t) => t.id === codeTrackId)
   const importFileRef = useRef<HTMLInputElement>(null)
@@ -213,8 +219,8 @@ export function JamShell() {
           <button
             type="button"
             className="min-h-11 min-w-11 rounded-xl border border-border bg-bg-elevated text-base leading-none text-text-muted hover:text-accent shrink-0"
-            title="Random root + scale"
-            aria-label="Random root and scale"
+            title="Random root, scale, and walk length"
+            aria-label="Random root, scale, and walk length"
             onClick={() => rollSongHarmony()}
           >
             {'\u2684'}
@@ -229,11 +235,38 @@ export function JamShell() {
             {walkChips.map((label, i) => (
               <span
                 key={`${label}-${i}`}
-                className="text-[11px] text-text-muted/55 pointer-events-none select-none"
+                className={
+                  i === currentWalkIdx
+                    ? 'text-[11px] text-accent opacity-90 pointer-events-none select-none'
+                    : 'text-[11px] text-text-muted/55 pointer-events-none select-none'
+                }
                 aria-disabled="true"
+                aria-current={i === currentWalkIdx ? 'true' : undefined}
               >
                 {label}
               </span>
+            ))}
+          </div>
+          <div
+            className="flex items-center gap-0.5 shrink-0"
+            role="group"
+            aria-label="Chord walk length"
+          >
+            {([1, 2, 3, 4] as WalkLength[]).map((n) => (
+              <button
+                key={n}
+                type="button"
+                className={
+                  walkLen === n
+                    ? 'min-h-9 min-w-9 rounded-lg text-xs font-semibold bg-accent/15 text-accent border border-accent/40'
+                    : 'min-h-9 min-w-9 rounded-lg text-xs font-medium bg-bg-elevated text-text-muted border border-border hover:text-accent'
+                }
+                aria-label={`Walk length ${n} cycles`}
+                aria-pressed={walkLen === n}
+                onClick={() => setWalkLength(n)}
+              >
+                {n}
+              </button>
             ))}
           </div>
           <JamABToggle />

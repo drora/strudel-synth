@@ -12,6 +12,7 @@ import {
   reshuffleTrackById,
   setLockKit,
   setSongHarmony,
+  setWalkLength,
   setTrackOctave,
   setTrackLock,
   setVolume,
@@ -31,7 +32,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'get_session',
     description:
-      'Get the full current Strudel Studio session + Jam state: tracks (name, role, code, muted, soloed, volume, locked, octave), BPM, playback, kitId, songRoot/songScale, songWalk (centers + patternId + concertNames chips), intensityLevel (1–4), spawnedPadId, A/B active, and cheap phase. Always call this first.',
+      'Get the full current Strudel Studio session + Jam state: tracks (name, role, code, muted, soloed, volume, locked, octave), BPM, playback, kitId, songRoot/songScale, songWalk (centers + patternId + walkLength + concertNames chips), intensityLevel (1–4), spawnedPadId, A/B active, and cheap phase. Always call this first.',
     inputSchema: { type: 'object', properties: {} },
     annotations: { readOnlyHint: true },
     execute: () => {
@@ -50,6 +51,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
           ? {
               walk: jam.songSeed.walk,
               patternId: jam.songSeed.patternId,
+              walkLength: jam.songSeed.walk.length,
               concertNames: walkConcertNames(jam.songSeed),
             }
           : null,
@@ -84,7 +86,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'get_jam_state',
     description:
-      'Jam-only snapshot: kitId, vibe, songRoot/songScale, songWalk (centers + concertNames), intensityLevel (1–4), spawnedPadId, lockKit, A/B slots, activeVariant, lastPeek, undoDepth, soundTrackId/codeTrackId.',
+      'Jam-only snapshot: kitId, vibe, songRoot/songScale, songWalk (centers + walkLength + concertNames), intensityLevel (1–4), spawnedPadId, lockKit, A/B slots, activeVariant, lastPeek, undoDepth, soundTrackId/codeTrackId.',
     inputSchema: { type: 'object', properties: {} },
     annotations: { readOnlyHint: true },
     execute: () => ok('get_jam_state', {}, getJamStateSnapshot(), 'Jam state'),
@@ -213,6 +215,27 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
     execute: ({ root, scale, remap }: { root: string; scale: ScaleKind; remap?: boolean }) => {
       const r = setSongHarmony(root, scale, { remap })
       return ok('set_song_harmony', { root, scale, remap }, r, `Key · ${r.root} ${r.scale}`)
+    },
+  })
+  register({
+    name: 'set_walk_length',
+    description:
+      'Set chord-walk length to 1–4 cycles (same as Jam walk-row 1/2/3/4). Picks a legal walk of that length; reshuffles unlocked melodic lanes; keeps root/scale/drums. Sticky N for later Song Shuffle. Not song bar-length / cat() tiling.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        walkLength: {
+          type: 'number',
+          enum: [1, 2, 3, 4],
+          description: 'Walk length in cycles (1–4)',
+        },
+      },
+      required: ['walkLength'],
+    },
+    execute: ({ walkLength }: { walkLength: 1 | 2 | 3 | 4 }) => {
+      const r = setWalkLength(walkLength)
+      if (!r.ok) return fail('set_walk_length', { walkLength }, r.error)
+      return ok('set_walk_length', { walkLength }, r, `Walk · ${r.walkLength}`)
     },
   })
   register({

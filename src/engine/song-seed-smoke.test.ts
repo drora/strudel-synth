@@ -16,10 +16,13 @@ import {
   buildMixCard,
   randomSongRoot,
   randomSongScale,
+  randomWalkLength,
+  pickWalkOfLength,
   walkConcertNames,
   type SongSeed,
   type WalkCenter,
   type MixCard,
+  type WalkLength,
 } from './song-seed'
 import { generateKitTracks, KITS } from './kits'
 import { generateDrumRole } from './reshuffle-drums'
@@ -279,19 +282,19 @@ console.log('  rollSeed degrees ∈ neighbors: ok')
   // Walk ids locked for new scales
   assert.deepEqual(
     WALK_PATTERNS.mixolydian.map((p) => p.id),
-    ['I_bVII_I', 'I_IV_bVII_I', 'I_bVII_IV_I'],
+    ['hold_I', 'I_bVII', 'I_bVII_I', 'I_IV_bVII_I', 'I_bVII_IV_I'],
   )
   assert.deepEqual(
     WALK_PATTERNS.phrygian.map((p) => p.id),
-    ['i_bII_i', 'i_bVII_i', 'i_bII_bVII_i'],
+    ['hold_i', 'i_bII', 'i_bII_i', 'i_bVII_i', 'i_bII_bVII_i'],
   )
   assert.deepEqual(
     WALK_PATTERNS.lydian.map((p) => p.id),
-    ['I_II_I', 'I_V_I', 'I_II_V_I'],
+    ['hold_I', 'I_II', 'I_II_I', 'I_V_I', 'I_II_V_I'],
   )
   assert.deepEqual(
     WALK_PATTERNS.harmonic_minor.map((p) => p.id),
-    ['i_V_i', 'i_iv_V_i', 'i_bVI_V_i'],
+    ['hold_i', 'i_V', 'i_V_i', 'i_iv_V_i', 'i_bVI_V_i'],
   )
   console.log('  PR D scales + walk ids: ok')
 }
@@ -489,6 +492,41 @@ console.log('  rollSeed degrees ∈ neighbors: ok')
   }
   assert.deepEqual(walkConcertNames(fMaj), ['F', 'C', 'Dm', 'Bb'])
   console.log('  PR E walkConcertNames chips: ok')
+}
+
+
+// Walk length 1–4 coverage: every scale has legal patterns of each length
+{
+  const lengths: WalkLength[] = [1, 2, 3, 4]
+  for (const scale of Object.keys(WALK_PATTERNS) as ScaleKind[]) {
+    for (const n of lengths) {
+      const pats = WALK_PATTERNS[scale].filter((p) => p.centers.length === n)
+      assert.ok(pats.length >= 1, `${scale} missing length ${n}`)
+      for (const p of pats) {
+        assert.ok(isLegalWalk(scale, p.centers), `${scale} ${p.id} illegal`)
+      }
+      const picked = pickWalkOfLength(scale, n)
+      assert.equal(picked.centers.length, n, `${scale} pickWalkOfLength ${n}`)
+      assert.ok(isLegalWalk(scale, picked.centers), `${scale} picked ${picked.id}`)
+      const seeded = rollSeed({ root: 'c', scale, walkLength: n })
+      assert.equal(seeded.walk.length, n, `${scale} rollSeed walkLength ${n}`)
+      assert.ok(isLegalWalk(scale, seeded.walk), `${scale} roll ${seeded.patternId}`)
+    }
+  }
+  console.log('  every scale has legal walks 1–4: ok')
+}
+
+// randomWalkLength avoids current
+{
+  for (const avoid of [1, 2, 3, 4] as WalkLength[]) {
+    for (let i = 0; i < 20; i++) {
+      assert.notEqual(randomWalkLength(avoid), avoid, `randomWalkLength avoids ${avoid}`)
+    }
+  }
+  const seen = new Set<number>()
+  for (let i = 0; i < 40; i++) seen.add(randomWalkLength())
+  assert.ok(seen.size >= 3, `randomWalkLength variety ${seen.size}`)
+  console.log('  randomWalkLength avoid: ok')
 }
 
 console.log('ALL SONG-SEED CHECKS PASSED')

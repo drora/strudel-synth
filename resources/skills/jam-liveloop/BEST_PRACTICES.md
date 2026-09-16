@@ -31,7 +31,7 @@ Also: `get_samples` (match kit `drumsBank`), `get_scales_and_chords`. Double quo
 Kits are **identity + shuffle profile**, not frozen recipes. Profile fields: `groove`, `density`, optional `root` / `scale` / `melodicSounds` / `fxBias` / `pinN`.
 
 - `apply_kit` and `shuffle_sounds` regenerate lines in that profile (same bank / groove / scale family). Melodic lanes follow a shared **song-seed** chord walk (Song Shuffle = new seed; track Shuffle keeps seed; Sound still pins).
-- `get_session` exposes `songRoot` / `songScale` / `songWalk` (centers + `concertNames`). Walk chips are **display-only**.
+- `get_session` exposes `songRoot` / `songScale` / `songWalk` (centers + `walkLength` + `concertNames`). Walk chips highlight current; `set_walk_length` sets 1–4; dice also rolls length.
 - Scales: minor, major, dorian, pentatonic, mixolydian, phrygian, lydian, harmonic_minor (`set_song_harmony`).
 - `add_track` without code is **seed-aware**.
 - Hand `update_track` edits must stay coherent with `get_kit` (read jam state first).
@@ -51,7 +51,7 @@ Kits are **identity + shuffle profile**, not frozen recipes. Profile fields: `gr
 | Removing tracks to “clean up” | Ask first; mute instead |
 | Faking mic Rec | Report `mic_status`; user taps Rec |
 | Faking Import / Export / Take | Header taps only — no tools; Take ≠ Rec; do not `set_song_harmony` to “restore” |
-| Editing walk chips as targets | Display-only concert names — use `set_song_harmony` for key/scale |
+| Editing walk chips as targets | Highlight-only — use `set_song_harmony` / `set_walk_length` |
 | Inventing Strudel API | `get_reference` / `search_strudel_docs` first (see URLs above) |
 
 ## Phone Jam constraints

@@ -219,6 +219,7 @@ export function getJamStateSnapshot() {
       ? {
           walk: jam.songSeed.walk,
           patternId: jam.songSeed.patternId,
+          walkLength: jam.songSeed.walk.length,
           concertNames: walkConcertNames(jam.songSeed),
         }
       : null,

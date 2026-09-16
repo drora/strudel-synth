@@ -9,7 +9,7 @@ import { pickRandomKit } from './kit-browser'
 import { reshuffleTrack } from './reshuffle'
 import { resolveShuffleProfile } from './kits-types'
 import type { ScaleKind } from './kits-types'
-import { rollSeed, retargetSeed, hydrateSeed, randomSongRoot, randomSongScale, type SongSeed } from './song-seed'
+import { rollSeed, retargetSeed, hydrateSeed, randomSongRoot, randomSongScale, randomWalkLength, pickWalkOfLength, type SongSeed, type WalkLength } from './song-seed'
 import { ROLE_PRESETS } from './presets'
 import type { TrackRole } from './types'
 import {
@@ -117,6 +117,10 @@ export function applyKit(
     root = resolved.root
     scale = resolved.scale
   }
+  const pinLen =
+    jam.songSeed && jam.songSeed.walk.length >= 1 && jam.songSeed.walk.length <= 4
+      ? (jam.songSeed.walk.length as WalkLength)
+      : undefined
   const seed = rollSeed({
     root,
     scale,
@@ -124,6 +128,7 @@ export function applyKit(
     density: resolved.density,
     groove: resolved.groove,
     fxBias: resolved.fxBias,
+    walkLength: pinLen,
   })
   const template = kitToTemplate(kit, seed)
   const session = useSessionStore.getState()
@@ -196,7 +201,11 @@ export function reshuffleUnlocked(): {
   const jam = useJamStore.getState()
   const activeKit = jam.kitId ? getKit(jam.kitId) : undefined
   const resolved = activeKit ? resolveShuffleProfile(activeKit) : null
-  // Song Shuffle: NEW seed, same Root/Scale.
+  // Song Shuffle: NEW seed, same Root/Scale, sticky walk length N.
+  const stickyN =
+    jam.songSeed && jam.songSeed.walk.length >= 1 && jam.songSeed.walk.length <= 4
+      ? (jam.songSeed.walk.length as WalkLength)
+      : undefined
   const seed = rollSeed({
     root: jam.songRoot,
     scale: jam.songScale,
@@ -204,6 +213,7 @@ export function reshuffleUnlocked(): {
     density: resolved?.density ?? activeKit?.shuffle.density ?? 'mid',
     groove: resolved?.groove ?? 'four_on_floor',
     fxBias: resolved?.fxBias ?? 'dry',
+    walkLength: stickyN,
   })
   jam.setSongSeed(seed)
   const plan = planShuffleTargets(state.tracks)
@@ -421,8 +431,8 @@ export function freshStartJam(): FreshStartResult {
 export function setSongHarmony(
   root: string,
   scale: ScaleKind,
-  opts?: { remap?: boolean },
-): { ok: true; root: string; scale: ScaleKind; remapped: number } {
+  opts?: { remap?: boolean; walkLength?: WalkLength },
+): { ok: true; root: string; scale: ScaleKind; remapped: number; walkLength: number } {
   const jam = useJamStore.getState()
   const prevRoot = jam.songRoot
   const prevScale = jam.songScale
@@ -430,8 +440,8 @@ export function setSongHarmony(
   jam.setSongScale(scale)
   const existing = jam.songSeed
   const nextSeed = existing
-    ? retargetSeed(existing, root, scale)
-    : rollSeed({ root, scale, vibe: jam.vibe })
+    ? retargetSeed(existing, root, scale, { walkLength: opts?.walkLength })
+    : rollSeed({ root, scale, vibe: jam.vibe, walkLength: opts?.walkLength })
   jam.setSongSeed(nextSeed)
   let remapped = 0
   if (opts?.remap !== false && (prevRoot !== root || prevScale !== scale)) {
@@ -454,15 +464,86 @@ export function setSongHarmony(
       ? `Key · ${root} ${scale} · remapped ${remapped}`
       : `Key · ${root} ${scale}`,
   )
-  return { ok: true, root, scale, remapped }
+  return { ok: true, root, scale, remapped, walkLength: nextSeed.walk.length }
 }
 
-/** Dice: new root + scale (avoid current), remap unlocked melodic lanes. */
-export function rollSongHarmony(): { ok: true; root: string; scale: ScaleKind; remapped: number } {
+/** Dice: new root + scale + walk length (avoid current), remap unlocked melodic lanes. */
+export function rollSongHarmony(): {
+  ok: true
+  root: string
+  scale: ScaleKind
+  remapped: number
+  walkLength: number
+} {
   const jam = useJamStore.getState()
+  const curLen = jam.songSeed?.walk.length
+  const avoid: WalkLength | undefined =
+    curLen === 1 || curLen === 2 || curLen === 3 || curLen === 4 ? curLen : undefined
   return setSongHarmony(randomSongRoot(jam.songRoot), randomSongScale(jam.songScale), {
     remap: true,
+    walkLength: randomWalkLength(avoid),
   })
+}
+
+
+
+export function setWalkLength(
+  n: WalkLength,
+): { ok: true; walkLength: WalkLength; patternId: string } | { ok: false; error: string } {
+  if (n !== 1 && n !== 2 && n !== 3 && n !== 4) {
+    return { ok: false, error: `Walk length must be 1–4 (got ${n})` }
+  }
+  const jam = useJamStore.getState()
+  if (jam.songSeed && jam.songSeed.walk.length === n) {
+    jam.setLastPeek(`Walk · ${n}`)
+    return { ok: true, walkLength: n, patternId: jam.songSeed.patternId }
+  }
+  endTakeIfCapturing()
+  const activeKit = jam.kitId ? getKit(jam.kitId) : undefined
+  const resolved = activeKit ? resolveShuffleProfile(activeKit) : null
+  const density = resolved?.density ?? 'mid'
+  const groove = resolved?.groove ?? 'four_on_floor'
+  const fxBias = resolved?.fxBias ?? 'dry'
+  const vibe = activeKit?.vibe ?? jam.vibe
+  const pat = pickWalkOfLength(jam.songScale, n, vibe, density)
+  const existing = jam.songSeed
+  const seed: SongSeed = existing
+    ? {
+        ...existing,
+        walk: pat.centers.map((c) => ({ ...c })),
+        patternId: pat.id,
+      }
+    : rollSeed({
+        root: jam.songRoot,
+        scale: jam.songScale,
+        vibe,
+        density,
+        groove,
+        fxBias,
+        walkLength: n,
+      })
+  jam.setSongSeed(seed)
+  const pinEffects = useUIStore.getState().pinEffects
+  const state = useSessionStore.getState()
+  for (const t of state.tracks) {
+    if (!isMelodicRole(t.role)) continue
+    if (t.locked) continue
+    let next = reshuffleTrack(t.role, t.code, {
+      pinEffects,
+      lockKit: jam.lockKit || !!activeKit,
+      bank: activeKit?.drumsBank,
+      shuffle: songAwareShuffle(activeKit?.shuffle),
+      seed,
+    })
+    const oct = t.octave ?? 0
+    if (oct && isMelodicRole(t.role)) next = shiftNotesByOctaves(next, oct)
+    state.setCode(t.id, next)
+  }
+  dropSpawnedPad()
+  jam.resetIntensitySession()
+  jam.setLastPeek(`Walk · ${n}`)
+  queueLive('reshuffle')
+  return { ok: true, walkLength: n, patternId: seed.patternId }
 }
 
 export function setTrackOctave(
