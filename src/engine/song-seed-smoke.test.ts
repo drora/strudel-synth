@@ -516,17 +516,39 @@ console.log('  rollSeed degrees ∈ neighbors: ok')
   console.log('  every scale has legal walks 1–4: ok')
 }
 
-// randomWalkLength avoids current
+// randomWalkLength (dice): pool {2,3,4} only — never 1
 {
+  for (let i = 0; i < 120; i++) {
+    const n = randomWalkLength()
+    assert.ok(n === 2 || n === 3 || n === 4, `randomWalkLength returned ${n}`)
+  }
   for (const avoid of [1, 2, 3, 4] as WalkLength[]) {
-    for (let i = 0; i < 20; i++) {
-      assert.notEqual(randomWalkLength(avoid), avoid, `randomWalkLength avoids ${avoid}`)
+    for (let i = 0; i < 30; i++) {
+      const n = randomWalkLength(avoid)
+      assert.notEqual(n, 1, 'dice never returns 1')
+      if (avoid !== 1) assert.notEqual(n, avoid, `randomWalkLength avoids ${avoid}`)
     }
   }
   const seen = new Set<number>()
-  for (let i = 0; i < 40; i++) seen.add(randomWalkLength())
+  for (let i = 0; i < 60; i++) seen.add(randomWalkLength())
   assert.ok(seen.size >= 3, `randomWalkLength variety ${seen.size}`)
-  console.log('  randomWalkLength avoid: ok')
+  console.log('  randomWalkLength avoid (2–4 never 1): ok')
+}
+
+// rollSeed() without walkLength never produces length-1 (hold) patterns
+{
+  for (const scale of Object.keys(WALK_PATTERNS) as ScaleKind[]) {
+    for (let i = 0; i < 40; i++) {
+      const seed = rollSeed({ root: 'c', scale })
+      assert.ok(seed.walk.length >= 2, `${scale} rollSeed default length ${seed.walk.length}`)
+    }
+  }
+  // Explicit walkLength: 1 still allowed
+  for (const scale of Object.keys(WALK_PATTERNS) as ScaleKind[]) {
+    const hold = rollSeed({ root: 'c', scale, walkLength: 1 })
+    assert.equal(hold.walk.length, 1, `${scale} explicit walkLength 1`)
+  }
+  console.log('  rollSeed default excludes length 1; explicit 1 ok')
 }
 
 console.log('ALL SONG-SEED CHECKS PASSED')

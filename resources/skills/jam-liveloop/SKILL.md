@@ -27,7 +27,7 @@ Read from it:
 - last-touched track (mutate / Code target)
 - A/B stash state
 
-Walk chips highlight the current center while playing; **1–4** / `set_walk_length` sets phrase length (sticky on Shuffle); dice (`rollSongHarmony`) also rolls length. Chips are not edit targets — use `set_song_harmony` / `set_walk_length`. Do not invent Import/Export/Take tools.
+Walk chips highlight the current center while playing; **−/n/4/+** / `set_walk_length` sets phrase length (sticky on Shuffle); dice (`rollSongHarmony`) rolls length ∈ {2,3,4} never 1 and regenerates unlocked melodic. Chips are not edit targets — use `set_song_harmony` / `set_walk_length`. Do not invent Import/Export/Take tools.
 
 ## 2. How to liveloop here
 

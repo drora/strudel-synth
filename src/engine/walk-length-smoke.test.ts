@@ -43,6 +43,12 @@ console.log('=== Walk length smoke ===')
 
 {
   const kit =
+    KITS.find(
+      (k) =>
+        k.tracks.some((t) => t.role === 'drums') &&
+        k.tracks.some((t) => t.role === 'bass') &&
+        k.tracks.some((t) => t.role === 'pad'),
+    ) ??
     KITS.find((k) => k.tracks.some((t) => t.role === 'drums') && k.tracks.some((t) => t.role === 'bass')) ??
     KITS[0]!
   const applied = applyKit(kit.id, { fromPicker: true })
@@ -100,20 +106,81 @@ console.log('=== Walk length smoke ===')
   assert.equal(useJamStore.getState().songSeed!.walk.length, nBefore, 'Shuffle sticky N')
   console.log(`  reshuffleUnlocked sticky N=${nBefore}: ok`)
 
-  // Dice: new N (prefer avoid current)
+  // Dice: N ∈ {2,3,4} never 1; prefer avoid current
   let changed = 0
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 24; i++) {
     const jam = useJamStore.getState()
-    const cur = 2 as WalkLength
+    const cur = 3 as WalkLength
     jam.setSongSeed(rollSeed({ root: 'c', scale: 'minor', walkLength: cur }))
     jam.setSongRoot('c')
     jam.setSongScale('minor')
     const dice = rollSongHarmony()
-    assert.ok(dice.walkLength >= 1 && dice.walkLength <= 4)
+    assert.ok(dice.walkLength === 2 || dice.walkLength === 3 || dice.walkLength === 4)
+    assert.notEqual(dice.walkLength, 1, 'dice never picks 1')
     if (dice.walkLength !== cur) changed++
   }
-  assert.ok(changed >= 10, `dice usually changes N (changed=${changed}/16)`)
-  console.log(`  rollSongHarmony new N (changed ${changed}/16): ok`)
+  assert.ok(changed >= 12, `dice usually changes N (changed=${changed}/24)`)
+  console.log(`  rollSongHarmony new N (changed ${changed}/24, never 1): ok`)
+
+  // Explicit setWalkLength(1) still works (user stepper −)
+  const hold = setWalkLength(1)
+  assert.equal(hold.ok, true)
+  if (!hold.ok) throw new Error(hold.error)
+  assert.equal(hold.walkLength, 1)
+  assert.equal(useJamStore.getState().songSeed!.walk.length, 1)
+  console.log('  setWalkLength(1) explicit: ok')
+
+  // Dice from length 1 still escapes to 2–4
+  {
+    const jam = useJamStore.getState()
+    jam.setSongSeed(rollSeed({ root: 'c', scale: 'minor', walkLength: 1 }))
+    jam.setSongRoot('c')
+    jam.setSongScale('minor')
+    const dice = rollSongHarmony()
+    assert.notEqual(dice.walkLength, 1)
+    assert.ok(dice.walkLength >= 2 && dice.walkLength <= 4)
+    console.log(`  dice from hold→${dice.walkLength}: ok`)
+  }
+
+  // After dice, unlocked pad note("<…>") cell count matches seed walk length
+  {
+    function noteAngleArity(code: string): number | null {
+      const m = code.match(/note\s*\(\s*[`'"]\s*<([^>]+)>/)
+      if (!m) return null
+      const parts = m[1]!.trim().split(/\s+/).filter(Boolean)
+      return parts.length || null
+    }
+    const jam = useJamStore.getState()
+    let matched = 0
+    for (let i = 0; i < 12; i++) {
+      jam.setSongSeed(rollSeed({ root: 'c', scale: 'minor', walkLength: 3 }))
+      jam.setSongRoot('c')
+      jam.setSongScale('minor')
+      for (const t of useSessionStore.getState().tracks) {
+        if (t.role === 'pad' && !t.locked) {
+          useSessionStore
+            .getState()
+            .setCode(t.id, `note("<[c3,eb3,g3] [c3,eb3,g3] [c3,eb3,g3]>").s("sawtooth").gain(0.4)`)
+        }
+      }
+      const dice = rollSongHarmony()
+      const N = dice.walkLength
+      assert.equal(useJamStore.getState().songSeed!.walk.length, N)
+      for (const t of useSessionStore.getState().tracks) {
+        if (t.role !== 'pad' || t.locked) continue
+        const arity = noteAngleArity(t.code)
+        if (arity == null) continue
+        assert.equal(
+          arity,
+          N,
+          `after dice walk=${N} pad note() arity=${arity} code=${t.code.slice(0, 100)}`,
+        )
+        matched++
+      }
+    }
+    assert.ok(matched >= 1, `expected pad note() arity match (matched=${matched})`)
+    console.log(`  dice pad arity matches walk (matched ${matched}): ok`)
+  }
 
   // applyKit pins existing N
   useJamStore.getState().setSongSeed(rollSeed({ root: 'd', scale: 'dorian', walkLength: 3 }))

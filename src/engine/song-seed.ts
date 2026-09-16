@@ -315,8 +315,6 @@ function weightPatterns(
 
 export type WalkLength = 1 | 2 | 3 | 4
 
-const WALK_LENGTHS: WalkLength[] = [1, 2, 3, 4]
-
 /** Pick a walk pattern with exactly `n` centers (weightPatterns still applies within that length). */
 export function pickWalkOfLength(
   scale: ScaleKind,
@@ -344,9 +342,19 @@ export function rollSeed(opts: {
   /** When set, only patterns of this length (sticky N / picker / dice). */
   walkLength?: WalkLength
 }): SongSeed {
-  const pat = opts.walkLength
-    ? pickWalkOfLength(opts.scale, opts.walkLength, opts.vibe, opts.density)
-    : pick(weightPatterns(opts.scale, opts.vibe, opts.density))
+  // Without explicit walkLength, exclude tonic-hold (length 1). Length 1 only via sticky/explicit.
+  let pat: WalkPattern
+  if (opts.walkLength != null) {
+    pat = pickWalkOfLength(opts.scale, opts.walkLength, opts.vibe, opts.density)
+  } else {
+    const weighted = weightPatterns(opts.scale, opts.vibe, opts.density).filter(
+      (p) => p.centers.length >= 2,
+    )
+    const pool = weighted.length
+      ? weighted
+      : WALK_PATTERNS[opts.scale].filter((p) => p.centers.length >= 2)
+    pat = pick(pool.length ? pool : WALK_PATTERNS[opts.scale])
+  }
   const density = opts.density ?? 'mid'
   const groove = opts.groove ?? 'four_on_floor'
   const kickPool = DRUM_POOLS[groove][density]
@@ -413,10 +421,14 @@ export function randomSongScale(avoid?: ScaleKind): ScaleKind {
   return pick(pool.length ? pool : [...SONG_SCALES])
 }
 
-/** Random walk length 1–4; avoid current when possible (dice). */
+/** Dice walk lengths only — never 1 (tonic hold is explicit via setWalkLength(1)). */
+const DICE_WALK_LENGTHS: WalkLength[] = [2, 3, 4]
+
+/** Random walk length ∈ {2,3,4}; avoid current when possible (dice). Never returns 1. */
 export function randomWalkLength(avoid?: WalkLength): WalkLength {
-  const pool = avoid != null ? WALK_LENGTHS.filter((n) => n !== avoid) : [...WALK_LENGTHS]
-  return pick(pool.length ? pool : [...WALK_LENGTHS])
+  const pool =
+    avoid != null ? DICE_WALK_LENGTHS.filter((n) => n !== avoid) : [...DICE_WALK_LENGTHS]
+  return pick(pool.length ? pool : [...DICE_WALK_LENGTHS])
 }
 
 
