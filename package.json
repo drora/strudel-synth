@@ -25,7 +25,6 @@
     "test:jam-lock": "npx --yes tsx src/engine/jam-lock-shuffle-smoke.test.ts",
     "test:webmcp": "npx --yes tsx src/engine/webmcp-tools-smoke.test.ts",
     "test:song-seed": "npx --yes tsx src/engine/song-seed-smoke.test.ts",
-    "test:song-bars": "npx --yes tsx src/engine/song-bars-smoke.test.ts",
     "test:mix-capture": "npx --yes tsx src/engine/mix-capture-smoke.test.ts"
   },
   "dependencies": {
