@@ -97,7 +97,9 @@ const TEMPO_TAGS: SoftTag[] = [
   { id: 'tempo:fast', kind: 'tempo', label: 'Fast' },
 ]
 
-/** Soft tags derived from kit catalog (tempo bands + banks + former vibes). */
+/** Soft tags derived from kit catalog (tempo bands + banks + former vibes).
+ * Bank soft-tags exist for search/list meta + filterKits API; kit picker UI shows tempo + vibe chips only (not bank chips).
+ */
 export function listKitSoftTags(kits: Kit[] = KITS): SoftTag[] {
   const banks = new Map<string, SoftTag>()
   for (const k of kits) {

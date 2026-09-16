@@ -467,7 +467,7 @@ export function setSongHarmony(
   return { ok: true, root, scale, remapped, walkLength: nextSeed.walk.length }
 }
 
-/** Dice: new root + scale + walk length (avoid current), remap unlocked melodic lanes. */
+/** Dice: new root + scale + walk length ∈ {2,3,4} (never 1); reshuffle unlocked melodic to match. */
 export function rollSongHarmony(): {
   ok: true
   root: string
@@ -479,10 +479,53 @@ export function rollSongHarmony(): {
   const curLen = jam.songSeed?.walk.length
   const avoid: WalkLength | undefined =
     curLen === 1 || curLen === 2 || curLen === 3 || curLen === 4 ? curLen : undefined
-  return setSongHarmony(randomSongRoot(jam.songRoot), randomSongScale(jam.songScale), {
-    remap: true,
-    walkLength: randomWalkLength(avoid),
-  })
+  const root = randomSongRoot(jam.songRoot)
+  const scale = randomSongScale(jam.songScale)
+  const walkLength = randomWalkLength(avoid)
+
+  endTakeIfCapturing()
+  const activeKit = jam.kitId ? getKit(jam.kitId) : undefined
+  const resolved = activeKit ? resolveShuffleProfile(activeKit) : null
+  const existing = jam.songSeed
+  const nextSeed = existing
+    ? retargetSeed(existing, root, scale, { walkLength })
+    : rollSeed({
+        root,
+        scale,
+        vibe: activeKit?.vibe ?? jam.vibe,
+        density: resolved?.density ?? 'mid',
+        groove: resolved?.groove ?? 'four_on_floor',
+        fxBias: resolved?.fxBias ?? 'dry',
+        walkLength,
+      })
+
+  jam.setSongRoot(root)
+  jam.setSongScale(scale)
+  jam.setSongSeed(nextSeed)
+
+  const pinEffects = useUIStore.getState().pinEffects
+  const state = useSessionStore.getState()
+  let remapped = 0
+  for (const t of state.tracks) {
+    if (!isMelodicRole(t.role)) continue
+    if (t.locked) continue
+    let next = reshuffleTrack(t.role, t.code, {
+      pinEffects,
+      lockKit: jam.lockKit || !!activeKit,
+      bank: activeKit?.drumsBank,
+      shuffle: songAwareShuffle(activeKit?.shuffle),
+      seed: nextSeed,
+    })
+    const oct = t.octave ?? 0
+    if (oct) next = shiftNotesByOctaves(next, oct)
+    if (next !== t.code) remapped++
+    state.setCode(t.id, next)
+  }
+  dropSpawnedPad()
+  jam.resetIntensitySession()
+  jam.setLastPeek(`Key · ${root} ${scale} · walk ${nextSeed.walk.length}`)
+  queueLive('reshuffle')
+  return { ok: true, root, scale, remapped, walkLength: nextSeed.walk.length }
 }
 
 

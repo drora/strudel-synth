@@ -31,7 +31,7 @@ Also: `get_samples` (match kit `drumsBank`), `get_scales_and_chords`. Double quo
 Kits are **identity + shuffle profile**, not frozen recipes. Profile fields: `groove`, `density`, optional `root` / `scale` / `melodicSounds` / `fxBias` / `pinN`.
 
 - `apply_kit` and `shuffle_sounds` regenerate lines in that profile (same bank / groove / scale family). Melodic lanes follow a shared **song-seed** chord walk (Song Shuffle = new seed; track Shuffle keeps seed; Sound still pins).
-- `get_session` exposes `songRoot` / `songScale` / `songWalk` (centers + `walkLength` + `concertNames`). Walk chips highlight current; `set_walk_length` sets 1–4; dice also rolls length.
+- `get_session` exposes `songRoot` / `songScale` / `songWalk` (centers + `walkLength` + `concertNames`). Walk chips highlight current; `set_walk_length` sets 1–4 via −/n/4/+; dice rolls 2–4 never 1.
 - Scales: minor, major, dorian, pentatonic, mixolydian, phrygian, lydian, harmonic_minor (`set_song_harmony`).
 - `add_track` without code is **seed-aware**.
 - Hand `update_track` edits must stay coherent with `get_kit` (read jam state first).

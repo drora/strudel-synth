@@ -38,6 +38,7 @@ export function JamShell() {
   )
   const { cycleInt } = usePlayingLoopPhase()
   const walkLen = (songSeed?.walk.length ?? 0) as number
+  const walkN = (walkLen >= 1 && walkLen <= 4 ? walkLen : 1) as WalkLength
   const currentWalkIdx =
     j.isPlaying && walkChips.length > 0 ? cycleInt % walkChips.length : -1
   const codeAll = isCodeAllOpen(codeTrackId)
@@ -228,48 +229,62 @@ export function JamShell() {
         </div>
 
         <div className="flex items-center gap-2 min-h-9">
-          <div
-            className="flex-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0"
-            aria-label="Chord walk"
-          >
-            {walkChips.map((label, i) => (
-              <span
-                key={`${label}-${i}`}
-                className={
-                  i === currentWalkIdx
-                    ? 'text-[11px] text-accent opacity-90 pointer-events-none select-none'
-                    : 'text-[11px] text-text-muted/55 pointer-events-none select-none'
-                }
-                aria-disabled="true"
-                aria-current={i === currentWalkIdx ? 'true' : undefined}
-              >
-                {label}
-              </span>
-            ))}
-          </div>
-          <div
-            className="flex items-center gap-0.5 shrink-0"
-            role="group"
-            aria-label="Chord walk length"
-          >
-            {([1, 2, 3, 4] as WalkLength[]).map((n) => (
+          <div className="min-w-0 flex-1 flex items-center gap-2">
+            <div
+              className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0"
+              aria-label="Chord walk"
+            >
+              {walkChips.map((label, i) => (
+                <span
+                  key={`${label}-${i}`}
+                  className={
+                    i === currentWalkIdx
+                      ? 'text-[11px] text-accent opacity-90 pointer-events-none select-none'
+                      : 'text-[11px] text-text-muted/55 pointer-events-none select-none'
+                  }
+                  aria-disabled="true"
+                  aria-current={i === currentWalkIdx ? 'true' : undefined}
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+            <div
+              className="inline-flex items-center rounded-xl border border-border bg-bg-elevated shrink-0"
+              role="group"
+              aria-label="Chord walk length"
+            >
               <button
-                key={n}
                 type="button"
-                className={
-                  walkLen === n
-                    ? 'min-h-9 min-w-9 rounded-lg text-xs font-semibold bg-accent/15 text-accent border border-accent/40'
-                    : 'min-h-9 min-w-9 rounded-lg text-xs font-medium bg-bg-elevated text-text-muted border border-border hover:text-accent'
-                }
-                aria-label={`Walk length ${n} cycles`}
-                aria-pressed={walkLen === n}
-                onClick={() => setWalkLength(n)}
+                disabled={walkN <= 1}
+                className="min-h-11 min-w-11 text-base font-semibold text-text rounded-l-xl disabled:opacity-30 disabled:pointer-events-none"
+                aria-label="Decrease walk length"
+                title={walkN <= 1 ? 'Walk length 1 — min' : 'Walk length −'}
+                onClick={() => { if (walkN > 1) setWalkLength((walkN - 1) as WalkLength) }}
               >
-                {n}
+                −
               </button>
-            ))}
+              <div className="px-1 text-center leading-tight min-w-[2.25rem]">
+                <div className="text-[9px] uppercase tracking-wide text-text-muted">Walk</div>
+                <div className="text-xs font-semibold tabular-nums text-text">
+                  {walkN}/4
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={walkN >= 4}
+                className="min-h-11 min-w-11 text-base font-semibold text-text rounded-r-xl disabled:opacity-30 disabled:pointer-events-none"
+                aria-label="Increase walk length"
+                title={walkN >= 4 ? 'Walk length 4 — max' : 'Walk length +'}
+                onClick={() => { if (walkN < 4) setWalkLength((walkN + 1) as WalkLength) }}
+              >
+                +
+              </button>
+            </div>
           </div>
-          <JamABToggle />
+          <div className="shrink-0">
+            <JamABToggle />
+          </div>
         </div>
       </div>
 

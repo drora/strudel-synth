@@ -89,7 +89,6 @@ export function JamKitPicker({
   const ignoreScrollUntilRef = useRef(0)
 
   const tempoTags = softTags.filter((t) => t.kind === 'tempo')
-  const bankTags = softTags.filter((t) => t.kind === 'bank')
   const vibeTags = softTags.filter((t) => t.kind === 'vibe')
 
   const setCollapsed = (collapsed: boolean) => {
@@ -175,18 +174,6 @@ export function JamKitPicker({
             <div className="space-y-2">
               <div className="flex gap-1.5 overflow-x-auto pb-0.5">
                 {tempoTags.map((t) => (
-                  <TagChip
-                    key={t.id}
-                    tag={t}
-                    active={filterTags.includes(t.id)}
-                    onToggle={() =>
-                      onFilterTagsChange(toggleTag(filterTags, t.id))
-                    }
-                  />
-                ))}
-              </div>
-              <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-                {bankTags.map((t) => (
                   <TagChip
                     key={t.id}
                     tag={t}
