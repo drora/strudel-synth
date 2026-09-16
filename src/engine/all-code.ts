@@ -4,6 +4,8 @@ import { getKit, KITS } from './kits'
 import { SONG_SCALES } from './note-harmony'
 import { useJamStore } from '../store/jam-store'
 import { useSessionStore } from '../store/session-store'
+import type { SongBars } from './song-bars'
+import { clampSongBars, isSongBars } from './song-bars'
 
 /** Header Code sheet — one editor for every track. */
 export const CODE_ALL = '__all__'
@@ -19,6 +21,7 @@ export type AllCodeMeta = {
   root?: string | null
   scale?: string | null
   bpm?: number | null
+  bars?: SongBars | null
 }
 
 export type JamHeader = {
@@ -27,6 +30,7 @@ export type JamHeader = {
   root?: string
   scale?: string
   bpm?: number
+  bars?: SongBars
 }
 
 export function slugJamPart(s: string): string {
@@ -81,7 +85,8 @@ export function formatJamHeader(meta: AllCodeMeta): string {
   const scale = (meta.scale ?? '').trim() || 'minor'
   const bpm = Math.round(Number(meta.bpm))
   const tempo = Number.isFinite(bpm) && bpm > 0 ? bpm : 120
-  return `// @jam kit=${kit} name="${name}" root=${root} scale=${scale} bpm=${tempo}`
+  const bars = clampSongBars(meta.bars ?? 1)
+  return `// @jam kit=${kit} name="${name}" root=${root} scale=${scale} bpm=${tempo} bars=${bars}`
 }
 
 export function parseJamHeader(text: string): JamHeader | null {
@@ -95,6 +100,7 @@ export function parseJamHeader(text: string): JamHeader | null {
     const rootM = rest.match(/\broot=(\S+)/)
     const scaleM = rest.match(/\bscale=(\S+)/)
     const bpmM = rest.match(/\bbpm=(\S+)/)
+    const barsM = rest.match(/\bbars=(\S+)/)
     const out: JamHeader = {}
     if (kitM?.[1] && kitM[1] !== 'none') out.kitId = kitM[1]
     if (nameM) out.kitName = unescapeJamName(nameM[1]!)
@@ -103,6 +109,11 @@ export function parseJamHeader(text: string): JamHeader | null {
     if (bpmM?.[1]) {
       const n = Number(bpmM[1])
       if (Number.isFinite(n)) out.bpm = n
+    }
+    if (barsM?.[1]) {
+      const n = Number(barsM[1])
+      if (isSongBars(n)) out.bars = n
+      else if (Number.isFinite(n)) out.bars = clampSongBars(n)
     }
     return out
   }
@@ -114,7 +125,7 @@ function isScaleKind(s: string): s is ScaleKind {
 }
 
 /**
- * Restore Jam chrome from `// @jam` — kit/root/scale/bpm only.
+ * Restore Jam chrome from `// @jam` — kit/root/scale/bpm/bars.
  * Does not remap notes or call applyKit.
  * @returns true if any chrome field was applied
  */
@@ -152,6 +163,13 @@ export function applyJamHeader(text: string): boolean {
     const bpm = Math.round(h.bpm)
     if (session.bpm !== bpm) {
       session.setBpm(bpm)
+      changed = true
+    }
+  }
+  if (h.bars != null) {
+    const bars = clampSongBars(h.bars)
+    if (jam.songBars !== bars) {
+      jam.setSongBars(bars)
       changed = true
     }
   }

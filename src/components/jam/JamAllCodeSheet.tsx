@@ -39,6 +39,7 @@ export function JamAllCodeSheet() {
       root: jam.songRoot,
       scale: jam.songScale,
       bpm: useSessionStore.getState().bpm,
+      bars: jam.songBars ?? 1,
     }
   }
 

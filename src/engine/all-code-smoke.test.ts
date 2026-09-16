@@ -117,7 +117,7 @@ console.log('=== all-code smoke ===')
   const line = formatJamHeader(meta)
   assert.equal(
     line,
-    '// @jam kit=techno-punch909 name="Punch 909" root=f# scale=dorian bpm=128',
+    '// @jam kit=techno-punch909 name="Punch 909" root=f# scale=dorian bpm=128 bars=1',
   )
   const parsed = parseJamHeader(line)
   assert.deepEqual(parsed, {
@@ -126,6 +126,7 @@ console.log('=== all-code smoke ===')
     root: 'f#',
     scale: 'dorian',
     bpm: 128,
+    bars: 1,
   })
   const tracks = [track('a', 'Kick', 's("bd")'), track('b', 'Hats', 's("hh")')]
   const buf = tracksToAllCode(tracks, meta)
@@ -155,7 +156,7 @@ console.log('=== all-code smoke ===')
   // (comment with `(`, mid-type unbalanced in another lane, etc.).
   const tracks = [track('a', 'Kick', 's("bd")'), track('b', 'Hats', 's("hh")')]
   const withCommentParen = [
-    '// @jam kit=none name="" root=c scale=minor bpm=120',
+    '// @jam kit=none name="" root=c scale=minor bpm=120 bars=1',
     '// @track a  Kick',
     's("bd sd")',
     '// TODO: tweak (later',  // unmatched `(` in comment — import-check false-negative

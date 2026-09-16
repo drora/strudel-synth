@@ -46,6 +46,7 @@ export function JamShell() {
         root: j.songRoot,
         scale: j.songScale,
         bpm: j.bpm,
+        bars: useJamStore.getState().songBars ?? 1,
       }),
       allCodeFilename({
         kit: j.activeKit?.name,
