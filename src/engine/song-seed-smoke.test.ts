@@ -18,6 +18,7 @@ import {
   randomSongScale,
   randomWalkLength,
   pickWalkOfLength,
+  uniqueDegrees,
   walkConcertNames,
   type SongSeed,
   type WalkCenter,
@@ -279,22 +280,22 @@ console.log('  rollSeed degrees ∈ neighbors: ok')
       assert.ok(isLegalWalk(scale, seed.walk), `${scale} ${seed.patternId}`)
     }
   }
-  // Walk ids locked for new scales
+  // Walk ids locked for new scales (ABA length-3 kept; unique-degree 3s added)
   assert.deepEqual(
     WALK_PATTERNS.mixolydian.map((p) => p.id),
-    ['hold_I', 'I_bVII', 'I_bVII_I', 'I_IV_bVII_I', 'I_bVII_IV_I'],
+    ['hold_I', 'I_bVII', 'I_bVII_I', 'I_IV_bVII', 'I_bVII_IV', 'I_IV_V', 'I_IV_bVII_I', 'I_bVII_IV_I'],
   )
   assert.deepEqual(
     WALK_PATTERNS.phrygian.map((p) => p.id),
-    ['hold_i', 'i_bII', 'i_bII_i', 'i_bVII_i', 'i_bII_bVII_i'],
+    ['hold_i', 'i_bII', 'i_bII_i', 'i_bVII_i', 'i_bII_bVII', 'i_bVII_bIII', 'i_bII_bVII_i'],
   )
   assert.deepEqual(
     WALK_PATTERNS.lydian.map((p) => p.id),
-    ['hold_I', 'I_II', 'I_II_I', 'I_V_I', 'I_II_V_I'],
+    ['hold_I', 'I_II', 'I_II_I', 'I_V_I', 'I_II_V', 'I_II_V_I'],
   )
   assert.deepEqual(
     WALK_PATTERNS.harmonic_minor.map((p) => p.id),
-    ['hold_i', 'i_V', 'i_V_i', 'i_iv_V_i', 'i_bVI_V_i'],
+    ['hold_i', 'i_V', 'i_V_i', 'i_iv_V', 'i_bVI_V', 'i_iv_V_i', 'i_bVI_V_i'],
   )
   console.log('  PR D scales + walk ids: ok')
 }
@@ -508,12 +509,31 @@ console.log('  rollSeed degrees ∈ neighbors: ok')
       const picked = pickWalkOfLength(scale, n)
       assert.equal(picked.centers.length, n, `${scale} pickWalkOfLength ${n}`)
       assert.ok(isLegalWalk(scale, picked.centers), `${scale} picked ${picked.id}`)
+      if (n === 3) {
+        assert.equal(uniqueDegrees(picked.centers), 3, `${scale} N=3 unique degrees ${picked.id}`)
+      }
       const seeded = rollSeed({ root: 'c', scale, walkLength: n })
       assert.equal(seeded.walk.length, n, `${scale} rollSeed walkLength ${n}`)
       assert.ok(isLegalWalk(scale, seeded.walk), `${scale} roll ${seeded.patternId}`)
+      if (n === 3) {
+        assert.equal(uniqueDegrees(seeded.walk), 3, `${scale} roll N=3 unique ${seeded.patternId}`)
+      }
     }
   }
   console.log('  every scale has legal walks 1–4: ok')
+}
+
+// N=3 picks: always three distinct degrees (ABA/AAB stay in table but are not picked)
+{
+  for (const scale of Object.keys(WALK_PATTERNS) as ScaleKind[]) {
+    for (let i = 0; i < 20; i++) {
+      const picked = pickWalkOfLength(scale, 3)
+      assert.equal(picked.centers.length, 3, `${scale} pick len`)
+      assert.equal(uniqueDegrees(picked.centers), 3, `${scale} uniqueDegrees ${picked.id}`)
+      assert.ok(isLegalWalk(scale, picked.centers), `${scale} legal ${picked.id}`)
+    }
+  }
+  console.log('  N=3 pickWalkOfLength unique degrees ×20/scale: ok')
 }
 
 // randomWalkLength (dice): pool {2,3,4} only — never 1

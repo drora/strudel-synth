@@ -237,6 +237,11 @@ export const WALK_PATTERNS: Record<ScaleKind, WalkPattern[]> = {
     { id: 'i_v', centers: [I, v] },
     { id: 'fifth_i_v_i', centers: [I, v, I] },
     { id: 'cadence_i_V_i', centers: [I, I, V] },
+    // Unique-degree length-3 (N=3 picks these; ABA above stay in table)
+    { id: 'i_iv_v', centers: [I, iv, v] },
+    { id: 'i_bVI_bIII', centers: [I, bVI, bIII] },
+    { id: 'i_bVI_bVII', centers: [I, bVI, bVII] },
+    { id: 'i_bVII_v', centers: [I, bVII, v] },
     { id: 'i_iv_v_i', centers: [I, iv, v, I] },
     { id: 'i_bVI_bIII_v', centers: [I, bVI, bIII, v] },
     { id: 'i_bVI_bIII_V', centers: [I, bVI, bIII, V] },
@@ -246,6 +251,9 @@ export const WALK_PATTERNS: Record<ScaleKind, WalkPattern[]> = {
     { id: 'hold_I', centers: [Imaj] },
     { id: 'I_V', centers: [Imaj, V] },
     { id: 'I_V_I', centers: [Imaj, V, Imaj] },
+    { id: 'I_vi_IV', centers: [Imaj, vi, IV] },
+    { id: 'I_IV_V', centers: [Imaj, IV, V] },
+    { id: 'I_V_vi', centers: [Imaj, V, vi] },
     { id: 'I_V_vi_IV', centers: [Imaj, V, vi, IV] },
     { id: 'I_vi_IV_V', centers: [Imaj, vi, IV, V] },
     { id: 'I_IV_V_I', centers: [Imaj, IV, V, Imaj] },
@@ -254,6 +262,8 @@ export const WALK_PATTERNS: Record<ScaleKind, WalkPattern[]> = {
     { id: 'hold_i', centers: [I] },
     { id: 'i_IV', centers: [I, IV] },
     { id: 'i_IV_i', centers: [I, IV, I] },
+    { id: 'i_IV_v', centers: [I, IV, v] },
+    { id: 'i_bVII_IV', centers: [I, bVII, IV] },
     { id: 'i_bVII_IV_i', centers: [I, bVII, IV, I] },
     { id: 'i_IV_v_i', centers: [I, IV, v, I] },
   ],
@@ -261,6 +271,8 @@ export const WALK_PATTERNS: Record<ScaleKind, WalkPattern[]> = {
     { id: 'hold_i', centers: [I] },
     { id: 'i_v', centers: [I, v] },
     { id: 'i_v_i', centers: [I, v, I] },
+    { id: 'i_bVII_v', centers: [I, bVII, v] },
+    { id: 'i_iv_v', centers: [I, iv, v] },
     { id: 'i_bVII_v_i', centers: [I, bVII, v, I] },
     { id: 'i_iv_v_i', centers: [I, iv, v, I] },
   ],
@@ -268,6 +280,9 @@ export const WALK_PATTERNS: Record<ScaleKind, WalkPattern[]> = {
     { id: 'hold_I', centers: [Imaj] },
     { id: 'I_bVII', centers: [Imaj, bVII] },
     { id: 'I_bVII_I', centers: [Imaj, bVII, Imaj] },
+    { id: 'I_IV_bVII', centers: [Imaj, IV, bVII] },
+    { id: 'I_bVII_IV', centers: [Imaj, bVII, IV] },
+    { id: 'I_IV_V', centers: [Imaj, IV, V] },
     { id: 'I_IV_bVII_I', centers: [Imaj, IV, bVII, Imaj] },
     { id: 'I_bVII_IV_I', centers: [Imaj, bVII, IV, Imaj] },
   ],
@@ -276,6 +291,8 @@ export const WALK_PATTERNS: Record<ScaleKind, WalkPattern[]> = {
     { id: 'i_bII', centers: [I, bII] },
     { id: 'i_bII_i', centers: [I, bII, I] },
     { id: 'i_bVII_i', centers: [I, bVII, I] },
+    { id: 'i_bII_bVII', centers: [I, bII, bVII] },
+    { id: 'i_bVII_bIII', centers: [I, bVII, bIII] },
     { id: 'i_bII_bVII_i', centers: [I, bII, bVII, I] },
   ],
   lydian: [
@@ -283,12 +300,15 @@ export const WALK_PATTERNS: Record<ScaleKind, WalkPattern[]> = {
     { id: 'I_II', centers: [Imaj, II] },
     { id: 'I_II_I', centers: [Imaj, II, Imaj] },
     { id: 'I_V_I', centers: [Imaj, V, Imaj] },
+    { id: 'I_II_V', centers: [Imaj, II, V] },
     { id: 'I_II_V_I', centers: [Imaj, II, V, Imaj] },
   ],
   harmonic_minor: [
     { id: 'hold_i', centers: [I] },
     { id: 'i_V', centers: [I, V] },
     { id: 'i_V_i', centers: [I, V, I] },
+    { id: 'i_iv_V', centers: [I, iv, V] },
+    { id: 'i_bVI_V', centers: [I, bVI, V] },
     { id: 'i_iv_V_i', centers: [I, iv, V, I] },
     { id: 'i_bVI_V_i', centers: [I, bVI, V, I] },
   ],
@@ -325,17 +345,25 @@ export function randomWalkLength(avoid?: WalkLength): WalkLength {
   return pick(pool.length ? pool : [...DICE_WALK_LENGTHS])
 }
 
-/** Pick a walk pattern with exactly `n` centers (weightPatterns still applies within that length). */
+/** Count distinct `center.degree` values (length-3 picks require 3). */
+export function uniqueDegrees(walk: WalkCenter[]): number {
+  return new Set(walk.map((c) => c.degree)).size
+}
+
+/** Pick a walk pattern with exactly `n` centers (weightPatterns still applies within that length).
+ *  For N=3, only patterns with three distinct degrees (no I–X–I / AAB chip repeats). */
 export function pickWalkOfLength(
   scale: ScaleKind,
   n: WalkLength,
   vibe?: VibeId,
   density?: Density,
 ): WalkPattern {
-  const weighted = weightPatterns(scale, vibe, density).filter((p) => p.centers.length === n)
+  const lengthOk = (p: WalkPattern) =>
+    p.centers.length === n && (n !== 3 || uniqueDegrees(p.centers) === 3)
+  const weighted = weightPatterns(scale, vibe, density).filter(lengthOk)
   const pool = weighted.length
     ? weighted
-    : WALK_PATTERNS[scale].filter((p) => p.centers.length === n)
+    : WALK_PATTERNS[scale].filter(lengthOk)
   if (!pool.length) {
     throw new Error(`No walk of length ${n} for scale ${scale}`)
   }
