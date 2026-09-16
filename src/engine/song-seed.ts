@@ -315,6 +315,16 @@ function weightPatterns(
 
 export type WalkLength = 1 | 2 | 3 | 4
 
+/** Dice / default / shuffle walk lengths — never 1 (tonic hold is explicit via setWalkLength(1)). */
+const DICE_WALK_LENGTHS: WalkLength[] = [2, 3, 4]
+
+/** Random walk length ∈ {2,3,4}; avoid current when possible (dice / Shuffle). Never returns 1. */
+export function randomWalkLength(avoid?: WalkLength): WalkLength {
+  const pool =
+    avoid != null ? DICE_WALK_LENGTHS.filter((n) => n !== avoid) : [...DICE_WALK_LENGTHS]
+  return pick(pool.length ? pool : [...DICE_WALK_LENGTHS])
+}
+
 /** Pick a walk pattern with exactly `n` centers (weightPatterns still applies within that length). */
 export function pickWalkOfLength(
   scale: ScaleKind,
@@ -339,21 +349,17 @@ export function rollSeed(opts: {
   density?: Density
   groove?: GrooveFamily
   fxBias?: FxBias
-  /** When set, only patterns of this length (sticky N / picker / dice). */
+  /** When set, only patterns of this length (stepper / dice / Shuffle hold-1). */
   walkLength?: WalkLength
 }): SongSeed {
-  // Without explicit walkLength, exclude tonic-hold (length 1). Length 1 only via sticky/explicit.
+  // Without explicit walkLength: uniform N ∈ {2,3,4}, then a legal pattern of that length.
+  // Do not sample the raw pattern list (inventory bias toward 3/4). Length 1 only via explicit.
   let pat: WalkPattern
   if (opts.walkLength != null) {
     pat = pickWalkOfLength(opts.scale, opts.walkLength, opts.vibe, opts.density)
   } else {
-    const weighted = weightPatterns(opts.scale, opts.vibe, opts.density).filter(
-      (p) => p.centers.length >= 2,
-    )
-    const pool = weighted.length
-      ? weighted
-      : WALK_PATTERNS[opts.scale].filter((p) => p.centers.length >= 2)
-    pat = pick(pool.length ? pool : WALK_PATTERNS[opts.scale])
+    const n = pick(DICE_WALK_LENGTHS)
+    pat = pickWalkOfLength(opts.scale, n, opts.vibe, opts.density)
   }
   const density = opts.density ?? 'mid'
   const groove = opts.groove ?? 'four_on_floor'
@@ -420,17 +426,6 @@ export function randomSongScale(avoid?: ScaleKind): ScaleKind {
   const pool = avoid ? SONG_SCALES.filter((s) => s !== avoid) : [...SONG_SCALES]
   return pick(pool.length ? pool : [...SONG_SCALES])
 }
-
-/** Dice walk lengths only — never 1 (tonic hold is explicit via setWalkLength(1)). */
-const DICE_WALK_LENGTHS: WalkLength[] = [2, 3, 4]
-
-/** Random walk length ∈ {2,3,4}; avoid current when possible (dice). Never returns 1. */
-export function randomWalkLength(avoid?: WalkLength): WalkLength {
-  const pool =
-    avoid != null ? DICE_WALK_LENGTHS.filter((n) => n !== avoid) : [...DICE_WALK_LENGTHS]
-  return pick(pool.length ? pool : [...DICE_WALK_LENGTHS])
-}
-
 
 /** Display spelling for a walk center root (concert pitch in song key). */
 export function formatConcertChord(root: string, center: WalkCenter): string {

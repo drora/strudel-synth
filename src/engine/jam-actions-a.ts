@@ -117,10 +117,7 @@ export function applyKit(
     root = resolved.root
     scale = resolved.scale
   }
-  const pinLen =
-    jam.songSeed && jam.songSeed.walk.length >= 1 && jam.songSeed.walk.length <= 4
-      ? (jam.songSeed.walk.length as WalkLength)
-      : undefined
+  // New kit / applyKit: do NOT pin previous N — rollSeed picks uniform {2,3,4}.
   const seed = rollSeed({
     root,
     scale,
@@ -128,7 +125,6 @@ export function applyKit(
     density: resolved.density,
     groove: resolved.groove,
     fxBias: resolved.fxBias,
-    walkLength: pinLen,
   })
   const template = kitToTemplate(kit, seed)
   const session = useSessionStore.getState()
@@ -201,11 +197,15 @@ export function reshuffleUnlocked(): {
   const jam = useJamStore.getState()
   const activeKit = jam.kitId ? getKit(jam.kitId) : undefined
   const resolved = activeKit ? resolveShuffleProfile(activeKit) : null
-  // Song Shuffle: NEW seed, same Root/Scale, sticky walk length N.
-  const stickyN =
-    jam.songSeed && jam.songSeed.walk.length >= 1 && jam.songSeed.walk.length <= 4
-      ? (jam.songSeed.walk.length as WalkLength)
-      : undefined
+  // Song Shuffle: NEW seed, same Root/Scale. Randomize N ∈ {2,3,4} avoiding current
+  // (same as dice), except keep 1 if user explicitly held via stepper.
+  const curLen = jam.songSeed?.walk.length
+  const shuffleN: WalkLength | undefined =
+    curLen === 1
+      ? 1
+      : curLen === 2 || curLen === 3 || curLen === 4
+        ? randomWalkLength(curLen)
+        : undefined
   const seed = rollSeed({
     root: jam.songRoot,
     scale: jam.songScale,
@@ -213,7 +213,7 @@ export function reshuffleUnlocked(): {
     density: resolved?.density ?? activeKit?.shuffle.density ?? 'mid',
     groove: resolved?.groove ?? 'four_on_floor',
     fxBias: resolved?.fxBias ?? 'dry',
-    walkLength: stickyN,
+    walkLength: shuffleN,
   })
   jam.setSongSeed(seed)
   const plan = planShuffleTargets(state.tracks)
