@@ -266,6 +266,10 @@ export const WALK_PATTERNS: Record<ScaleKind, WalkPattern[]> = {
     { id: 'i_bVII_IV', centers: [I, bVII, IV] },
     { id: 'i_bVII_IV_i', centers: [I, bVII, IV, I] },
     { id: 'i_IV_v_i', centers: [I, IV, v, I] },
+    // Unique-degree length-4 (soft-weighted in N=4 pool; come-home also eligible)
+    { id: 'i_IV_v_bVII', centers: [I, IV, v, bVII] },
+    { id: 'i_bVII_IV_v', centers: [I, bVII, IV, v] },
+    { id: 'i_bIII_IV_v', centers: [I, bIII, IV, v] },
   ],
   pentatonic: [
     { id: 'hold_i', centers: [I] },
@@ -275,6 +279,10 @@ export const WALK_PATTERNS: Record<ScaleKind, WalkPattern[]> = {
     { id: 'i_iv_v', centers: [I, iv, v] },
     { id: 'i_bVII_v_i', centers: [I, bVII, v, I] },
     { id: 'i_iv_v_i', centers: [I, iv, v, I] },
+    // Unique-degree length-4 (soft-weighted in N=4 pool; come-home also eligible)
+    { id: 'i_bIII_iv_v', centers: [I, bIII, iv, v] },
+    { id: 'i_bVII_iv_v', centers: [I, bVII, iv, v] },
+    { id: 'i_bIII_v_bVII', centers: [I, bIII, v, bVII] },
   ],
   mixolydian: [
     { id: 'hold_I', centers: [Imaj] },
@@ -285,6 +293,10 @@ export const WALK_PATTERNS: Record<ScaleKind, WalkPattern[]> = {
     { id: 'I_IV_V', centers: [Imaj, IV, V] },
     { id: 'I_IV_bVII_I', centers: [Imaj, IV, bVII, Imaj] },
     { id: 'I_bVII_IV_I', centers: [Imaj, bVII, IV, Imaj] },
+    // Unique-degree length-4 (soft-weighted in N=4 pool; come-home also eligible)
+    { id: 'I_IV_bVII_V', centers: [Imaj, IV, bVII, V] },
+    { id: 'I_bVII_IV_V', centers: [Imaj, bVII, IV, V] },
+    { id: 'I_IV_V_ii', centers: [Imaj, IV, V, ii] },
   ],
   phrygian: [
     { id: 'hold_i', centers: [I] },
@@ -294,6 +306,10 @@ export const WALK_PATTERNS: Record<ScaleKind, WalkPattern[]> = {
     { id: 'i_bII_bVII', centers: [I, bII, bVII] },
     { id: 'i_bVII_bIII', centers: [I, bVII, bIII] },
     { id: 'i_bII_bVII_i', centers: [I, bII, bVII, I] },
+    // Unique-degree length-4 (soft-weighted in N=4 pool; come-home also eligible)
+    { id: 'i_bII_bVII_bIII', centers: [I, bII, bVII, bIII] },
+    { id: 'i_bII_iv_bVII', centers: [I, bII, iv, bVII] },
+    { id: 'i_bVII_bIII_iv', centers: [I, bVII, bIII, iv] },
   ],
   lydian: [
     { id: 'hold_I', centers: [Imaj] },
@@ -302,6 +318,8 @@ export const WALK_PATTERNS: Record<ScaleKind, WalkPattern[]> = {
     { id: 'I_V_I', centers: [Imaj, V, Imaj] },
     { id: 'I_II_V', centers: [Imaj, II, V] },
     { id: 'I_II_V_I', centers: [Imaj, II, V, Imaj] },
+    // Unique-degree length-4 — only 4 neighbors; the one unique-4 (soft-weighted)
+    { id: 'I_II_V_vi', centers: [Imaj, II, V, vi] },
   ],
   harmonic_minor: [
     { id: 'hold_i', centers: [I] },
@@ -311,6 +329,10 @@ export const WALK_PATTERNS: Record<ScaleKind, WalkPattern[]> = {
     { id: 'i_bVI_V', centers: [I, bVI, V] },
     { id: 'i_iv_V_i', centers: [I, iv, V, I] },
     { id: 'i_bVI_V_i', centers: [I, bVI, V, I] },
+    // Unique-degree length-4 (soft-weighted in N=4 pool; come-home also eligible)
+    { id: 'i_iv_bVI_V', centers: [I, iv, bVI, V] },
+    { id: 'i_bIII_iv_V', centers: [I, bIII, iv, V] },
+    { id: 'i_bVI_bIII_V', centers: [I, bVI, bIII, V] },
   ],
 }
 
@@ -351,7 +373,9 @@ export function uniqueDegrees(walk: WalkCenter[]): number {
 }
 
 /** Pick a walk pattern with exactly `n` centers (weightPatterns still applies within that length).
- *  For N=3, only patterns with three distinct degrees (no I–X–I / AAB chip repeats). */
+ *  For N=3, only patterns with three distinct degrees (no I–X–I / AAB chip repeats).
+ *  For N=4, all length-4 patterns (unique-4 and come-home); unique-4 soft-weighted ×2
+ *  so come-home is occasional (~20–35%) when both exist. */
 export function pickWalkOfLength(
   scale: ScaleKind,
   n: WalkLength,
@@ -361,9 +385,18 @@ export function pickWalkOfLength(
   const lengthOk = (p: WalkPattern) =>
     p.centers.length === n && (n !== 3 || uniqueDegrees(p.centers) === 3)
   const weighted = weightPatterns(scale, vibe, density).filter(lengthOk)
-  const pool = weighted.length
+  let pool = weighted.length
     ? weighted
     : WALK_PATTERNS[scale].filter(lengthOk)
+  if (n === 4) {
+    // Soft-weight unique-degree phrases so come-home is not the majority.
+    const boosted: WalkPattern[] = []
+    for (const p of pool) {
+      boosted.push(p)
+      if (uniqueDegrees(p.centers) === 4) boosted.push(p)
+    }
+    pool = boosted
+  }
   if (!pool.length) {
     throw new Error(`No walk of length ${n} for scale ${scale}`)
   }
