@@ -1,5 +1,5 @@
 /**
- * Walk length picker / sticky N / dice N smoke.
+ * Walk length picker / Shuffle avoid-N / dice N / applyKit unpinned smoke.
  * Run: npx --yes tsx src/engine/walk-length-smoke.test.ts
  * Or:  npm run test:walk-length
  */
@@ -101,10 +101,27 @@ console.log('=== Walk length smoke ===')
   assert.equal(useJamStore.getState().songSeed!.walk.length, 2)
   console.log('  setWalkLength no-op same N: ok')
 
-  const nBefore = useJamStore.getState().songSeed!.walk.length
-  reshuffleUnlocked()
-  assert.equal(useJamStore.getState().songSeed!.walk.length, nBefore, 'Shuffle sticky N')
-  console.log(`  reshuffleUnlocked sticky N=${nBefore}: ok`)
+  // Shuffle from N=2 (set above): avoid current → 3 or 4
+  {
+    const jam = useJamStore.getState()
+    jam.setSongSeed(rollSeed({ root: jam.songRoot, scale: jam.songScale, walkLength: 3, vibe: kit.vibe }))
+    assert.equal(useJamStore.getState().songSeed!.walk.length, 3)
+    reshuffleUnlocked()
+    const after3 = useJamStore.getState().songSeed!.walk.length
+    assert.ok(after3 === 2 || after3 === 4, `Shuffle from 3 → 2|4 got ${after3}`)
+    console.log(`  reshuffleUnlocked from 3 → ${after3}: ok`)
+  }
+  // Shuffle from N=1 (user hold): stays 1
+  {
+    const hold = setWalkLength(1)
+    assert.equal(hold.ok, true)
+    assert.equal(useJamStore.getState().songSeed!.walk.length, 1)
+    reshuffleUnlocked()
+    assert.equal(useJamStore.getState().songSeed!.walk.length, 1, 'Shuffle keeps hold 1')
+    console.log('  reshuffleUnlocked from 1 stays 1: ok')
+    // restore to 2 for later dice tests
+    setWalkLength(2)
+  }
 
   // Dice: N ∈ {2,3,4} never 1; prefer avoid current
   let changed = 0
@@ -182,12 +199,32 @@ console.log('=== Walk length smoke ===')
     console.log(`  dice pad arity matches walk (matched ${matched}): ok`)
   }
 
-  // applyKit pins existing N
-  useJamStore.getState().setSongSeed(rollSeed({ root: 'd', scale: 'dorian', walkLength: 3 }))
-  const again = applyKit(kit.id)
-  assert.equal(again.ok, true)
-  assert.equal(useJamStore.getState().songSeed!.walk.length, 3, 'applyKit pins N')
-  console.log('  applyKit pins N=3: ok')
+  // applyKit does NOT pin N — over several rolls, not all stay 3
+  {
+    const lengths = new Set<number>()
+    for (let i = 0; i < 24; i++) {
+      useJamStore.getState().setSongSeed(rollSeed({ root: 'd', scale: 'dorian', walkLength: 3 }))
+      assert.equal(useJamStore.getState().songSeed!.walk.length, 3)
+      const again = applyKit(kit.id)
+      assert.equal(again.ok, true)
+      const n = useJamStore.getState().songSeed!.walk.length
+      assert.ok(n === 2 || n === 3 || n === 4, `applyKit length ${n}`)
+      assert.notEqual(n, 1, 'applyKit never 1')
+      lengths.add(n)
+    }
+    assert.ok(lengths.size >= 2, `applyKit not pinned to 3 (seen=${[...lengths]})`)
+    console.log(`  applyKit unpinned (seen ${[...lengths].sort()}): ok`)
+  }
+
+  // Display: walk stepper shows {walkN} only — no /4
+  {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const src = readFileSync(join(process.cwd(), 'src/components/jam/JamShell.tsx'), 'utf8')
+    assert.ok(src.includes('{walkN}'), 'JamShell shows {walkN}')
+    assert.ok(!src.includes('{walkN}/4'), 'JamShell must not show walkN/4')
+    console.log('  display {walkN} only (no /4): ok')
+  }
 }
 
 console.log('ALL WALK-LENGTH CHECKS PASSED')

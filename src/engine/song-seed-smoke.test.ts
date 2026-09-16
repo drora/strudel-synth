@@ -535,10 +535,23 @@ console.log('  rollSeed degrees ∈ neighbors: ok')
   console.log('  randomWalkLength avoid (2–4 never 1): ok')
 }
 
-// rollSeed() without walkLength never produces length-1 (hold) patterns
+// rollSeed() without walkLength: never 1; uniform hits 2, 3, and 4
 {
+  const seen = new Set<number>()
+  for (let i = 0; i < 60; i++) {
+    const seed = rollSeed({ root: 'c', scale: 'minor' })
+    assert.notEqual(seed.walk.length, 1, 'rollSeed default never 1')
+    assert.ok(
+      seed.walk.length === 2 || seed.walk.length === 3 || seed.walk.length === 4,
+      `rollSeed default length ${seed.walk.length}`,
+    )
+    seen.add(seed.walk.length)
+  }
+  assert.ok(seen.has(2), 'rollSeed default hits 2')
+  assert.ok(seen.has(3), 'rollSeed default hits 3')
+  assert.ok(seen.has(4), 'rollSeed default hits 4')
   for (const scale of Object.keys(WALK_PATTERNS) as ScaleKind[]) {
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 20; i++) {
       const seed = rollSeed({ root: 'c', scale })
       assert.ok(seed.walk.length >= 2, `${scale} rollSeed default length ${seed.walk.length}`)
     }
@@ -548,7 +561,13 @@ console.log('  rollSeed degrees ∈ neighbors: ok')
     const hold = rollSeed({ root: 'c', scale, walkLength: 1 })
     assert.equal(hold.walk.length, 1, `${scale} explicit walkLength 1`)
   }
-  console.log('  rollSeed default excludes length 1; explicit 1 ok')
+  // randomWalkLength(3) never 3 or 1
+  for (let i = 0; i < 40; i++) {
+    const n = randomWalkLength(3)
+    assert.notEqual(n, 3)
+    assert.notEqual(n, 1)
+  }
+  console.log('  rollSeed default uniform 2–4 (never 1); randomWalkLength(3)≠3|1; explicit 1 ok')
 }
 
 console.log('ALL SONG-SEED CHECKS PASSED')

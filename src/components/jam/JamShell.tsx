@@ -267,7 +267,7 @@ export function JamShell() {
               <div className="px-1 text-center leading-tight min-w-[2.25rem]">
                 <div className="text-[9px] uppercase tracking-wide text-text-muted">Walk</div>
                 <div className="text-xs font-semibold tabular-nums text-text">
-                  {walkN}/4
+                  {walkN}
                 </div>
               </div>
               <button
