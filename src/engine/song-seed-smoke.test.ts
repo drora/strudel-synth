@@ -518,18 +518,31 @@ console.log('  rollSeed degrees ∈ neighbors: ok')
       const picked = pickWalkOfLength(scale, n)
       assert.equal(picked.centers.length, n, `${scale} pickWalkOfLength ${n}`)
       assert.ok(isLegalWalk(scale, picked.centers), `${scale} picked ${picked.id}`)
-      if (n === 3) {
-        assert.equal(uniqueDegrees(picked.centers), 3, `${scale} N=3 unique degrees ${picked.id}`)
+      if (n === 2 || n === 3) {
+        assert.equal(uniqueDegrees(picked.centers), n, `${scale} N=${n} unique degrees ${picked.id}`)
       }
       const seeded = rollSeed({ root: 'c', scale, walkLength: n })
       assert.equal(seeded.walk.length, n, `${scale} rollSeed walkLength ${n}`)
       assert.ok(isLegalWalk(scale, seeded.walk), `${scale} roll ${seeded.patternId}`)
-      if (n === 3) {
-        assert.equal(uniqueDegrees(seeded.walk), 3, `${scale} roll N=3 unique ${seeded.patternId}`)
+      if (n === 2 || n === 3) {
+        assert.equal(uniqueDegrees(seeded.walk), n, `${scale} roll N=${n} unique ${seeded.patternId}`)
       }
     }
   }
   console.log('  every scale has legal walks 1–4: ok')
+}
+
+// N=2 picks: always two distinct degrees (hold_i_i stays in table but is not picked)
+{
+  for (const scale of Object.keys(WALK_PATTERNS) as ScaleKind[]) {
+    for (let i = 0; i < 20; i++) {
+      const picked = pickWalkOfLength(scale, 2)
+      assert.equal(picked.centers.length, 2, `${scale} pick len`)
+      assert.equal(uniqueDegrees(picked.centers), 2, `${scale} uniqueDegrees ${picked.id}`)
+      assert.ok(isLegalWalk(scale, picked.centers), `${scale} legal ${picked.id}`)
+    }
+  }
+  console.log('  N=2 pickWalkOfLength unique degrees ×20/scale: ok')
 }
 
 // N=3 picks: always three distinct degrees (ABA/AAB stay in table but are not picked)

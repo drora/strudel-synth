@@ -367,15 +367,15 @@ export function randomWalkLength(avoid?: WalkLength): WalkLength {
   return pick(pool.length ? pool : [...DICE_WALK_LENGTHS])
 }
 
-/** Count distinct `center.degree` values (length-3 picks require 3). */
+/** Count distinct `center.degree` values (N=2/3 picks require n). */
 export function uniqueDegrees(walk: WalkCenter[]): number {
   return new Set(walk.map((c) => c.degree)).size
 }
 
 /** Pick a walk pattern with exactly `n` centers (weightPatterns still applies within that length).
- *  For N=3, only patterns with three distinct degrees (no I–X–I / AAB chip repeats).
+ *  For N=2/3, only patterns with n distinct degrees (no hold doubles / I–X–I).
  *  For N=4, all length-4 patterns (unique-4 and come-home); unique-4 soft-weighted ×2
- *  so come-home is occasional (~20–35%) when both exist. */
+ *  so come-home is occasional (~20–35%) when both exist. N=1 is the only intentional hold. */
 export function pickWalkOfLength(
   scale: ScaleKind,
   n: WalkLength,
@@ -383,7 +383,8 @@ export function pickWalkOfLength(
   density?: Density,
 ): WalkPattern {
   const lengthOk = (p: WalkPattern) =>
-    p.centers.length === n && (n !== 3 || uniqueDegrees(p.centers) === 3)
+    p.centers.length === n &&
+    ((n !== 2 && n !== 3) || uniqueDegrees(p.centers) === n)
   const weighted = weightPatterns(scale, vibe, density).filter(lengthOk)
   let pool = weighted.length
     ? weighted
