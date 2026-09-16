@@ -280,22 +280,31 @@ console.log('  rollSeed degrees ∈ neighbors: ok')
       assert.ok(isLegalWalk(scale, seed.walk), `${scale} ${seed.patternId}`)
     }
   }
-  // Walk ids locked for new scales (ABA length-3 kept; unique-degree 3s added)
+  // Walk ids locked for new scales (ABA + come-home kept; unique-degree 3/4 added)
   assert.deepEqual(
     WALK_PATTERNS.mixolydian.map((p) => p.id),
-    ['hold_I', 'I_bVII', 'I_bVII_I', 'I_IV_bVII', 'I_bVII_IV', 'I_IV_V', 'I_IV_bVII_I', 'I_bVII_IV_I'],
+    [
+      'hold_I', 'I_bVII', 'I_bVII_I', 'I_IV_bVII', 'I_bVII_IV', 'I_IV_V',
+      'I_IV_bVII_I', 'I_bVII_IV_I', 'I_IV_bVII_V', 'I_bVII_IV_V', 'I_IV_V_ii',
+    ],
   )
   assert.deepEqual(
     WALK_PATTERNS.phrygian.map((p) => p.id),
-    ['hold_i', 'i_bII', 'i_bII_i', 'i_bVII_i', 'i_bII_bVII', 'i_bVII_bIII', 'i_bII_bVII_i'],
+    [
+      'hold_i', 'i_bII', 'i_bII_i', 'i_bVII_i', 'i_bII_bVII', 'i_bVII_bIII',
+      'i_bII_bVII_i', 'i_bII_bVII_bIII', 'i_bII_iv_bVII', 'i_bVII_bIII_iv',
+    ],
   )
   assert.deepEqual(
     WALK_PATTERNS.lydian.map((p) => p.id),
-    ['hold_I', 'I_II', 'I_II_I', 'I_V_I', 'I_II_V', 'I_II_V_I'],
+    ['hold_I', 'I_II', 'I_II_I', 'I_V_I', 'I_II_V', 'I_II_V_I', 'I_II_V_vi'],
   )
   assert.deepEqual(
     WALK_PATTERNS.harmonic_minor.map((p) => p.id),
-    ['hold_i', 'i_V', 'i_V_i', 'i_iv_V', 'i_bVI_V', 'i_iv_V_i', 'i_bVI_V_i'],
+    [
+      'hold_i', 'i_V', 'i_V_i', 'i_iv_V', 'i_bVI_V', 'i_iv_V_i', 'i_bVI_V_i',
+      'i_iv_bVI_V', 'i_bIII_iv_V', 'i_bVI_bIII_V',
+    ],
   )
   console.log('  PR D scales + walk ids: ok')
 }
@@ -534,6 +543,43 @@ console.log('  rollSeed degrees ∈ neighbors: ok')
     }
   }
   console.log('  N=3 pickWalkOfLength unique degrees ×20/scale: ok')
+}
+
+// N=4: unique-4 inventory + soft mix (come-home occasional, not 100%)
+{
+  for (const scale of Object.keys(WALK_PATTERNS) as ScaleKind[]) {
+    const len4 = WALK_PATTERNS[scale].filter((p) => p.centers.length === 4)
+    const unique4 = len4.filter((p) => uniqueDegrees(p.centers) === 4)
+    assert.ok(unique4.length >= 1, `${scale} missing unique-degree length-4`)
+    for (let i = 0; i < 20; i++) {
+      const picked = pickWalkOfLength(scale, 4)
+      assert.equal(picked.centers.length, 4, `${scale} pick len`)
+      assert.ok(isLegalWalk(scale, picked.centers), `${scale} legal ${picked.id}`)
+    }
+  }
+  // minor has both unique-4 and come-home — 40 picks must see both
+  {
+    let sawUnique = false
+    let sawHome = false
+    for (let i = 0; i < 40; i++) {
+      const picked = pickWalkOfLength('minor', 4)
+      const u = uniqueDegrees(picked.centers)
+      if (u === 4) sawUnique = true
+      if (u < 4) sawHome = true
+    }
+    assert.ok(sawUnique, 'minor N=4 40 picks must include unique-4')
+    assert.ok(sawHome, 'minor N=4 40 picks must include come-home')
+  }
+  // dorian previously 100% come-home — after ADD, 40 picks must include unique-4
+  {
+    let sawUnique = false
+    for (let i = 0; i < 40; i++) {
+      const picked = pickWalkOfLength('dorian', 4)
+      if (uniqueDegrees(picked.centers) === 4) sawUnique = true
+    }
+    assert.ok(sawUnique, 'dorian N=4 40 picks must include unique-4')
+  }
+  console.log('  N=4 unique inventory + soft come-home mix: ok')
 }
 
 // randomWalkLength (dice): pool {2,3,4} only — never 1
