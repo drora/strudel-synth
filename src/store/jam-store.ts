@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { VibeId, ScaleKind } from '../engine/kits'
 import type { SongSeed } from '../engine/song-seed'
 import type { WalkDensity } from '../engine/reshuffle'
+import type { SongTimeFeel } from '../engine/mutate'
 import type { SectionSnap } from '../engine/session-manager'
 import { useSessionStore } from './session-store'
 import { liveUpdateEngine } from '../engine/live-update'
@@ -25,6 +26,9 @@ export interface JamUndoEntry {
   addedTrackIds?: string[]
   removedTracks?: Track[]
   intensityLevel?: IntensityLevel
+  /** Previous song Half/Double-time feel (restore on Undo). */
+  songTimeFeel?: SongTimeFeel
+  songTimeFeelBase?: { trackId: string; code: string }[] | null
 }
 
 export type AbSlot = 'a' | 'b'
@@ -40,6 +44,10 @@ interface JamState {
   songSeed: SongSeed | null
   /** Chords per drum cycle for melodic walk (1 stretch · 2 densified). */
   walkDensity: WalkDensity
+  /** Song Half/Double-time pole (normal | half | double). */
+  songTimeFeel: SongTimeFeel
+  /** Codes before leaving normal — restore when opposite returns to normal. */
+  songTimeFeelBase: { trackId: string; code: string }[] | null
   lockKit: boolean
   showKitPicker: boolean
   hasPickedKit: boolean
@@ -78,6 +86,9 @@ interface JamState {
   setSongScale: (scale: ScaleKind) => void
   setSongSeed: (seed: SongSeed | null) => void
   setWalkDensity: (d: WalkDensity) => void
+  setSongTimeFeel: (feel: SongTimeFeel) => void
+  setSongTimeFeelBase: (base: { trackId: string; code: string }[] | null) => void
+  resetSongTimeFeel: () => void
   setLockKit: (lock: boolean) => void
   setShowKitPicker: (show: boolean) => void
   setHasPickedKit: (v: boolean) => void
@@ -130,6 +141,10 @@ function snapshotSection(): SectionSnap {
     songScale: j.songScale,
     songSeed: cloneSeed(j.songSeed),
     walkDensity: j.walkDensity,
+    songTimeFeel: j.songTimeFeel,
+    songTimeFeelBase: j.songTimeFeelBase
+      ? j.songTimeFeelBase.map((c) => ({ ...c }))
+      : null,
   }
 }
 
@@ -150,6 +165,8 @@ export const useJamStore = create<JamState>()(
       songScale: 'minor',
       songSeed: null,
       walkDensity: 1,
+      songTimeFeel: 'normal',
+      songTimeFeelBase: null,
       lockKit: true,
       showKitPicker: true,
       hasPickedKit: false,
@@ -176,6 +193,9 @@ export const useJamStore = create<JamState>()(
       setSongScale: (songScale) => set({ songScale }),
       setSongSeed: (songSeed) => set({ songSeed }),
       setWalkDensity: (walkDensity) => set({ walkDensity }),
+      setSongTimeFeel: (songTimeFeel) => set({ songTimeFeel }),
+      setSongTimeFeelBase: (songTimeFeelBase) => set({ songTimeFeelBase }),
+      resetSongTimeFeel: () => set({ songTimeFeel: 'normal', songTimeFeelBase: null }),
       setLockKit: (lockKit) => set({ lockKit }),
       setShowKitPicker: (showKitPicker) => set({ showKitPicker }),
       setHasPickedKit: (hasPickedKit) => set({ hasPickedKit }),
@@ -253,6 +273,14 @@ export const useJamStore = create<JamState>()(
         if (snap.songScale) set({ songScale: snap.songScale })
         if ('songSeed' in snap) set({ songSeed: cloneSeed(snap.songSeed ?? null) })
         if ('walkDensity' in snap && snap.walkDensity) set({ walkDensity: snap.walkDensity })
+        if ('songTimeFeel' in snap && snap.songTimeFeel) set({ songTimeFeel: snap.songTimeFeel })
+        if ('songTimeFeelBase' in snap) {
+          set({
+            songTimeFeelBase: snap.songTimeFeelBase
+              ? snap.songTimeFeelBase.map((c) => ({ ...c }))
+              : null,
+          })
+        }
         set({ activeVariant: slot })
         get().setLastPeek(`A/B · punch ${slot.toUpperCase()}`)
         queueSectionUpdate()
@@ -292,6 +320,8 @@ export const useJamStore = create<JamState>()(
         songScale: s.songScale,
         songSeed: s.songSeed,
         walkDensity: s.walkDensity,
+        songTimeFeel: s.songTimeFeel,
+        songTimeFeelBase: s.songTimeFeelBase,
         lockKit: s.lockKit,
         hasPickedKit: s.hasPickedKit,
         improvOctave: s.improvOctave,
