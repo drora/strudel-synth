@@ -21,6 +21,10 @@ import {
   groupedFxControls,
   IMPROV_FX_CONTROLS,
   setImprovVoiceInCode,
+  refitMicKeepCode,
+  bakedWalkLengthFromCode,
+  shiftNoteBySemis,
+  nudgeMicNotesInCode,
   sampleGainBoost,
   soundFromCode,
 } from './improv-plate'
@@ -432,6 +436,92 @@ console.log('=== Improv plate smoke ===')
   const notes = pads.filter((p) => p.enabled).map((p) => p.note!)
   assert.deepEqual(notes, ['a4', 'b4', 'c5', 'd5', 'e5', 'f5', 'g5', 'a5'], 'A minor pads ascend')
   console.log('A minor pads ascend ok')
+}
+
+
+{
+  // walk-aware hold cap: N=4 allows 16 beats / .slow(4); N=1 caps at 4
+  assert.equal(quantizeBeats(8, 120, 1), 4, 'N=1 caps at 4 beats')
+  assert.equal(quantizeBeats(8, 120, 2), 8, 'N=2 caps at 8')
+  assert.equal(quantizeBeats(8, 120, 3), 12, 'N=3 allows 12')
+  assert.equal(quantizeBeats(8, 120, 4), 16, 'N=4 allows 16')
+  const longN4 = hitsToNoteCode(
+    [{ note: 'c3', cycle: 0, dur: 8, velocity: 1, at: 20_000 }],
+    'sine',
+    120,
+    undefined,
+    4,
+  )
+  assert.match(longN4, /note\("c3@16"\)/, longN4)
+  assert.match(longN4, /\.slow\(4\)/, longN4)
+  const longN1 = hitsToNoteCode(
+    [{ note: 'c3', cycle: 0, dur: 8, velocity: 1, at: 20_000 }],
+    'sine',
+    120,
+    undefined,
+    1,
+  )
+  assert.match(longN1, /note\("c3@4"\)/, longN1)
+  assert.doesNotMatch(longN1, /slow/, longN1)
+  const micLong = hitsToNoteCode(
+    [{ note: 'c3', cycle: 0, dur: 8, velocity: 1, at: 20_000 }],
+    'jam_mic_1',
+    120,
+    0.4,
+    4,
+  )
+  assert.match(micLong, /note\("c3@16"\)/, micLong)
+  assert.match(micLong, /\.slow\(4\)/, micLong)
+  assert.match(micLong, /\.speed\(/, micLong)
+  console.log('walk-aware keep hold ok')
+}
+
+{
+  assert.equal(shiftNoteBySemis('c3', 2), 'd3')
+  assert.equal(shiftNoteBySemis('c3', -1), 'b2')
+  assert.equal(bakedWalkLengthFromCode('note("c3@16").s("jam_mic_1").slow(4)'), 4)
+  assert.equal(bakedWalkLengthFromCode('note("c3@4").s("jam_mic_1")'), 1)
+  assert.equal(bakedWalkLengthFromCode('s("jam_mic_1")'), null)
+
+  const kept = 'note("c3@16").s("jam_mic_1").speed(0.1).stretch(9).clip(1).slow(4).room(0.4)'
+  // Same walk N → pitch only; smear / @ / slow frozen
+  const same = refitMicKeepCode(kept, {
+    walkLength: 4,
+    bpm: 120,
+    takeSec: 0.5,
+    pitchSemis: 2,
+  })
+  assert.match(same, /note\("d3@16"\)/, same)
+  assert.match(same, /\.speed\(0\.1\)/, same)
+  assert.match(same, /\.stretch\(9\)/, same)
+  assert.match(same, /\.slow\(4\)/, same)
+  assert.match(same, /\.room\(0\.4\)/, same)
+  assert.doesNotMatch(same, /@12|@8[^0-9]/, same)
+
+  // Walk changed 4→2 → full refit + pitch
+  const changed = refitMicKeepCode(kept, {
+    walkLength: 2,
+    bpm: 120,
+    takeSec: 0.5,
+    pitchSemis: -1,
+  })
+  assert.match(changed, /jam_mic_1/, changed)
+  assert.match(changed, /note\("b2@8"\)/, changed)
+  assert.match(changed, /\.slow\(2\)/, changed)
+  assert.match(changed, /\.speed\(/, changed)
+  assert.doesNotMatch(changed, /\.slow\(4\)/, changed)
+
+  // Plain mic → always refit to current N
+  const plain = refitMicKeepCode('s("jam_mic_2")', {
+    walkLength: 3,
+    bpm: 120,
+    takeSec: 0.4,
+    pitchSemis: 1,
+  })
+  assert.match(plain, /jam_mic_2/, plain)
+  assert.match(plain, /@12/, plain)
+  assert.match(plain, /\.slow\(3\)/, plain)
+  console.log('refitMicKeepCode same-N pitch / changed-N refit ok')
 }
 
 console.log('improv-plate-smoke.test.ts: ok')

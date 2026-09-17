@@ -169,21 +169,31 @@ export function smearFromHold(
   }
 }
 
-/** Hold weight: 0.25 / 0.5 / 1 / 2 / 3 / 4 / 6 / 8 beats. 0.12 is too short for SuperDough. */
-export function quantizeBeats(sec: number, bpm: number): number {
+/**
+ * Hold weight in beats. Steps: 0.25 / 0.5 / 1 / 2 / 3 / 4 / 6 / 8 / 12 / 16.
+ * Cap at walkLength×4 (1 cycle = 4 beats). 0.12 is too short for SuperDough.
+ */
+export function quantizeBeats(sec: number, bpm: number, walkLength = 1): number {
+  const maxBeats = Math.max(1, Math.min(4, Math.trunc(walkLength) || 1)) * 4
   const b = sec / (60 / Math.max(bpm, 40))
-  if (b < 0.38) return 0.25
-  if (b < 0.75) return 0.5
-  if (b < 1.4) return 1
-  if (b < 2.4) return 2
-  if (b < 3.4) return 3
-  if (b < 5) return 4
-  if (b < 7) return 6
-  return 8
+  let q: number
+  if (b < 0.38) q = 0.25
+  else if (b < 0.75) q = 0.5
+  else if (b < 1.4) q = 1
+  else if (b < 2.4) q = 2
+  else if (b < 3.4) q = 3
+  else if (b < 5) q = 4
+  else if (b < 7) q = 6
+  else if (b < 9) q = 8
+  else if (b < 14) q = 12
+  else q = 16
+  if (q <= maxBeats) return q
+  const steps = [0.25, 0.5, 1, 2, 3, 4, 6, 8, 12, 16].filter((s) => s <= maxBeats)
+  return steps[steps.length - 1]!
 }
 
-function stretchMark(dur: number, bpm: number): string {
-  const beats = quantizeBeats(dur, bpm)
+function stretchMark(dur: number, bpm: number, walkLength = 1): string {
+  const beats = quantizeBeats(dur, bpm, walkLength)
   return beats === 1 ? '' : `@${beats}`
 }
 
@@ -215,8 +225,8 @@ function padTokensToBar(
   stretches.push(0)
 }
 
-function restToken(gapSec: number, bpm: number): string | null {
-  const beats = quantizeBeats(gapSec, bpm)
+function restToken(gapSec: number, bpm: number, walkLength = 1): string | null {
+  const beats = quantizeBeats(gapSec, bpm, walkLength)
   // Gaps shorter than a beat stay glued — do not insert ~@0.25 between staccato taps.
   if (beats < 1) return null
   return beats === 1 ? '~' : `~@${beats}`
@@ -266,12 +276,14 @@ export function hitsToNoteCode(
   voice: string,
   bpm = 120,
   takeSec?: number,
+  walkLength = 1,
 ): string {
+  const nWalk = Math.max(1, Math.min(4, Math.trunc(walkLength) || 1))
   if (hits.length === 0) return bakeVoxAttack(improvVoiceCode('c4', voice), voice)
   const use = lastImprovPhrase(hits)
   if (use.length === 0) return bakeVoxAttack(improvVoiceCode('c4', voice), voice)
   const durs = use.map((h) => h.dur ?? 0.25)
-  const anyLong = durs.some((d) => quantizeBeats(d, bpm) >= 2)
+  const anyLong = durs.some((d) => quantizeBeats(d, bpm, nWalk) >= 2)
   const tokens: string[] = []
   const vels: number[] = []
   const speeds: number[] = []
@@ -284,7 +296,7 @@ export function hitsToNoteCode(
       const prev = use[i - 1]!
       const prevEnd = prev.at! + (prev.dur ?? 0.25) * 1000
       const gap = (h.at - prevEnd) / 1000
-      const rest = restToken(gap, bpm)
+      const rest = restToken(gap, bpm, nWalk)
       if (rest) {
         tokens.push(rest)
         vels.push(1)
@@ -292,9 +304,9 @@ export function hitsToNoteCode(
         stretches.push(0)
       }
     }
-    tokens.push(`${h.note}${stretchMark(durs[i]!, bpm)}`)
+    tokens.push(`${h.note}${stretchMark(durs[i]!, bpm, nWalk)}`)
     vels.push(roundVel(h.velocity ?? 1))
-    const beats = quantizeBeats(durs[i]!, bpm)
+    const beats = quantizeBeats(durs[i]!, bpm, nWalk)
     const hold = Math.max(beats, 1) * (60 / Math.max(bpm, 40))
     const sm =
       mic && beats >= 2 ? smearFromHold(hold, takeSec!, h.note) : null
@@ -444,6 +456,142 @@ export function applyImprovMixToCode(
     }
   }
   return out
+}
+
+/** True when code / primary sound is a jam_mic_* take. */
+export function isJamMicCode(code: string): boolean {
+  return /jam_mic_\d+/.test(code)
+}
+
+export function jamMicNameFromCode(code: string): string | null {
+  const m = code.match(/jam_mic_\d+/)
+  return m ? m[0]! : null
+}
+
+/** First pitched token inside note("…"), ignoring rests / @weights. */
+export function primaryNoteFromCode(code: string): string | null {
+  const m = code.match(/\bnote\(\s*["']([^"']+)["']/)
+  if (!m) return null
+  for (const tok of m[1]!.trim().split(/\s+/)) {
+    const bare = tok.replace(/@[\d.]+$/, '')
+    if (!bare || bare === '~' || bare.startsWith('~')) continue
+    const parsed = bare.toLowerCase().match(/^([a-g](?:#|b)?)(-?\d+)$/)
+    if (parsed) return `${parsed[1]}${parsed[2]}`
+  }
+  return null
+}
+
+/** Light Shuffle pitch nudge: uniform among ±1 / ±2 semitones. */
+export function randomMicPitchNudge(): number {
+  return (Math.random() < 0.5 ? -1 : 1) * (Math.random() < 0.5 ? 1 : 2)
+}
+
+export function shiftNoteBySemis(note: string, semis: number): string {
+  if (!semis) return note
+  const m = note.toLowerCase().match(/^([a-g](?:#|b)?)(-?\d+)$/)
+  if (!m) return note
+  const pc = rootIndex(m[1]!)
+  const midi = pc + Number(m[2]) * 12 + semis
+  const newOct = Math.floor(midi / 12)
+  const newPc = ((midi % 12) + 12) % 12
+  return `${NOTE_NAMES[newPc]}${newOct}`
+}
+
+export type RefitMicKeepOpts = {
+  walkLength?: number
+  bpm?: number
+  takeSec?: number
+  /** Semitone nudge; omit to roll ±1/±2. */
+  pitchSemis?: number
+  /**
+   * Force full time-stretch refit even when baked length matches walk.
+   * Default: refit only when baked phrase cycles ≠ current walk N.
+   */
+  forceRefit?: boolean
+}
+
+/**
+ * Baked Keep phrase length in cycles (from `.slow(N)` or note token beats÷4).
+ * null = no Keep structure yet (plain s("jam_mic_*")).
+ */
+export function bakedWalkLengthFromCode(code: string): number | null {
+  const slow = code.match(/\.slow\(\s*([\d.]+)\s*\)/)
+  if (slow) {
+    const c = Number(slow[1])
+    if (Number.isFinite(c) && c > 0) return Math.max(1, Math.min(4, Math.round(c)))
+  }
+  const noteM = code.match(/\bnote\(\s*["']([^"']+)["']/)
+  if (!noteM) return null
+  const tokens = noteM[1]!.trim().split(/\s+/).filter(Boolean)
+  if (tokens.length === 0) return null
+  const cycles = phraseCycles(tokens)
+  if (!(cycles > 0)) return null
+  return Math.max(1, Math.min(4, Math.round(cycles)))
+}
+
+/** Shift pitched tokens inside note("…"); leave @weights / rests / FX alone. */
+export function nudgeMicNotesInCode(code: string, semis: number): string {
+  if (!semis || !code.includes('note(')) return code
+  return code.replace(/\bnote\(\s*(["'])([^"']*)\1/, (_all, q: string, inner: string) => {
+    const next = inner
+      .split(/\s+/)
+      .map((tok) => {
+        const m = tok.match(/^([a-gA-G](?:#|b)?)(-?\d+)(@[\d.]+)?$/)
+        if (!m) return tok
+        const shifted = shiftNoteBySemis(`${m[1]!.toLowerCase()}${m[2]}`, semis)
+        return `${shifted}${m[3] ?? ''}`
+      })
+      .join(' ')
+    return `note(${q}${next}${q}`
+  })
+}
+
+/**
+ * Shuffle-this for jam_mic_* lanes.
+ * - Walk N unchanged vs baked Keep phrase → pitch nudge only (keep @/speed/stretch/slow).
+ * - Walk N changed (or no baked phrase) → span current N, smear, + pitch nudge.
+ * Preserves sample name. Caller may re-attach mix FX via pinEffects.
+ */
+export function refitMicKeepCode(
+  currentCode: string,
+  opts: RefitMicKeepOpts = {},
+): string {
+  const mic = jamMicNameFromCode(currentCode)
+  if (!mic) return currentCode
+  const walkLength = Math.max(1, Math.min(4, Math.trunc(opts.walkLength ?? 1) || 1))
+  const pitch =
+    opts.pitchSemis != null ? opts.pitchSemis : randomMicPitchNudge()
+  const baked = bakedWalkLengthFromCode(currentCode)
+  const needsRefit =
+    opts.forceRefit === true || baked == null || baked !== walkLength
+
+  if (!needsRefit) {
+    // Same walk window — useful Shuffle = pitch only.
+    if (primaryNoteFromCode(currentCode)) {
+      return nudgeMicNotesInCode(currentCode, pitch)
+    }
+    // Keep-like but no parseable note — still nudge by rebuilding note only is N/A
+    return currentCode
+  }
+
+  const bpm = opts.bpm ?? 120
+  const maxBeats = walkLength * 4
+  const takeSec =
+    opts.takeSec != null && opts.takeSec > 0.05
+      ? opts.takeSec
+      : Math.max(0.4, maxBeats * (60 / Math.max(bpm, 40)) / 4)
+  const base = primaryNoteFromCode(currentCode) ?? 'c3'
+  const note = shiftNoteBySemis(base, pitch)
+  const mark = maxBeats === 1 ? '' : `@${maxBeats}`
+  let code = improvVoiceCode(`${note}${mark}`, mic)
+  const holdSec = maxBeats * (60 / Math.max(bpm, 40))
+  const sm = smearFromHold(holdSec, takeSec, note)
+  if (sm) {
+    code += `.speed(${sm.speed}).stretch(${sm.stretch})`
+  }
+  code += '.clip(1)'
+  if (walkLength > 1) code += `.slow(${walkLength})`
+  return code
 }
 
 /** Keep names the lane Pads; Rec takes also carry jam_mic_ in code. */
