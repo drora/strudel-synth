@@ -77,9 +77,12 @@ function rootIndex(root: string): number {
   return map[r] ?? 0
 }
 
+/** Absolute pitch: degree semis above root, carrying octave when past B. */
 export function noteAt(root: string, degree: number, octave: number): string {
-  const semis = (rootIndex(root) + degree + 120) % 12
-  return `${NOTE_NAMES[semis]}${octave}`
+  const midi = rootIndex(root) + degree + octave * 12
+  const pc = ((midi % 12) + 12) % 12
+  const oct = Math.floor(midi / 12)
+  return `${NOTE_NAMES[pc]}${oct}`
 }
 
 export function profileOf(kit: Kit | null | undefined): ResolvedShuffleProfile | null {

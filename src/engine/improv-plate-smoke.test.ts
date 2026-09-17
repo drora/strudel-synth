@@ -425,4 +425,13 @@ console.log('=== Improv plate smoke ===')
   console.log('pads keep voice swap ok')
 }
 
+
+{
+  // noteAt must carry octave past B (A minor: b4 → c5, not c4)
+  const pads = layoutImprovPads('a', 'minor', 4, null)
+  const notes = pads.filter((p) => p.enabled).map((p) => p.note!)
+  assert.deepEqual(notes, ['a4', 'b4', 'c5', 'd5', 'e5', 'f5', 'g5', 'a5'], 'A minor pads ascend')
+  console.log('A minor pads ascend ok')
+}
+
 console.log('improv-plate-smoke.test.ts: ok')
