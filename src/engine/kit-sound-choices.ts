@@ -1,10 +1,10 @@
 /**
- * Kit-scoped Sound sheet choices — prioritize the active kit's drumsBank /
- * melodicSounds / special-voice samples so tiles match what Shuffle generates.
+ * Kit-scoped Sound sheet choices — melodic roles use the role catalog
+ * (SOUND_CHOICES[role]) in catalog order; drum roles still prioritize
+ * drumsBank / special-voice / nobank native samples.
  */
 import type { TrackRole } from './types'
 import type { Kit, SoundChoice } from './kits-types'
-import { resolveShuffleProfile } from './kits-types'
 import { SOUND_CHOICES } from './kits-sound-choices'
 import { resolveDrumVoice, type DrumVoice } from './reshuffle-drums'
 import { drumsBankShortName } from './kit-browser'
@@ -24,25 +24,15 @@ function rangeTiles(prefix: string, labelPrefix: string, sample: string, from: n
   return out
 }
 
-/** Melodic-style list: kit melodicSounds first, then role globals (dedupe by sound). */
-function melodicStyleForRole(role: TrackRole, kit: Kit): SoundChoice[] {
-  const profile = resolveShuffleProfile(kit)
-  const globals = SOUND_CHOICES[role] ?? SOUND_CHOICES.custom
-  const out: SoundChoice[] = []
-  const seen = new Set<string>()
+/** Role catalog sound ids (SOUND_CHOICES[role]); equal-chance pool for Shuffle / +Track. */
+export function catalogSoundsForRole(role: TrackRole): string[] {
+  const choices = SOUND_CHOICES[role] ?? SOUND_CHOICES.custom
+  return choices.map((c) => c.sound).filter((s): s is string => Boolean(s))
+}
 
-  for (const s of profile.melodicSounds) {
-    if (seen.has(s)) continue
-    seen.add(s)
-    const existing = globals.find((c) => c.sound === s)
-    out.push(existing ?? tile(`kit-${s}`, s, s))
-  }
-  for (const c of globals) {
-    if (!c.sound || seen.has(c.sound)) continue
-    seen.add(c.sound)
-    out.push(c)
-  }
-  return out
+/** Melodic Sound sheet: role catalog only (kit.melodicSounds unused for ordering). */
+function melodicStyleForRole(role: TrackRole): SoundChoice[] {
+  return SOUND_CHOICES[role] ?? SOUND_CHOICES.custom
 }
 
 /** Role-ish label for a bank fallback tile (Kick / Hats / Clap). */
@@ -171,7 +161,7 @@ function nobankNativeChoices(role: TrackRole): SoundChoice[] {
 
 /**
  * Sound sheet tiles for a role given the active kit.
- * - Melodic: kit melodicSounds first, then global role choices.
+ * - Melodic: role SOUND_CHOICES catalog order (kit.melodicSounds not used).
  * - Drum bank voice: kit.drumsBank first among SOUND_CHOICES[role]; if the bank
  *   is missing from that role catalog, prepend a bank fallback tile so highlight works.
  * - Special voices: kit-native samples only (tabla/amen/…).
@@ -182,7 +172,7 @@ export function soundChoicesForKit(role: TrackRole, kit: Kit | null | undefined)
   if (!kit) return SOUND_CHOICES[role] ?? SOUND_CHOICES.custom
 
   if (MELODIC_ROLES.has(role)) {
-    return melodicStyleForRole(role, kit)
+    return melodicStyleForRole(role)
   }
 
   if (DRUM_ROLES.has(role)) {
@@ -211,12 +201,12 @@ export function pickRandomSoundChoice(
 const IMPROV_ROLES: TrackRole[] = ['lead', 'pad', 'arp', 'vox', 'custom', 'bass']
 
 /**
- * Melodic voice tiles for the improv plate: kit melodicSounds first, then unique
- * SOUND_CHOICES for lead/pad/arp/vox/custom/bass. Caller may append mic names.
+ * Melodic voice tiles for the improv plate: unique SOUND_CHOICES for
+ * lead/pad/arp/vox/custom/bass, then mic names. No kit.melodicSounds prepend.
  * No drums/hats/fx.
  */
 export function improvSoundChoices(
-  kit: Kit | null | undefined,
+  _kit: Kit | null | undefined,
   micNames: string[] = [],
 ): SoundChoice[] {
   const out: SoundChoice[] = []
@@ -226,13 +216,6 @@ export function improvSoundChoices(
     if (!sound || seen.has(sound)) return
     seen.add(sound)
     out.push(tile(id ?? `improv-${sound}`, label ?? sound, sound))
-  }
-
-  if (kit) {
-    const profile = resolveShuffleProfile(kit)
-    for (const s of profile.melodicSounds ?? []) {
-      pushSound(s)
-    }
   }
 
   for (const role of IMPROV_ROLES) {
@@ -252,7 +235,7 @@ export function improvSoundChoices(
   return out
 }
 
-/** Visit-first Pads voice: kit melodic list, skip Rec buffers. */
+/** Visit-first Pads voice: uniform over improv catalog, skip Rec buffers. */
 export function pickRandomImprovVoice(
   kit: Kit | null | undefined,
   avoid?: string,

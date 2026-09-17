@@ -221,22 +221,10 @@ function suggestPatternFragments(
   }))
 }
 
-function suggestMelodicSounds(profile: ResolvedShuffleProfile, role: TrackRole | null | undefined): KitSuggestion[] {
+function suggestMelodicSounds(_profile: ResolvedShuffleProfile, role: TrackRole | null | undefined): KitSuggestion[] {
   const out: KitSuggestion[] = []
   const seen = new Set<string>()
-
-  for (const s of profile.melodicSounds) {
-    if (seen.has(s)) continue
-    seen.add(s)
-    out.push({
-      label: s,
-      type: 'keyword',
-      detail: 'kit sound',
-      info: `Kit melodicSounds · ${profile.root} ${profile.scale}`,
-      boost: 90,
-    })
-  }
-
+  // Equal boost for every role-catalog sound (kit.melodicSounds unused for ranking).
   if (role && SOUND_CHOICES[role]) {
     for (const choice of SOUND_CHOICES[role]) {
       const id = choice.sound
@@ -247,7 +235,7 @@ function suggestMelodicSounds(profile: ResolvedShuffleProfile, role: TrackRole |
         type: 'keyword',
         detail: choice.label,
         info: `Sound choice · ${choice.label}`,
-        boost: 35,
+        boost: 50,
       })
     }
   }
@@ -297,7 +285,7 @@ export type KitSuggestHarmony = {
  * Ranked neighbor suggestions from the active kit shuffle profile.
  * Soft bias only — callers should merge with global/curated fallbacks.
  * When `harmony` is set (songRoot/songScale), note/scale/motif suggestions
- * use that root+scale while keeping kit groove/density/melodicSounds/banks.
+ * use that root+scale while keeping kit groove/density/banks.
  */
 export function suggestFromKitProfile(
   kit: Kit | null | undefined,

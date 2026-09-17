@@ -23,6 +23,7 @@ import type {
 } from './kits-types'
 import { resolveShuffleProfile } from './kits-types'
 import { generateDrumRole, resolveDrumVoice } from './reshuffle-drums'
+import { catalogSoundsForRole } from './kit-sound-choices'
 import { isMelodicRole, shiftNotesByOctaves } from './note-harmony'
 import {
   type SongSeed,
@@ -125,7 +126,7 @@ function ensureSeed(profile: ResolvedShuffleProfile, seed?: SongSeed | null): So
 }
 
 function generateBassLine(profile: ResolvedShuffleProfile, seed: SongSeed): string {
-  const { melodicSounds, fxBias, density } = profile
+  const { fxBias, density } = profile
   const notes: string[] = []
   for (const c of seed.walk) {
     const triad = centerTriadNotes(seed.root, c, 2)
@@ -145,7 +146,7 @@ function generateBassLine(profile: ResolvedShuffleProfile, seed: SongSeed): stri
     density === 'low' || Math.random() < 0.45
       ? notes.join(' ~ ')
       : pick([notes.join(' '), `<${notes.join(' ')}>`])
-  const synth = melodicSound(melodicSounds)
+  const synth = melodicSound(catalogSoundsForRole('bass'))
   const mix = seed.mix
   if (mix) {
     return noteExpr(`"${spaced}"`, synth, mixChain('bass', mix))
@@ -218,8 +219,8 @@ function leadPatternFromSeed(seed: SongSeed, density: Density): string {
 }
 
 function generateLeadLine(profile: ResolvedShuffleProfile, seed: SongSeed): string {
-  const { melodicSounds, fxBias, density } = profile
-  const synth = melodicSound(melodicSounds)
+  const { fxBias, density } = profile
+  const synth = melodicSound(catalogSoundsForRole('lead'))
   if (seed.mix) {
     return noteExpr(leadPatternFromSeed(seed, density), synth, mixChain('lead', seed.mix))
   }
@@ -229,12 +230,12 @@ function generateLeadLine(profile: ResolvedShuffleProfile, seed: SongSeed): stri
 }
 
 function generatePadChord(profile: ResolvedShuffleProfile, seed: SongSeed): string {
-  const { melodicSounds, fxBias, density } = profile
+  const { fxBias, density } = profile
   const chords = seed.walk.map((c) => {
     const parts = centerTriadNotes(seed.root, c, 3)
     return `[${parts.join(',')}]`
   })
-  const synth = melodicSound(melodicSounds.filter((s) => s !== 'square').concat(melodicSounds).slice(0, 6))
+  const synth = melodicSound(catalogSoundsForRole('pad'))
   const room = fxBias === 'roomy' ? (0.7 + Math.random() * 0.25).toFixed(2) : (0.3 + Math.random() * 0.35).toFixed(2)
   const gain = densityGain(density, 'pad')
   const attack = fxBias === 'roomy' || density === 'low' ? `.attack(${(0.3 + Math.random() * 0.7).toFixed(1)})` : ''
@@ -246,13 +247,13 @@ function generatePadChord(profile: ResolvedShuffleProfile, seed: SongSeed): stri
 }
 
 function generateArp(profile: ResolvedShuffleProfile, seed: SongSeed): string {
-  const { melodicSounds, fxBias, density } = profile
+  const { fxBias, density } = profile
   const notes: string[] = []
   for (const c of seed.walk) {
     notes.push(...pickN(centerMelodyNotes(seed.root, seed.scale, c, 3), pick([2, 3])))
   }
   const rate = density === 'high' ? pick([2, 4, 4]) : density === 'low' ? pick([2, 2]) : pick([2, 4])
-  const synth = melodicSound(melodicSounds)
+  const synth = melodicSound(catalogSoundsForRole('arp'))
   const fx = fxBias === 'delay' || fxBias === 'roomy'
     ? pick(['.delay(0.5).delaytime(0.125)', '.delay(0.35).delaytime(0.0625)', '.room(0.4)'])
     : pick(['.delay(0.25).delaytime(0.125)', '.room(0.3)', ''])
@@ -277,10 +278,10 @@ function generateArp(profile: ResolvedShuffleProfile, seed: SongSeed): string {
 }
 
 function generateVox(profile: ResolvedShuffleProfile, seed: SongSeed): string {
-  const { melodicSounds, fxBias } = profile
+  const { fxBias } = profile
   const pool = seed.walk.flatMap((c) => centerMelodyNotes(seed.root, seed.scale, c, 4))
   const notes = pickN(pool, pick([2, 3]))
-  const synth = melodicSound(melodicSounds)
+  const synth = melodicSound(catalogSoundsForRole('vox'))
   if (seed.mix) {
     return noteExpr(`"<${notes.join(' ')}>"`, synth, mixChain('vox', seed.mix))
   }
@@ -294,9 +295,8 @@ function resolveProfile(opts?: ReshuffleOpts): ResolvedShuffleProfile {
       density: opts.shuffle.density,
       root: opts.shuffle.root ?? 'c',
       scale: opts.shuffle.scale ?? 'minor',
-      melodicSounds: opts.shuffle.melodicSounds?.length
-        ? opts.shuffle.melodicSounds
-        : ['sawtooth', 'square', 'triangle', 'sine'],
+      // Field kept on profile; melodic generate uses role catalog, not this list.
+      melodicSounds: opts.shuffle.melodicSounds ?? [],
       fxBias: opts.shuffle.fxBias ?? 'dry',
       pinN: opts.shuffle.pinN,
     }
@@ -306,7 +306,7 @@ function resolveProfile(opts?: ReshuffleOpts): ResolvedShuffleProfile {
     density: pick(['low', 'mid', 'high'] as Density[]),
     root: 'c',
     scale: pick(['minor', 'major', 'dorian', 'pentatonic', 'mixolydian', 'phrygian', 'lydian', 'harmonic_minor'] as ScaleKind[]),
-    melodicSounds: ['sawtooth', 'square', 'triangle', 'sine'],
+    melodicSounds: [],
     fxBias: pick(['dry', 'roomy', 'filtered', 'delay'] as FxBias[]),
     pinN: undefined,
   }
