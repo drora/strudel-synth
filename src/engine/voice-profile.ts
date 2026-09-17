@@ -30,6 +30,10 @@ export const VOICE_PROFILES: Record<string, VoiceProfile> = {
   recorder_soprano_sus: { gain: 6, length: 'wash' },
   recorder_tenor_sus: { gain: 6, length: 'wash' },
   psaltery_bow: { gain: 0.7, length: 'wash' },
+  // GM soundfonts (bowed strings) — stack-risk; auto-clip on melodic roles
+  gm_string_ensemble_1: { gain: 0.5, length: 'wash' },
+  gm_cello: { gain: 0.6, length: 'wash' },
+  gm_violin: { gain: 0.7, length: 'wash' },
 
   // short — Dirt FX / one-shots (gain cuts for loud hits)
   hoover: { gain: 0.4, length: 'short' },
