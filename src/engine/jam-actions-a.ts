@@ -226,6 +226,7 @@ export function reshuffleUnlocked(): {
       bank: activeKit?.drumsBank,
       shuffle: songAwareShuffle(activeKit?.shuffle),
       seed,
+      walkDensity: jam.walkDensity ?? 1,
     })
     const oct = t.octave ?? 0
     if (oct && isMelodicRole(t.role)) next = shiftNotesByOctaves(next, oct)
@@ -276,6 +277,7 @@ export function reshuffleTrackById(
     bank: activeKit?.drumsBank,
     shuffle: songAwareShuffle(activeKit?.shuffle),
     seed,
+      walkDensity: jam.walkDensity ?? 1,
   })
   const oct = track.octave ?? 0
   if (oct && isMelodicRole(track.role)) next = shiftNotesByOctaves(next, oct)
@@ -320,6 +322,7 @@ export function addJamTrack(
       bank: kit?.drumsBank,
       shuffle: songAwareShuffle(kit?.shuffle),
       seed,
+      walkDensity: jam.walkDensity ?? 1,
     })
     const session = useSessionStore.getState()
     const choices = soundChoicesForKit(role, kit)
@@ -577,6 +580,7 @@ export function setWalkLength(
       bank: activeKit?.drumsBank,
       shuffle: songAwareShuffle(activeKit?.shuffle),
       seed,
+      walkDensity: jam.walkDensity ?? 1,
     })
     const oct = t.octave ?? 0
     if (oct && isMelodicRole(t.role)) next = shiftNotesByOctaves(next, oct)
@@ -660,6 +664,7 @@ function generateRoleCode(role: 'pad' | 'arp' | 'lead' | 'fx'): { code: string; 
     bank: kit?.drumsBank,
     shuffle: songAwareShuffle(kit?.shuffle),
     seed,
+      walkDensity: jam.walkDensity ?? 1,
   })
   const session = useSessionStore.getState()
   const choices = soundChoicesForKit(role, kit)
@@ -1120,6 +1125,59 @@ function applyIntensityDir(
 }
 
 /** Apply a named Mutate transform. Song scope = all unlocked; else trackId / last-touched. */
+
+/** Set walk chords-per-cycle (1 stretch · 2 densified) and reshuffle unlocked melodic. Idempotent. */
+export function setWalkDensity(
+  density: 1 | 2,
+): { ok: true; walkDensity: 1 | 2; changed: number; noop: boolean } | { ok: false; error: string } {
+  if (density !== 1 && density !== 2) {
+    return { ok: false, error: `walkDensity must be 1 or 2 (got ${density})` }
+  }
+  const jam = useJamStore.getState()
+  if ((jam.walkDensity ?? 1) === density) {
+    jam.setLastPeek(density === 2 ? 'Densify walk · already' : 'Undensify walk · already')
+    return { ok: true, walkDensity: density, changed: 0, noop: true }
+  }
+  endTakeIfCapturing()
+  jam.setWalkDensity(density)
+  const activeKit = jam.kitId ? getKit(jam.kitId) : undefined
+  const pinEffects = useUIStore.getState().pinEffects
+  const session = useSessionStore.getState()
+  const snaps: { trackId: string; code: string }[] = []
+  let changed = 0
+  for (const tr of session.tracks) {
+    if (!isMelodicRole(tr.role)) continue
+    if (tr.locked) continue
+    snaps.push({ trackId: tr.id, code: tr.code })
+    let next = reshuffleTrack(tr.role, tr.code, {
+      pinEffects,
+      lockKit: jam.lockKit || !!activeKit,
+      bank: activeKit?.drumsBank,
+      shuffle: songAwareShuffle(activeKit?.shuffle),
+      seed: jam.songSeed,
+      walkDensity: density,
+    })
+    const oct = tr.octave ?? 0
+    if (oct && isMelodicRole(tr.role)) next = shiftNotesByOctaves(next, oct)
+    session.setCode(tr.id, next)
+    changed++
+  }
+  if (snaps.length) {
+    const primary = snaps[0]!
+    jam.pushUndo({
+      trackId: primary.trackId,
+      code: primary.code,
+      label: density === 2 ? 'Mutate · Densify walk' : 'Mutate · Undensify walk',
+      batch: snaps.length > 1 ? snaps : undefined,
+    })
+  }
+  dropSpawnedPad()
+  jam.resetIntensitySession()
+  jam.setLastPeek(density === 2 ? 'Densify walk · 2/cycle' : 'Undensify walk · 1/cycle')
+  queueLive('reshuffle')
+  return { ok: true, walkDensity: density, changed, noop: false }
+}
+
 export function applyMutate(
   mutateId: MutateId | string,
   opts?: { trackId?: string },
@@ -1128,6 +1186,11 @@ export function applyMutate(
   if (!def) return { ok: false, error: `Unknown mutate: ${mutateId}` }
   if (def.id === 'intensity-up' || def.id === 'intensity-down') {
     return applyIntensityDir(def.id === 'intensity-up' ? 1 : -1)
+  }
+  if (def.id === 'densify-walk' || def.id === 'undensify-walk') {
+    const r = setWalkDensity(def.id === 'densify-walk' ? 2 : 1)
+    if (!r.ok) return { ok: false, error: r.error }
+    return { ok: true, id: def.id, label: def.label, changed: r.changed }
   }
   const session = useSessionStore.getState()
   const jam = useJamStore.getState()

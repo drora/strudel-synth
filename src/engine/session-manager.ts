@@ -6,6 +6,7 @@
 import type { Track, TrackRole, Template } from './types'
 import type { ScaleKind } from './kits-types'
 import type { SongSeed } from './song-seed'
+import type { WalkDensity } from './reshuffle'
 import { ROLE_COLORS } from './types'
 import {
   AUTOSAVE_KEY,
@@ -38,6 +39,7 @@ export interface SectionSnap {
   songRoot?: string
   songScale?: ScaleKind
   songSeed?: SongSeed | null
+  walkDensity?: WalkDensity
 }
 
 /** Build tracks + bpm from a Template (new ids). */

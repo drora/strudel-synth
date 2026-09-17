@@ -14,6 +14,7 @@ interface Props {
  */
 export function JamMutateSheet({ onClose }: Props) {
   const lastTouched = useJamStore((s) => s.lastTouchedTrackId)
+  const walkDensity = useJamStore((s) => s.walkDensity ?? 1)
   const tracks = useSessionStore((s) => s.tracks)
   const target =
     (lastTouched && tracks.find((t) => t.id === lastTouched)) || tracks[0] || null
@@ -106,7 +107,11 @@ export function JamMutateSheet({ onClose }: Props) {
               key={m.id}
               type="button"
               onClick={() => onPick(m.id)}
-              className="min-h-14 px-3 py-2 rounded-xl text-left bg-bg border border-border hover:border-accent/50 transition-colors"
+              disabled={
+                (m.id === 'densify-walk' && walkDensity === 2) ||
+                (m.id === 'undensify-walk' && walkDensity === 1)
+              }
+              className="min-h-14 px-3 py-2 rounded-xl text-left bg-bg border border-border hover:border-accent/50 transition-colors disabled:opacity-40 disabled:pointer-events-none disabled:hover:border-border"
               title={m.hint}
             >
               <div className="text-xs font-semibold text-text flex items-center gap-1.5">

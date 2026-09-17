@@ -24,6 +24,7 @@ import type {
 } from './kits-types'
 import { VIBE_SHUFFLE_DEFAULTS, resolveShuffleProfile } from './kits-types'
 import { generateKitTracks } from './reshuffle'
+import { useJamStore } from '../store/jam-store'
 import type { SongSeed } from './song-seed'
 
 export type {
@@ -68,7 +69,7 @@ export function getKit(id: string): Kit | undefined {
  * + lane layout. Every call yields related-but-new patterns (not baked recipes).
  */
 export function kitToTemplate(kit: Kit, seed?: SongSeed): Template {
-  const tracks = generateKitTracks(kit, seed)
+  const tracks = generateKitTracks(kit, seed, useJamStore.getState().walkDensity ?? 1)
   return {
     id: kit.id,
     name: kit.name,
