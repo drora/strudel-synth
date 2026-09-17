@@ -152,18 +152,45 @@ function leadShapeKey(code: string): string {
     assert.ok(!getBank(next), `tabla should not gain .bank(); got ${next}`)
   }
 
-  // Recorded / one-shot sample on a melodic role: keep s(), never note()+synth
+  // jam_mic_*: Keep-like refit (never synth melody / one-shot grid)
   {
+    const walk4 = {
+      root: 'c',
+      scale: 'minor' as const,
+      patternId: 'test',
+      walk: [
+        { degree: 0, quality: 'min' as const },
+        { degree: 5, quality: 'min' as const },
+        { degree: 3, quality: 'maj' as const },
+        { degree: 7, quality: 'maj' as const },
+      ],
+    }
     const mic = 's("jam_mic_1")'
     for (const density of ['low', 'mid', 'high'] as const) {
       const next = reshuffleTrack('vox', mic, {
         shuffle: { groove: 'sparse', density, melodicSounds: ['sawtooth'] },
+        seed: walk4,
+        bpm: 120,
+        takeSec: 0.4,
       })
-      assert.ok(/^\s*s\(/.test(next), `mic stays s(); got ${next}`)
       assert.ok(next.includes('jam_mic_1'), `mic sample pinned; got ${next}`)
-      assert.ok(!/\bnote\(/.test(next), `mic must not become note(); got ${next}`)
+      assert.ok(/\bnote\(/.test(next), `mic refit uses note(); got ${next}`)
+      assert.ok(/\.s\("jam_mic_1"\)/.test(next), `mic stays .s(); got ${next}`)
       assert.ok(!/\.sound\(/.test(next), `mic must not become .sound(); got ${next}`)
+      assert.match(next, /\.slow\(4\)/, next)
     }
+    // Same baked walk → pitch only
+    const kept = 'note("c3@16").s("jam_mic_1").speed(0.1).stretch(9).clip(1).slow(4)'
+    const nudged = reshuffleTrack('vox', kept, {
+      shuffle: { groove: 'sparse', density: 'mid' },
+      seed: walk4,
+      bpm: 120,
+      takeSec: 0.4,
+    })
+    assert.match(nudged, /\.slow\(4\)/, nudged)
+    assert.match(nudged, /\.speed\(0\.1\)/, nudged)
+    assert.match(nudged, /@16/, nudged)
+    assert.ok(nudged !== kept, 'pitch should change')
   }
 
   const bankCur = 's("bd sd hh cp").bank("RolandTR909").n(1).gain(1.05)'

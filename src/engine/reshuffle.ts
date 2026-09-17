@@ -34,6 +34,7 @@ import {
   centerMelodyNotes,
   mixChain,
 } from './song-seed'
+import { isJamMicCode, jamMicNameFromCode, refitMicKeepCode } from './improv-plate'
 
 const DRUM_ROLES: TrackRole[] = ['drums', 'hihats', 'fx']
 
@@ -54,6 +55,10 @@ export interface ReshuffleOpts {
   seed?: SongSeed | null
   /** Chords per drum cycle: 1 = stretch default; 2 = densified walk. */
   walkDensity?: 1 | 2
+  /** Session BPM — mic Keep refit uses it for smear / @beats. */
+  bpm?: number
+  /** Wall-clock jam_mic take length (seconds) for smear. */
+  takeSec?: number
 }
 
 function pick<T>(arr: T[]): T {
@@ -485,6 +490,40 @@ export function reshuffleTrack(
 ): string {
   const profile = resolveProfile(opts)
   const pinned = captureSoundIdentity(currentCode)
+
+  // jam_mic_* Keep / Rec: pitch nudge always; time-stretch refit only when walk N ≠ baked.
+  // Never fall through to melody generate or sampleTriggerPattern one-shots.
+  const micName =
+    jamMicNameFromCode(currentCode) ??
+    (pinned?.kind === 'sample' && /jam_mic_\d+/.test(pinned.sample)
+      ? pinned.sample
+      : pinned?.kind === 'sound' && /jam_mic_\d+/.test(pinned.sound)
+        ? pinned.sound
+        : null)
+  if (micName || isJamMicCode(currentCode)) {
+    const walkLength = opts?.seed?.walk.length ?? 1
+    let next = refitMicKeepCode(currentCode, {
+      walkLength,
+      bpm: opts?.bpm ?? 120,
+      takeSec: opts?.takeSec,
+    })
+    if (opts?.pinEffects) {
+      const { fx } = splitEffectSuffix(currentCode)
+      // Refit owns smear; do not re-pin old speed/stretch onto a rebuilt line.
+      const mixFx = fx
+        .replace(/\.speed\([^)]*\)/g, '')
+        .replace(/\.stretch\([^)]*\)/g, '')
+      if (mixFx) {
+        for (const call of mixFx.match(/\.[a-zA-Z_]\w*\([^()]*\)/g) ?? []) {
+          const name = call.slice(1, call.indexOf('('))
+          if (new RegExp(`\\.${name}\\(`).test(next)) continue
+          next += call
+        }
+      }
+    }
+    return next
+  }
+
   const bank =
     opts?.bank ??
     (opts?.lockKit ? getBankFromCode(currentCode) : null) ??

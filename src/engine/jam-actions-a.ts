@@ -22,6 +22,8 @@ import { liveUpdateEngine, type Quantization } from './live-update'
 import { applyIntensityFromBase, applyIntensityL4Layer, applyMutateToTracks, getMutation, type MutateId, type SongTimeFeel } from './mutate'
 import { planShuffleTargets } from './shuffle-lock'
 import { pickRandomSoundChoice, pickRandomImprovVoice, soundChoicesForKit } from './kit-sound-choices'
+import { isPadsKeepTrack, jamMicNameFromCode } from './improv-plate'
+import { micSampleDuration } from './mic-sample'
 import type { Track } from './types'
 import {
   captureL1BaseSnap,
@@ -39,6 +41,11 @@ import {
 } from './intensity'
 
 export type JamQueueReason = 'kit' | 'jam' | 'reshuffle' | 'mute-solo'
+
+function micTakeSecForCode(code: string): number | undefined {
+  const name = jamMicNameFromCode(code)
+  return name ? micSampleDuration(name) : undefined
+}
 
 /** Module guard — survives React Strict Mode remount; reset on full load or bfcache pageshow. */
 let freshStartDone = false
@@ -232,6 +239,7 @@ export function reshuffleUnlocked(): {
   jam.resetWalkDensity()
   let shuffled = 0
   for (const t of targets) {
+    if (isPadsKeepTrack(t)) continue
     let next = reshuffleTrack(t.role, t.code, {
       pinEffects,
       lockKit: jam.lockKit || !!activeKit,
@@ -239,6 +247,8 @@ export function reshuffleUnlocked(): {
       shuffle: songAwareShuffle(activeKit?.shuffle),
       seed,
       walkDensity: 1,
+      bpm: state.bpm,
+      takeSec: micTakeSecForCode(t.code),
     })
     const oct = t.octave ?? 0
     if (oct && isMelodicRole(t.role)) next = shiftNotesByOctaves(next, oct)
@@ -290,7 +300,9 @@ export function reshuffleTrackById(
     bank: activeKit?.drumsBank,
     shuffle: songAwareShuffle(activeKit?.shuffle),
     seed,
-      walkDensity: jam.walkDensity ?? 1,
+    walkDensity: jam.walkDensity ?? 1,
+    bpm: state.bpm,
+    takeSec: micTakeSecForCode(track.code),
   })
   const oct = track.octave ?? 0
   if (oct && isMelodicRole(track.role)) next = shiftNotesByOctaves(next, oct)
@@ -526,6 +538,7 @@ export function rollSongHarmony(): {
   for (const t of state.tracks) {
     if (!isMelodicRole(t.role)) continue
     if (t.locked) continue
+    if (isPadsKeepTrack(t)) continue
     let next = reshuffleTrack(t.role, t.code, {
       pinEffects,
       lockKit: jam.lockKit || !!activeKit,
@@ -533,6 +546,8 @@ export function rollSongHarmony(): {
       shuffle: songAwareShuffle(activeKit?.shuffle),
       seed: nextSeed,
       walkDensity: 1,
+      bpm: state.bpm,
+      takeSec: micTakeSecForCode(t.code),
     })
     const oct = t.octave ?? 0
     if (oct) next = shiftNotesByOctaves(next, oct)
@@ -591,6 +606,7 @@ export function setWalkLength(
   for (const t of state.tracks) {
     if (!isMelodicRole(t.role)) continue
     if (t.locked) continue
+    if (isPadsKeepTrack(t)) continue
     let next = reshuffleTrack(t.role, t.code, {
       pinEffects,
       lockKit: jam.lockKit || !!activeKit,
@@ -598,6 +614,8 @@ export function setWalkLength(
       shuffle: songAwareShuffle(activeKit?.shuffle),
       seed,
       walkDensity: 1,
+      bpm: state.bpm,
+      takeSec: micTakeSecForCode(t.code),
     })
     const oct = t.octave ?? 0
     if (oct && isMelodicRole(t.role)) next = shiftNotesByOctaves(next, oct)
@@ -1166,6 +1184,7 @@ export function setWalkDensity(
   for (const tr of session.tracks) {
     if (!isMelodicRole(tr.role)) continue
     if (tr.locked) continue
+    if (isPadsKeepTrack(tr)) continue
     snaps.push({ trackId: tr.id, code: tr.code })
     let next = reshuffleTrack(tr.role, tr.code, {
       pinEffects,
@@ -1174,6 +1193,8 @@ export function setWalkDensity(
       shuffle: songAwareShuffle(activeKit?.shuffle),
       seed: jam.songSeed,
       walkDensity: density,
+      bpm: session.bpm,
+      takeSec: micTakeSecForCode(tr.code),
     })
     const oct = tr.octave ?? 0
     if (oct && isMelodicRole(tr.role)) next = shiftNotesByOctaves(next, oct)

@@ -122,11 +122,12 @@ export function JamImprovPlate({ onClose }: Props) {
     const hits = hitsRef.current
     if (hits.length === 0) return
     const session = useSessionStore.getState()
+    const jam = useJamStore.getState()
+    const walkLength = jam.songSeed?.walk.length ?? 1
     const code = applyImprovMixToCode(
-      hitsToNoteCode(hits, voice, session.bpm, micSampleDuration(voice)),
+      hitsToNoteCode(hits, voice, session.bpm, micSampleDuration(voice), walkLength),
       mix,
     )
-    const jam = useJamStore.getState()
     const id = session.addTrack({
       name: 'Pads',
       role: 'vox',

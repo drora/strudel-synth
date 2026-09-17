@@ -303,4 +303,28 @@ console.log('=== Walk length smoke ===')
   }
 }
 
+
+  // Pads Keep / jam_mic survives setWalkLength (structure change skips isPadsKeepTrack)
+  {
+    const session = useSessionStore.getState()
+    const padsCode = 'note("c3@16").s("jam_mic_9").speed(0.1).stretch(9).clip(1).slow(4)'
+    const id = session.addTrack({
+      name: 'Pads',
+      role: 'vox',
+      code: padsCode,
+      color: '#a78bfa',
+      muted: false,
+      soloed: false,
+      locked: false,
+      volume: 1,
+      octave: 0,
+      error: null,
+    })
+    setWalkLength(2)
+    const after = useSessionStore.getState().tracks.find((x) => x.id === id)
+    assert.ok(after, 'Pads track still present')
+    assert.equal(after!.code, padsCode, 'setWalkLength must not wipe Pads Keep')
+    console.log('  Pads Keep survives setWalkLength: ok')
+  }
+
 console.log('ALL WALK-LENGTH CHECKS PASSED')
