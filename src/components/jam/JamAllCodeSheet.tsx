@@ -10,6 +10,9 @@ import {
   applyImportToTracks,
   applyJamHeader,
   checkImportCode,
+  importJamBuffer,
+  parseAllCode,
+  parseAllTrackSections,
   allCodeFilename,
   IMPORT_FILE_ACCEPT,
   downloadAllCode,
@@ -68,6 +71,35 @@ export function JamAllCodeSheet() {
     // Mid-type / comment-with-`(` can false-negative; still persist parseable @track diffs.
     const check = checkImportCode(text, session.tracks)
     setIssue(check.ok ? null : check.message)
+
+    // Matching known ids → patch codes only (live edit of this jam).
+    const matched = parseAllCode(text, session.tracks)
+    if (matched.length > 0) {
+      const diffs = applyImportToTracks(text, session.tracks)
+      for (const d of diffs) {
+        session.setCode(d.id, d.code)
+      }
+      const chromeChanged = applyJamHeader(text)
+      if (holdImport.current || chromeChanged) {
+        useJamStore.getState().resetIntensitySession()
+      }
+      if (diffs.length > 0) {
+        useJamStore.getState().touchTrack(diffs[diffs.length - 1]!.id)
+        liveUpdateEngine.markDirty()
+      } else if (chromeChanged) {
+        liveUpdateEngine.markDirty()
+      }
+      return
+    }
+
+    // Foreign @track sections (file / paste import) → replace jam track list.
+    if (parseAllTrackSections(text).length > 0) {
+      importJamBuffer(text)
+      liveUpdateEngine.markDirty()
+      return
+    }
+
+    // Snippet → last-touched / first track.
     const last = useJamStore.getState().lastTouchedTrackId
     const diffs = applyImportToTracks(text, session.tracks, last)
     for (const d of diffs) {
@@ -214,6 +246,9 @@ export function JamAllCodeSheet() {
             <div className="text-sm font-semibold truncate text-text">
               All tracks · {tracks.length}
             </div>
+            <div className="text-[10px] text-text-muted truncate">
+              Paste here · or Load file
+            </div>
           </div>
           <div className="flex items-center gap-1.5">
             <input
@@ -229,7 +264,9 @@ export function JamAllCodeSheet() {
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="min-h-11 px-3 rounded-xl text-xs font-medium bg-bg text-text-muted border border-border hover:text-text"
+              className="min-h-11 px-3 rounded-xl text-xs font-medium bg-accent/15 text-accent border border-accent/40 hover:bg-accent/25"
+              title="Open a .strudel / .txt file from disk"
+              aria-label="Load file from disk"
             >
               Load file
             </button>

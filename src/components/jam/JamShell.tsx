@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import { useJamStore } from '../../store/jam-store'
 import { useSessionStore } from '../../store/session-store'
 import { useUIStore } from '../../store/ui-store'
@@ -20,7 +20,7 @@ import { JamABToggle } from './JamABToggle'
 import { useJamShell } from './useJamShell'
 import { JamTrackChip } from './JamTrackChip'
 import { drumsBankShortName } from '../../engine/kit-browser'
-import { CODE_ALL, isCodeAllOpen, downloadAllCode, tracksToAllCode, allCodeFilename, IMPORT_FILE_ACCEPT } from '../../engine/all-code'
+import { CODE_ALL, isCodeAllOpen, downloadAllCode, tracksToAllCode, allCodeFilename } from '../../engine/all-code'
 import { setSongHarmony, rollSongHarmony, setWalkLength } from '../../engine/jam-actions'
 import { SONG_ROOTS, SONG_SCALES, SONG_SCALE_LABELS } from '../../engine/note-harmony'
 import { walkConcertNames } from '../../engine/song-seed'
@@ -43,8 +43,6 @@ export function JamShell() {
     j.isPlaying && walkChips.length > 0 ? cycleInt % walkChips.length : -1
   const codeAll = isCodeAllOpen(codeTrackId)
   const codeTrack = codeAll ? undefined : j.tracks.find((t) => t.id === codeTrackId)
-  const importFileRef = useRef<HTMLInputElement>(null)
-
   const exportJam = () => {
     downloadAllCode(
       tracksToAllCode(j.tracks, {
@@ -63,17 +61,9 @@ export function JamShell() {
     )
   }
 
+  /** Import opens the all-code paste sheet; Load file lives inside JamAllCodeSheet. */
   const startImport = () => {
     useJamStore.getState().setCodeTrackId(CODE_ALL)
-    importFileRef.current?.click()
-  }
-
-  const onImportFile = (file: File | undefined) => {
-    if (!file) return
-    void file.text().then((text) => {
-      useJamStore.getState().setPendingAllCode(text)
-      useJamStore.getState().setCodeTrackId(CODE_ALL)
-    })
   }
 
   return (
@@ -106,20 +96,12 @@ export function JamShell() {
           >
             Learn
           </button>
-          <input
-            ref={importFileRef}
-            type="file"
-            accept={IMPORT_FILE_ACCEPT}
-            className="hidden"
-            onChange={(e) => {
-              onImportFile(e.target.files?.[0])
-              e.target.value = ''
-            }}
-          />
           <button
             type="button"
             className="min-h-11 px-3 rounded-lg text-xs font-medium bg-bg-elevated text-text-muted border border-border hover:text-accent"
             onClick={startImport}
+            title="Open paste sheet — Load file is inside"
+            aria-label="Import — open paste sheet"
           >
             Import
           </button>
