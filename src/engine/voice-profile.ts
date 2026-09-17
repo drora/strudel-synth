@@ -34,6 +34,10 @@ export const VOICE_PROFILES: Record<string, VoiceProfile> = {
   gm_string_ensemble_1: { gain: 0.5, length: 'wash' },
   gm_cello: { gain: 0.6, length: 'wash' },
   gm_violin: { gain: 0.7, length: 'wash' },
+  // New long VCSL orphans
+  vibraphone_bowed: { gain: 0.7, length: 'wash' },
+  didgeridoo: { gain: 0.75, length: 'wash' },
+  psaltery_spiccato: { gain: 1, length: 'short' },
 
   // short — Dirt FX / one-shots (gain cuts for loud hits)
   hoover: { gain: 0.4, length: 'short' },
@@ -67,8 +71,20 @@ export function voiceKey(sound: string): string {
   return (sound.split(':')[0] ?? '').toLowerCase()
 }
 
+/** Long GM families → wash; everything else gm_* → held @ 0.85. */
+const GM_WASH_RE =
+  /^gm_(string_ensemble_[12]|synth_strings_[12]|tremolo_strings|choir_aahs|voice_oohs|synth_choir|pad_.+|drawbar_organ|percussive_organ|rock_organ|church_organ|reed_organ|cello|contrabass|violin|viola|accordion|bandoneon)$/
+
+function gmDefaultProfile(key: string): VoiceProfile {
+  if (GM_WASH_RE.test(key)) return { gain: 0.55, length: 'wash' }
+  return { gain: 0.85, length: 'held' }
+}
+
 export function voiceProfile(sound: string): VoiceProfile {
-  return VOICE_PROFILES[voiceKey(sound)] ?? DEFAULT_PROFILE
+  const key = voiceKey(sound)
+  if (VOICE_PROFILES[key]) return VOICE_PROFILES[key]
+  if (key.startsWith('gm_')) return gmDefaultProfile(key)
+  return DEFAULT_PROFILE
 }
 
 /** Compose / pad amp multiplier — keep this name for callers. */

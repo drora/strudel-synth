@@ -1,5 +1,6 @@
 import type { TrackRole } from './types'
 import type { SoundChoice } from './kits-types'
+import { GM_FX_CHOICES } from './kits-sound-choices-melodic'
 
 export const DRUM_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = {
   drums: [
@@ -143,5 +144,7 @@ export const DRUM_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = {
     { id: 'hoover', label: 'Hoover', sound: 'hoover' },
     { id: 'pluck', label: 'Pluck', sound: 'pluck' },
     { id: 'juno', label: 'Juno', sound: 'juno' },
+    // GM percussion / FX (novelty one-shots stay excluded)
+    ...GM_FX_CHOICES,
   ]
 }

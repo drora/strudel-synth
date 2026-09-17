@@ -167,7 +167,13 @@ assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
     assert.ok(HIDDEN_PITCHED_CHOICES.some((c) => c.sound === s), `hidden ${s}`)
     assert.ok(SOUND_CHOICES.lead.some((c) => c.sound === s), `lead has ${s}`)
   }
-  assert.equal(HIDDEN_PITCHED_CHOICES.length, 37)
+  assert.equal(HIDDEN_PITCHED_CHOICES.length, 40)
+  // Useful VCSL orphans promoted onto melodic sheets
+  for (const s of ['psaltery_spiccato', 'vibraphone_bowed', 'didgeridoo']) {
+    assert.ok(HIDDEN_PITCHED_CHOICES.some((c) => c.sound === s), `orphan hidden ${s}`)
+  }
+  assert.ok(SOUND_CHOICES.lead.some((c) => c.sound === 'psaltery_spiccato'), 'lead has psaltery_spiccato')
+  assert.ok(SOUND_CHOICES.bass.some((c) => c.sound === 'didgeridoo'), 'bass has didgeridoo')
 }
 
 
@@ -230,15 +236,30 @@ assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
 }
 
 
-// GM bowed-strings on role catalogs + voice-profile wash keys
+// GM useful set on role catalogs + voice-profile wash/default keys
 {
   assert.ok(SOUND_CHOICES.pad.some((c) => c.sound === 'gm_string_ensemble_1'), 'pad has String ensemble')
   assert.ok(SOUND_CHOICES.lead.some((c) => c.sound === 'gm_violin'), 'lead has Violin')
   assert.ok(SOUND_CHOICES.bass.some((c) => c.sound === 'gm_cello'), 'bass has Cello')
+  // Spread of new GM across roles (not novelty)
+  assert.ok(SOUND_CHOICES.bass.some((c) => c.sound === 'gm_acoustic_bass'), 'bass has GM Acoustic bass')
+  assert.ok(SOUND_CHOICES.lead.some((c) => c.sound === 'gm_flute'), 'lead has GM Flute')
+  assert.ok(SOUND_CHOICES.pad.some((c) => c.sound === 'gm_pad_warm'), 'pad has GM Pad warm')
+  assert.ok(SOUND_CHOICES.arp.some((c) => c.sound === 'gm_kalimba'), 'arp has GM Kalimba')
+  assert.ok(SOUND_CHOICES.fx.some((c) => c.sound === 'gm_orchestra_hit'), 'fx has GM Orchestra hit')
+  // Novelty must NOT pollute melodic pools
+  for (const role of ['bass', 'lead', 'pad', 'arp'] as const) {
+    assert.ok(!SOUND_CHOICES[role].some((c) => c.sound === 'gm_gunshot'), `${role} excluded gunshot`)
+    assert.ok(!SOUND_CHOICES[role].some((c) => c.sound === 'gm_helicopter'), `${role} excluded helicopter`)
+    assert.ok(!SOUND_CHOICES[role].some((c) => c.sound === 'pad'), `${role} no dirt pad`)
+    assert.ok(!SOUND_CHOICES[role].some((c) => c.sound === 'stab'), `${role} no dirt stab`)
+  }
   assert.equal(sampleGainBoost('gm_string_ensemble_1') < 1, true, 'ensemble gain cut')
   assert.equal(defaultClipForVoice('gm_string_ensemble_1', 'pad'), 0.55)
   assert.equal(defaultClipForVoice('gm_violin', 'lead'), 0.2)
   assert.equal(defaultClipForVoice('gm_cello', 'bass'), 0.2)
+  assert.equal(sampleGainBoost('gm_piano'), 0.85, 'gm default held gain')
+  assert.equal(defaultClipForVoice('gm_pad_warm', 'pad'), 0.55, 'gm pad wash clip')
   const ens = applySoundChoiceToCode(
     'note("c3 e3 g3").sound("sine").gain(0.6)',
     { id: 'gm-string-ensemble', label: 'String ensemble', sound: 'gm_string_ensemble_1' },
@@ -248,4 +269,4 @@ assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
   assert.ok(ens.includes('.clip(0.55)'), `ensemble pad auto-clip; got ${ens}`)
 }
 
-console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, melodic=catalog, nobank dirt, bank fallback, match/apply, vox vocals, +Track random voice, visit pad voice, voice-profile clip/gain, gm bowed-strings')
+console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, melodic=catalog, nobank dirt, bank fallback, match/apply, vox vocals, +Track random voice, visit pad voice, voice-profile clip/gain, gm useful set + orphans')
