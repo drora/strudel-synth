@@ -6,7 +6,7 @@ import type { ScaleKind } from './kits-types'
 import { SCALE_DEGREES, NOTE_NAMES, rootIndex } from './note-harmony'
 import { noteAt } from './kit-suggest-core'
 import type { WalkCenter } from './song-seed'
-import { parseEffectValue, setEffectInCode } from './code-effects'
+import { parseEffectValue, setEffectInCode, getSoundFromCode } from './code-effects'
 
 export type ImprovPad = {
   /** 1–8 logical slot (bottom-left = 1 … top-right = 8). */
@@ -351,38 +351,14 @@ export type ImprovPadMix = {
 export const IMPROV_MIX_DEFAULT: ImprovPadMix = { volume: 0.9, velocity: 0.85 }
 
 /**
- * Sample banks that sit well below synths (soft-only VCSL, glass, small pipes).
- * Applied via pad amp + compose track `.gain` — do not also bake `.gain` into Keep code.
+ * @deprecated Use voiceProfile / sampleGainBoost from voice-profile.
+ * Quiet-sample gains now live in VOICE_PROFILES; this alias mirrors gain-only entries.
  */
-export const QUIET_SAMPLE_GAIN: Record<string, number> = {
-  marimba: 8,
-  glockenspiel: 8,
-  harp: 6,
-  folkharp: 6,
-  dantranh: 6,
-  organ_4inch: 6,
-  ocarina: 6,
-  ocarina_small: 8,
-  recorder_alto_sus: 6,
-  recorder_bass_sus: 6,
-  recorder_soprano_sus: 6,
-  recorder_tenor_sus: 6,
-  wineglass: 12,
-  wineglass_slow: 12,
-  wt_digital_basique: 5,
-  speechless: 5,
-}
+export { sampleGainBoost } from './voice-profile'
 
-export function sampleGainBoost(sound: string): number {
-  const key = (sound.split(':')[0] ?? '').toLowerCase()
-  return QUIET_SAMPLE_GAIN[key] ?? 1
-}
-
+/** Primary sample/synth from code — includes leading s("…") dirt FX lines. */
 export function soundFromCode(code: string): string | null {
-  const sound = code.match(/\.sound\(\s*["']([^"']+)["']\s*\)/)
-  if (sound?.[1]) return sound[1]
-  const s = code.match(/\.s\(\s*["']([^"']+)["']\s*\)/)
-  return s?.[1] ?? null
+  return getSoundFromCode(code)
 }
 
 export const IMPROV_VOL_STEPS = [0, 0.25, 0.5, 0.75, 0.9, 1, 1.25, 1.5]

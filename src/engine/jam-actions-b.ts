@@ -142,7 +142,7 @@ export function applySoundChoice(
     code: track.code,
     label: `Sound · ${choice.label}`,
   })
-  const next = applySoundChoiceToCode(track.code, choice)
+  const next = applySoundChoiceToCode(track.code, choice, track.role)
   session.setCode(track.id, next)
   jam.touchTrack(track.id)
   jam.setLastPeek(`Sound · ${choice.label}`)

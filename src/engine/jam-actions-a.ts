@@ -328,7 +328,7 @@ export function addJamTrack(
       .map((t) => choices.find((c) => matchSoundChoice(t.code, c))?.id)
       .filter((id): id is string => !!id)
     const voice = pickRandomSoundChoice(role, kit, used)
-    if (voice) code = applySoundChoiceToCode(code, voice)
+    if (voice) code = applySoundChoiceToCode(code, voice, role)
   }
   if (!code) code = preset.defaultCode
   const name = opts?.name ?? preset.label
@@ -668,7 +668,7 @@ function generateRoleCode(role: 'pad' | 'arp' | 'lead' | 'fx'): { code: string; 
     .map((tr) => choices.find((c) => matchSoundChoice(tr.code, c))?.id)
     .filter((id): id is string => !!id)
   const voice = pickRandomSoundChoice(role, kit, used)
-  if (voice) code = applySoundChoiceToCode(code, voice)
+  if (voice) code = applySoundChoiceToCode(code, voice, role)
   if (!code) code = preset.defaultCode
   return { code, name: preset.label, color: preset.color }
 }

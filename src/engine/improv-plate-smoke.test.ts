@@ -267,6 +267,8 @@ console.log('=== Improv plate smoke ===')
   assert.equal(sampleGainBoost('sine'), 1)
   assert.equal(sampleGainBoost('kalimba'), 1)
   assert.equal(soundFromCode('note("c4").sound("marimba")'), 'marimba')
+  assert.equal(soundFromCode('s("sax")'), 'sax')
+  assert.equal(soundFromCode('s("pad ~ ~ pad")'), 'pad')
   const kept = composeTracks(
     [track({ id: 'm', code: 'note("c4").sound("marimba")', volume: 1 })],
     120,
@@ -281,6 +283,8 @@ console.log('=== Improv plate smoke ===')
   assert.equal(sampleGainBoost('wineglass_slow'), 12)
   assert.equal(sampleGainBoost('speechless'), 5)
   assert.equal(sampleGainBoost('wt_digital_basique'), 5)
+  assert.ok(sampleGainBoost('sax') < 1)
+  assert.equal(sampleGainBoost('organ_4inch'), 6)
   console.log('quiet sample gain boost ok')
 }
 

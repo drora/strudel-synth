@@ -1,4 +1,5 @@
 import type { TrackRole } from './types'
+import { clipSuffix } from './voice-profile'
 import {
   splitEffectSuffix,
   getBankFromCode,
@@ -101,11 +102,13 @@ function isSampleLeadSound(sound: string): boolean {
   return sound.startsWith('wt_') || sound.startsWith('organ_') || sound.startsWith('pipeorgan')
 }
 
-function noteExpr(pattern: string, sound: string, suffix: string): string {
+function noteExpr(pattern: string, sound: string, suffix: string, role: TrackRole): string {
+  const clip = clipSuffix(sound, role)
+  const full = clip && !/\.clip\(/.test(suffix) ? `${suffix}${clip}` : suffix
   if (isSampleLeadSound(sound)) {
-    return `s("${sound}").note(${pattern})${suffix}`
+    return `s("${sound}").note(${pattern})${full}`
   }
-  return `note(${pattern}).sound("${sound}")${suffix}`
+  return `note(${pattern}).sound("${sound}")${full}`
 }
 
 function ensureSeed(profile: ResolvedShuffleProfile, seed?: SongSeed | null): SongSeed {
@@ -149,13 +152,13 @@ function generateBassLine(profile: ResolvedShuffleProfile, seed: SongSeed): stri
   const synth = melodicSound(catalogSoundsForRole('bass'))
   const mix = seed.mix
   if (mix) {
-    return noteExpr(`"${spaced}"`, synth, mixChain('bass', mix))
+    return noteExpr(`"${spaced}"`, synth, mixChain('bass', mix), 'bass')
   }
   const lpf = fxBias === 'roomy' ? 250 + Math.floor(Math.random() * 200) : 350 + Math.floor(Math.random() * 550)
   const gain = densityGain(density, 'bass')
   const fx = fxSnippet(fxBias, 'bass')
   const lpq = fxBias === 'filtered' && Math.random() < 0.5 ? `.lpq(${6 + Math.floor(Math.random() * 8)})` : ''
-  return noteExpr(`"${spaced}"`, synth, `.lpf(${lpf})${lpq}.gain(${gain})${fx}`)
+  return noteExpr(`"${spaced}"`, synth, `.lpf(${lpf})${lpq}.gain(${gain})${fx}`, 'bass')
 }
 
 /** Lead note-pattern from walk centers; cap *2 (no *3/*4). */
@@ -222,11 +225,11 @@ function generateLeadLine(profile: ResolvedShuffleProfile, seed: SongSeed): stri
   const { fxBias, density } = profile
   const synth = melodicSound(catalogSoundsForRole('lead'))
   if (seed.mix) {
-    return noteExpr(leadPatternFromSeed(seed, density), synth, mixChain('lead', seed.mix))
+    return noteExpr(leadPatternFromSeed(seed, density), synth, mixChain('lead', seed.mix), 'lead')
   }
   const fx = fxSnippet(fxBias === 'dry' ? 'delay' : fxBias, 'lead')
   const gain = densityGain(density, 'lead')
-  return noteExpr(leadPatternFromSeed(seed, density), synth, `${fx}.gain(${gain})`)
+  return noteExpr(leadPatternFromSeed(seed, density), synth, `${fx}.gain(${gain})`, 'lead')
 }
 
 function generatePadChord(profile: ResolvedShuffleProfile, seed: SongSeed): string {
@@ -241,9 +244,9 @@ function generatePadChord(profile: ResolvedShuffleProfile, seed: SongSeed): stri
   const attack = fxBias === 'roomy' || density === 'low' ? `.attack(${(0.3 + Math.random() * 0.7).toFixed(1)})` : ''
   const lpf = fxBias === 'filtered' ? `.lpf(${500 + Math.floor(Math.random() * 900)})` : pick(['', `.lpf(${1100 + Math.floor(Math.random() * 500)})`])
   if (seed.mix) {
-    return noteExpr(`"<${chords.join(' ')}>"`, synth, `${attack}${mixChain('pad', seed.mix)}`)
+    return noteExpr(`"<${chords.join(' ')}>"`, synth, `${attack}${mixChain('pad', seed.mix)}`, 'pad')
   }
-  return noteExpr(`"<${chords.join(' ')}>"`, synth, `.room(${room})${attack}${lpf}.gain(${gain})`)
+  return noteExpr(`"<${chords.join(' ')}>"`, synth, `.room(${room})${attack}${lpf}.gain(${gain})`, 'pad')
 }
 
 function generateArp(profile: ResolvedShuffleProfile, seed: SongSeed): string {
@@ -272,9 +275,9 @@ function generateArp(profile: ResolvedShuffleProfile, seed: SongSeed): string {
     pat = `"<${notes.slice(0, 6).join(' ')}>*${rate}"`
   }
   if (seed.mix) {
-    return noteExpr(pat, synth, mixChain('arp', seed.mix))
+    return noteExpr(pat, synth, mixChain('arp', seed.mix), 'arp')
   }
-  return noteExpr(pat, synth, `${fx}.gain(${gain})`)
+  return noteExpr(pat, synth, `${fx}.gain(${gain})`, 'arp')
 }
 
 function generateVox(profile: ResolvedShuffleProfile, seed: SongSeed): string {
@@ -283,9 +286,9 @@ function generateVox(profile: ResolvedShuffleProfile, seed: SongSeed): string {
   const notes = pickN(pool, pick([2, 3]))
   const synth = melodicSound(catalogSoundsForRole('vox'))
   if (seed.mix) {
-    return noteExpr(`"<${notes.join(' ')}>"`, synth, mixChain('vox', seed.mix))
+    return noteExpr(`"<${notes.join(' ')}>"`, synth, mixChain('vox', seed.mix), 'vox')
   }
-  return noteExpr(`"<${notes.join(' ')}>"`, synth, `${fxSnippet(fxBias, 'lead')}.gain(0.18)`)
+  return noteExpr(`"<${notes.join(' ')}>"`, synth, `${fxSnippet(fxBias, 'lead')}.gain(0.18)`, 'vox')
 }
 
 function resolveProfile(opts?: ReshuffleOpts): ResolvedShuffleProfile {

@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { getKit } from './kits'
 import { soundChoicesForKit, pickRandomSoundChoice, pickRandomImprovVoice, improvSoundChoices } from './kit-sound-choices'
 import { matchSoundChoice, applySoundChoiceToCode } from './kits'
+import { sampleGainBoost, applyVoiceClipToCode, defaultClipForVoice } from './voice-profile'
 import { getSoundFromCode } from './code-effects'
 import { SOUND_CHOICES } from './kits-sound-choices'
 import { HIDDEN_PITCHED_CHOICES } from './kits-sound-choices-melodic'
@@ -193,4 +194,39 @@ assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
   assert.ok(matchSoundChoice(applied, { id: 'dirt-pad', label: 'Dirt pad', sound: 'pad' }))
 }
 
-console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, melodic=catalog, nobank dirt, bank fallback, match/apply, vox vocals, +Track random voice, visit pad voice')
+
+
+// Voice profiles: gain cuts/boosts + wash auto-clip on Sound apply
+{
+  assert.ok(sampleGainBoost('sax') < 1, 'sax gain cut')
+  assert.equal(sampleGainBoost('marimba'), 8)
+  assert.equal(sampleGainBoost('arpy'), 1)
+  assert.equal(defaultClipForVoice('sax', 'lead'), 0.2)
+  assert.equal(defaultClipForVoice('arpy', 'lead'), null)
+  assert.equal(defaultClipForVoice('sax', 'fx'), null)
+
+  const saxLead = applySoundChoiceToCode(
+    'note("c4 ~ eb4").sound("sine").gain(0.7)',
+    { id: 'sax', label: 'Sax', sound: 'sax' },
+    'lead',
+  )
+  assert.ok(saxLead.includes('.sound("sax")'), `sax sound; got ${saxLead}`)
+  assert.ok(saxLead.includes('.clip(0.2)'), `sax lead auto-clip; got ${saxLead}`)
+
+  const arpyLead = applySoundChoiceToCode(
+    'note("c4 ~ eb4").sound("sine").gain(0.7)',
+    { id: 'arpy', label: 'Arpy', sound: 'arpy' },
+    'lead',
+  )
+  assert.ok(arpyLead.includes('.sound("arpy")'), `arpy sound; got ${arpyLead}`)
+  assert.ok(!arpyLead.includes('.clip('), `arpy lead no clip; got ${arpyLead}`)
+
+  // Switching wash → short clears auto default clip
+  const cleared = applyVoiceClipToCode('note("c4").sound("sax").clip(0.2)', 'arpy', 'lead')
+  assert.ok(!cleared.includes('.clip('), `clear auto clip; got ${cleared}`)
+  // User override clip survives leave-wash
+  const kept = applyVoiceClipToCode('note("c4").sound("sax").clip(0.8)', 'arpy', 'lead')
+  assert.ok(kept.includes('.clip(0.8)'), `keep user clip; got ${kept}`)
+}
+
+console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, melodic=catalog, nobank dirt, bank fallback, match/apply, vox vocals, +Track random voice, visit pad voice, voice-profile clip/gain')
