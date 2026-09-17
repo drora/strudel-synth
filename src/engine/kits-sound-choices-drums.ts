@@ -136,5 +136,12 @@ export const DRUM_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = {
     { id: 'd110', label: 'D-110 snare', bank: 'RolandD110' },
     { id: 't3', label: 'T3 rim', bank: 'KorgT3' },
     { id: 'krz', label: 'KRZ snare', bank: 'KorgKRZ' },
+    // Dirt hits / one-shots (moved off melodic — not sustained pad/lead voices)
+    { id: 'dirt-pad', label: 'Dirt pad', sound: 'pad' },
+    { id: 'padlong', label: 'Pad long', sound: 'padlong' },
+    { id: 'stab', label: 'Stab', sound: 'stab' },
+    { id: 'hoover', label: 'Hoover', sound: 'hoover' },
+    { id: 'pluck', label: 'Pluck', sound: 'pluck' },
+    { id: 'juno', label: 'Juno', sound: 'juno' },
   ]
 }

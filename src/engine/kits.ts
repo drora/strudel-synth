@@ -85,15 +85,25 @@ export function kitToTemplate(kit: Kit, seed?: SongSeed): Template {
 export { SOUND_CHOICES } from './kits-sound-choices'
 
 
-/** Sample-voice choice (tabla:0, amencutup:3, mridangam_tha, bd/cp, …) — no .bank(). */
+/** Sample-voice choice (tabla:0, amencutup:3, mridangam_tha, bd/cp, dirt FX hits, …) — no .bank(). */
 function isSampleVoiceChoice(choice: SoundChoice): boolean {
   if (!choice.sound || choice.bank) return false
   const s = choice.sound
   return (
     s.includes(':') ||
     /^(tabla2?|tablex|amencutup|breaks\d+|gretsch|electro1|jazz|mridangam_|bassdrum\d*|snare_|hihat)/.test(s) ||
-    /^(bd|sd|cp|hh|oh|rim|perc|cb|rd)$/.test(s)
+    /^(bd|sd|cp|hh|oh|rim|perc|cb|rd)$/.test(s) ||
+    // Dirt one-shots on the FX sheet (moved off melodic pad/lead)
+    /^(pad|padlong|stab|hoover|pluck|juno)$/.test(s)
   )
+}
+
+/** Drop bank/n/sound when switching a drum line to a dirt sample voice. */
+function stripBankVoiceExtras(code: string): string {
+  return code
+    .replace(/\.bank\(\s*["'][^"']+["']\s*\)/g, '')
+    .replace(/\.n\(\s*\d+\s*\)/g, '')
+    .replace(/\.sound\(\s*["'][^"']+["']\s*\)/g, '')
 }
 
 /** True when code currently reflects this Sound sheet choice (bank/sound/n). */
@@ -123,10 +133,15 @@ export function applySoundChoiceToCode(code: string, choice: SoundChoice): strin
     if (
       isSampleVoiceChoice(choice) &&
       /\bs\(\s*["'][^"']+["']\s*\)/.test(next) &&
-      !/\.sound\(/.test(next) &&
       !/\bnote\(/.test(next)
     ) {
-      next = rewriteSPatternSample(next, choice.sound)
+      // Dirt FX one-shots: whole s("…") becomes the sample; special voices keep pattern shape
+      if (/^(pad|padlong|stab|hoover|pluck|juno)$/.test(choice.sound)) {
+        next = next.replace(/\bs\(\s*["'][^"']+["']\s*\)/, `s("${choice.sound}")`)
+      } else {
+        next = rewriteSPatternSample(next, choice.sound)
+      }
+      next = stripBankVoiceExtras(next)
     } else if (/\.sound\(/.test(next) || /note\(/.test(next)) {
       // Prefer .sound() for synths; drum lines often use s("bd") + bank
       next = setSoundInCode(next, choice.sound)
