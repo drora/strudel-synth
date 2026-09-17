@@ -50,11 +50,14 @@ assert.deepEqual(
   ['mridangam_tha', 'mridangam_thom'],
 )
 
-// Melodic: kit melodicSounds first
+// Melodic: role catalog order (kit.melodicSounds does not reorder)
 const melodic = soundChoicesForKit('bass', punch)
-const profileFirst = punch!.shuffle.melodicSounds?.[0]
-assert.ok(profileFirst)
-assert.equal(melodic[0]?.sound, profileFirst, 'bass prioritizes kit melodicSounds')
+assert.deepEqual(
+  melodic.map((c) => c.sound),
+  SOUND_CHOICES.bass.map((c) => c.sound),
+  'bass sheet equals SOUND_CHOICES.bass',
+)
+assert.ok(punch!.shuffle.melodicSounds?.length, 'kit still has melodicSounds field')
 
 // No kit → global
 const globalDrums = soundChoicesForKit('drums', null)
@@ -166,4 +169,4 @@ assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
   assert.equal(HIDDEN_PITCHED_CHOICES.length, 37)
 }
 
-console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, nobank dirt, bank fallback, match/apply, vox vocals, +Track random voice, visit pad voice')
+console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, melodic=catalog, nobank dirt, bank fallback, match/apply, vox vocals, +Track random voice, visit pad voice')

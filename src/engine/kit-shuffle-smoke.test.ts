@@ -18,6 +18,7 @@ import {
   getSoundFromCode,
   primarySSample,
 } from './code-effects'
+import { SOUND_CHOICES } from './kits-sound-choices'
 
 const DRUM_ROLES = new Set(['drums', 'hihats', 'fx'])
 
@@ -201,6 +202,53 @@ function leadShapeKey(code: string): string {
   })
   assert.ok(fresh.length > 0)
   console.log('shuffle pin sound/bank/n/synth: ok')
+}
+
+
+// Melodic generate: equal-chance role catalog (not kit.melodicSounds shortlist)
+{
+  function extractMelodicId(code: string): string | null {
+    const sound = getSoundFromCode(code)
+    if (sound) return sound
+    const m = code.match(/\bs\(["']([^"']+)["']\)/)
+    return m?.[1] ?? null
+  }
+  const bassCatalog = new Set((SOUND_CHOICES.bass ?? []).map((c) => c.sound).filter(Boolean))
+  for (const kitId of ['techno-boom808', 'house-classic909'] as const) {
+    const kit = getKit(kitId)
+    assert.ok(kit, kitId)
+    const kitShort = new Set(resolveShuffleProfile(kit!).melodicSounds)
+    const seen = new Set<string>()
+    for (let i = 0; i < 80; i++) {
+      const tracks = generateKitTracks(kit!)
+      const bass = tracks.find((t) => t.role === 'bass')
+      if (!bass) continue
+      const id = extractMelodicId(bass.code)
+      assert.ok(id, `bass sound in ${bass.code}`)
+      assert.ok(bassCatalog.has(id!), `${kitId} bass ${id} must be in SOUND_CHOICES.bass`)
+      seen.add(id!)
+    }
+    assert.ok(seen.size >= 2, `${kitId} expected ≥2 distinct bass sounds, got ${[...seen]}`)
+    // Not stuck on kit shortlist alone when catalog is larger
+    if (kitShort.size < bassCatalog.size && bassCatalog.size >= 3) {
+      assert.ok(
+        [...seen].some((s) => !kitShort.has(s)) || seen.size > kitShort.size,
+        `${kitId} should escape kit.melodicSounds shortlist ${[...kitShort]}; seen ${[...seen]}`,
+      )
+    }
+    console.log(`  catalog shuffle ${kitId}: ${seen.size} distinct bass (${[...seen].slice(0, 6).join(', ')}…)`)
+  }
+  // Empty melodicSounds still generates from catalog
+  {
+    const kit = getKit('techno-boom808')!
+    const code = reshuffleTrack('bass', '', {
+      shuffle: { ...kit.shuffle, melodicSounds: [] },
+      lockKit: true,
+    })
+    const id = extractMelodicId(code)
+    assert.ok(id && bassCatalog.has(id), `empty melodicSounds still catalogs; got ${code}`)
+    console.log('  empty melodicSounds → catalog: ok')
+  }
 }
 
 console.log('ALL CHECKS PASSED')

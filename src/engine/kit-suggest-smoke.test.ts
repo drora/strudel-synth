@@ -62,28 +62,30 @@ for (const kit of [punch!, dusty!]) {
   console.log(`  sample ${kit.id}: ${top(sugs, 3).join(', ')}`)
 }
 
-// sound -- kit melodicSounds outrank globals
+// sound -- equal catalog ranking (no kit.melodicSounds boost-90)
 for (const kit of [punch!, dusty!]) {
-  const prof = resolveShuffleProfile(kit)
   const sugs = suggestFromKitProfile(kit, 'bass', 'sound')
-  const labels = top(sugs, prof.melodicSounds.length)
-  assert.ok(labels.every((l) => prof.melodicSounds.includes(l)))
-  for (const ms of prof.melodicSounds) {
-    const found = sugs.find((s) => s.label === ms)
-    assert.ok(found && found.boost >= 80, ms)
-  }
-  console.log(`  sound ${kit.id}: ${labels.join(', ')}`)
+  assert.ok(sugs.length > 0, 'bass sound suggestions')
+  const boosts = new Set(sugs.map((s) => s.boost))
+  assert.equal(boosts.size, 1, 'all catalog sounds share one boost')
+  assert.ok(!sugs.some((s) => (s.boost ?? 0) >= 80), 'no kit-only boost ≥80')
+  assert.ok(
+    sugs.every((s) => (s.info ?? '').includes('Sound choice')),
+    'info is Sound choice, not Kit melodicSounds',
+  )
+  console.log(`  sound ${kit.id}: equal boost=${sugs[0]!.boost} n=${sugs.length} top=${top(sugs, 3).join(', ')}`)
 }
 
-// merge -- kit boost wins on duplicate label
+// merge -- catalog equal boost, not kit-list-first
 {
   const merged = mergeKitSuggestions(
     [{ label: 'sawtooth', boost: 5 }, { label: 'piano', boost: 40 }],
     suggestFromKitProfile(punch!, 'bass', 'sound'),
   )
   const saw = merged.find((m) => m.label === 'sawtooth')
-  assert.ok((saw?.boost ?? 0) >= 80)
-  assert.ok(punchProf.melodicSounds.includes(merged[0]!.label))
+  assert.equal(saw?.boost, 50, `sawtooth catalog boost, got ${saw?.boost}`)
+  const kitOnlyBoost = merged.filter((m) => (m.info ?? '').includes('Kit melodicSounds'))
+  assert.equal(kitOnlyBoost.length, 0, 'no Kit melodicSounds tiles')
   console.log(`  merge top: ${merged.slice(0, 3).map((m) => m.label).join(', ')}`)
 }
 
