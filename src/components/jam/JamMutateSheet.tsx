@@ -15,6 +15,7 @@ interface Props {
 export function JamMutateSheet({ onClose }: Props) {
   const lastTouched = useJamStore((s) => s.lastTouchedTrackId)
   const walkDensity = useJamStore((s) => s.walkDensity ?? 1)
+  const songTimeFeel = useJamStore((s) => s.songTimeFeel ?? 'normal')
   const tracks = useSessionStore((s) => s.tracks)
   const target =
     (lastTouched && tracks.find((t) => t.id === lastTouched)) || tracks[0] || null
@@ -79,27 +80,27 @@ export function JamMutateSheet({ onClose }: Props) {
               key={m.id}
               type="button"
               onClick={() => onPick(m.id)}
-              className="min-h-14 px-3 py-2 rounded-xl text-left bg-bg border hover:border-accent/50 transition-colors"
+              className="min-h-14 px-3 py-2 rounded-xl text-left bg-bg border hover:border-accent/50 transition-colors overflow-hidden"
               style={{
                 borderColor: target ? `${target.color}55` : undefined,
               }}
               title={m.hint}
             >
-              <div className="text-xs font-semibold text-text flex items-center gap-1.5">
-                {m.label}
+              <div className="text-xs font-semibold text-text flex items-center gap-1.5 min-w-0">
+                <span className="truncate">{m.label}</span>
+                {target && (
+                  <span
+                    className="shrink-0 max-w-[40%] truncate rounded-md px-1.5 py-0.5 text-[9px] font-medium"
+                    style={{
+                      color: target.color,
+                      backgroundColor: `${target.color}22`,
+                    }}
+                  >
+                    {target.name}
+                  </span>
+                )}
               </div>
               <div className="text-[10px] text-text-muted leading-snug">{m.hint}</div>
-              {target && (
-                <div
-                  className="mt-1 inline-flex max-w-full items-center rounded-md px-1.5 py-0.5 text-[9px] font-medium truncate"
-                  style={{
-                    color: target.color,
-                    backgroundColor: `${target.color}22`,
-                  }}
-                >
-                  {target.name}
-                </div>
-              )}
             </button>
           ))}
           {songMutations.map((m) => (
@@ -109,7 +110,9 @@ export function JamMutateSheet({ onClose }: Props) {
               onClick={() => onPick(m.id)}
               disabled={
                 (m.id === 'densify-walk' && walkDensity === 2) ||
-                (m.id === 'undensify-walk' && walkDensity === 1)
+                (m.id === 'undensify-walk' && walkDensity === 1) ||
+                (m.id === 'half-time' && songTimeFeel === 'half') ||
+                (m.id === 'double-time' && songTimeFeel === 'double')
               }
               className="min-h-14 px-3 py-2 rounded-xl text-left bg-bg border border-border hover:border-accent/50 transition-colors disabled:opacity-40 disabled:pointer-events-none disabled:hover:border-border"
               title={m.hint}

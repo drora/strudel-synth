@@ -21,6 +21,7 @@ export {
   setWalkLength,
   setWalkDensity,
   setTrackOctave,
+  applySongTimeFeel,
   applyMutate,
 } from './jam-actions-a'
 

@@ -19,7 +19,7 @@ import {
   shiftNotesByOctaves,
 } from './note-harmony'
 import { liveUpdateEngine, type Quantization } from './live-update'
-import { applyIntensityFromBase, applyIntensityL4Layer, applyMutateToTracks, getMutation, type MutateId } from './mutate'
+import { applyIntensityFromBase, applyIntensityL4Layer, applyMutateToTracks, getMutation, type MutateId, type SongTimeFeel } from './mutate'
 import { planShuffleTargets } from './shuffle-lock'
 import { pickRandomSoundChoice, pickRandomImprovVoice, soundChoicesForKit } from './kit-sound-choices'
 import type { Track } from './types'
@@ -139,6 +139,7 @@ export function applyKit(
   if (opts?.fromPicker) jam.setShowKitPicker(false)
   // ONE generate only — do not reshuffleUnlocked here.
   jam.resetIntensitySession()
+  jam.resetSongTimeFeel()
   jam.setLastPeek(`kit · ${kit.name} · shuffled`)
   queueLive('kit')
   return {
@@ -179,6 +180,14 @@ export function undoJam(): { ok: true; label: string } | { ok: false; error: str
   }
   if (entry.intensityLevel != null) {
     jam.setIntensityLevel(entry.intensityLevel)
+  }
+  if (entry.songTimeFeel != null) {
+    jam.setSongTimeFeel(entry.songTimeFeel)
+  }
+  if ('songTimeFeelBase' in entry) {
+    jam.setSongTimeFeelBase(
+      entry.songTimeFeelBase ? entry.songTimeFeelBase.map((c) => ({ ...c })) : null,
+    )
   }
   jam.touchTrack(entry.trackId)
   jam.setLastPeek(`Undo · ${entry.label}`)
@@ -236,6 +245,7 @@ export function reshuffleUnlocked(): {
   jam.reconcileLastTouchedAfterSongReshuffle()
   dropSpawnedPad()
   jam.resetIntensitySession()
+  jam.resetSongTimeFeel()
   jam.setLastPeek(activeKit ? `Shuffle · ${activeKit.name}` : jam.lockKit ? 'Shuffle · same kit' : 'Shuffle · free')
   queueLive('reshuffle')
   return { ok: true, shuffled, lockKit: jam.lockKit }
@@ -526,6 +536,7 @@ export function rollSongHarmony(): {
   }
   dropSpawnedPad()
   jam.resetIntensitySession()
+  jam.resetSongTimeFeel()
   jam.setLastPeek(`Key · ${root} ${scale} · walk ${nextSeed.walk.length}`)
   queueLive('reshuffle')
   return { ok: true, root, scale, remapped, walkLength: nextSeed.walk.length }
@@ -588,6 +599,7 @@ export function setWalkLength(
   }
   dropSpawnedPad()
   jam.resetIntensitySession()
+  jam.resetSongTimeFeel()
   jam.setLastPeek(`Walk · ${n}`)
   queueLive('reshuffle')
   return { ok: true, walkLength: n, patternId: seed.patternId }
@@ -1173,9 +1185,102 @@ export function setWalkDensity(
   }
   dropSpawnedPad()
   jam.resetIntensitySession()
+  jam.resetSongTimeFeel()
   jam.setLastPeek(density === 2 ? 'Densify walk · 2/cycle' : 'Undensify walk · 1/cycle')
   queueLive('reshuffle')
   return { ok: true, walkDensity: density, changed, noop: false }
+}
+
+
+/** Song Half/Double-time once-only ternary: normal↔half | normal↔double; opposite restores normal. */
+export function applySongTimeFeel(
+  target: 'half' | 'double',
+): { ok: true; id: MutateId; label: string; changed: number; noop: boolean; feel: SongTimeFeel } | { ok: false; error: string } {
+  const def = getMutation(target === 'half' ? 'half-time' : 'double-time')
+  if (!def) return { ok: false, error: `Unknown mutate: ${target}-time` }
+  const jam = useJamStore.getState()
+  const session = useSessionStore.getState()
+  const feel: SongTimeFeel = jam.songTimeFeel ?? 'normal'
+
+  if (feel === target) {
+    jam.setLastPeek(`Mutate · ${def.label} · already`)
+    return { ok: true, id: def.id, label: def.label, changed: 0, noop: true, feel }
+  }
+
+  const prevFeel = feel
+  const prevBase = jam.songTimeFeelBase
+    ? jam.songTimeFeelBase.map((c) => ({ ...c }))
+    : null
+
+  // Opposite pole → restore normal (base snapshot preferred; else inverse transform)
+  if ((feel === 'half' && target === 'double') || (feel === 'double' && target === 'half')) {
+    const beforeCodes = session.tracks.map((t) => ({ trackId: t.id, code: t.code }))
+    let changed = 0
+    if (prevBase && prevBase.length) {
+      for (const snap of prevBase) {
+        const tr = session.tracks.find((t) => t.id === snap.trackId)
+        if (!tr || tr.locked) continue
+        if (tr.code !== snap.code) {
+          session.setCode(snap.trackId, snap.code)
+          changed++
+        }
+      }
+    } else {
+      // Inverse: double undoes half cleanly; half approx-undoes double when no base
+      const inverseId: MutateId = feel === 'half' ? 'double-time' : 'half-time'
+      const prefer = jam.lastTouchedTrackId ?? session.activeTrackId
+      const result = applyMutateToTracks(session.tracks, inverseId, prefer)
+      if (result) {
+        for (const c of result.changes) {
+          session.setCode(c.trackId, c.code)
+          changed++
+        }
+      }
+    }
+    jam.setSongTimeFeel('normal')
+    jam.setSongTimeFeelBase(null)
+    const primary = beforeCodes[0]
+    jam.pushUndo({
+      trackId: primary?.trackId ?? session.tracks[0]?.id ?? 'track-1',
+      code: primary?.code ?? '',
+      label: `Mutate · ${def.label}`,
+      batch: beforeCodes.length > 1 ? beforeCodes : undefined,
+      songTimeFeel: prevFeel,
+      songTimeFeelBase: prevBase,
+    })
+    jam.setLastPeek(`Mutate · ${def.label} · normal`)
+    queueLive('jam')
+    return { ok: true, id: def.id, label: def.label, changed, noop: false, feel: 'normal' }
+  }
+
+  // From normal → apply transform; snapshot pre-feel codes
+  const prefer = jam.lastTouchedTrackId ?? session.activeTrackId
+  const result = applyMutateToTracks(session.tracks, def.id, prefer)
+  if (!result) {
+    jam.setLastPeek(`Mutate · ${def.label} · (no change)`)
+    return { ok: false, error: 'Nothing to mutate' }
+  }
+  const base = result.changes.map((c) => {
+    const t = session.tracks.find((x) => x.id === c.trackId)!
+    return { trackId: t.id, code: t.code }
+  })
+  const primary = base[0]!
+  jam.pushUndo({
+    trackId: primary.trackId,
+    code: primary.code,
+    label: `Mutate · ${result.label}`,
+    batch: base.length > 1 ? base : undefined,
+    songTimeFeel: prevFeel,
+    songTimeFeelBase: null,
+  })
+  for (const c of result.changes) {
+    session.setCode(c.trackId, c.code)
+  }
+  jam.setSongTimeFeel(target)
+  jam.setSongTimeFeelBase(base)
+  jam.setLastPeek(`Mutate · ${result.label} · song`)
+  queueLive('jam')
+  return { ok: true, id: result.id, label: result.label, changed: result.changes.length, noop: false, feel: target }
 }
 
 export function applyMutate(
@@ -1186,6 +1291,11 @@ export function applyMutate(
   if (!def) return { ok: false, error: `Unknown mutate: ${mutateId}` }
   if (def.id === 'intensity-up' || def.id === 'intensity-down') {
     return applyIntensityDir(def.id === 'intensity-up' ? 1 : -1)
+  }
+  if (def.id === 'half-time' || def.id === 'double-time') {
+    const r = applySongTimeFeel(def.id === 'half-time' ? 'half' : 'double')
+    if (!r.ok) return { ok: false, error: r.error }
+    return { ok: true, id: r.id, label: r.label, changed: r.changed }
   }
   if (def.id === 'densify-walk' || def.id === 'undensify-walk') {
     const r = setWalkDensity(def.id === 'densify-walk' ? 2 : 1)

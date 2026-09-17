@@ -10,6 +10,9 @@ import type { IntensityLevel } from './intensity'
 
 export type MutateScope = 'track' | 'song'
 
+/** Song Half/Double-time pole: normal ↔ half | normal ↔ double (opposite restores normal). */
+export type SongTimeFeel = 'normal' | 'half' | 'double'
+
 export type MutateId =
   | 'sparse'
   | 'denser'
@@ -42,7 +45,7 @@ export const MUTATIONS: readonly MutateDef[] = [
   { id: 'denser', label: 'Denser', hint: 'Pack more hits', scope: 'track' },
   { id: 'straighten', label: 'Straighten', hint: 'Less syncopation', scope: 'track' },
   { id: 'syncopate', label: 'Syncopate', hint: 'Push off the grid', scope: 'track' },
-  { id: 'half-time', label: 'Half-time', hint: 'Stretch feel · all tracks', scope: 'song' },
+  { id: 'half-time', label: 'Half-time', hint: 'Stretch feel · all tracks · once (opp. restores)', scope: 'song' },
   { id: 'ghosts', label: 'Ghosts', hint: 'Quiet in-between hits', scope: 'track' },
   { id: 'skeleton', label: 'Skeleton', hint: 'Kick+hats / root drones', scope: 'track' },
   { id: 'stutter', label: 'Stutter', hint: 'Ratchet the last hit', scope: 'track' },
@@ -50,7 +53,7 @@ export const MUTATIONS: readonly MutateDef[] = [
   { id: 'rotate-r', label: 'Rotate R', hint: 'Shift +1 beat', scope: 'track' },
   { id: 'reverse', label: 'Reverse', hint: 'Flip the pattern', scope: 'track' },
   { id: 'every-other', label: 'Every other', hint: 'Keep alternate hits', scope: 'track' },
-  { id: 'double-time', label: 'Double-time', hint: 'Tighten feel · all tracks', scope: 'song' },
+  { id: 'double-time', label: 'Double-time', hint: 'Tighten feel · all tracks · once (opp. restores)', scope: 'song' },
   { id: 'densify-walk', label: 'Densify walk', hint: '2 chords / drum cycle · unlocked melodic', scope: 'song' },
   { id: 'undensify-walk', label: 'Undensify walk', hint: '1 chord / drum cycle · unlocked melodic', scope: 'song' },
   { id: 'intensity-up', label: 'Intensity+', hint: '1 as-is · 2 hats fill gaps · 3 pad → arp → keys → fx · 4 bd ~ ~ ~ → bd ~ bd ~ · *N→*2N · perc snares; bass+keys walk @0.5', scope: 'song' },
