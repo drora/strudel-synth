@@ -232,6 +232,20 @@ console.log('=== Walk length smoke ===')
     console.log('  densify/undensify 1↔2 + drums pinned: ok')
   }
 
+  // Structure change resets densify (align with half/double + intensity)
+  {
+    const { setWalkDensity, setWalkLength: setWL, reshuffleUnlocked } = await import('./jam-actions.ts')
+    setWL(3)
+    setWalkDensity(2)
+    assert.equal(useJamStore.getState().walkDensity, 2)
+    setWL(4)
+    assert.equal(useJamStore.getState().walkDensity, 1, 'setWalkLength resets densify')
+    setWalkDensity(2)
+    reshuffleUnlocked()
+    assert.equal(useJamStore.getState().walkDensity, 1, 'Shuffle resets densify')
+    console.log('  densify resets on walk N + Shuffle: ok')
+  }
+
   // Highlight math: cycleInt % N (integer cycles) — source smoke
   {
     const { readFileSync } = await import('node:fs')

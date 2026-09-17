@@ -89,6 +89,8 @@ interface JamState {
   setSongTimeFeel: (feel: SongTimeFeel) => void
   setSongTimeFeelBase: (base: { trackId: string; code: string }[] | null) => void
   resetSongTimeFeel: () => void
+  /** Structure change → back to 1 chord/cycle (align with half/double + intensity). */
+  resetWalkDensity: () => void
   setLockKit: (lock: boolean) => void
   setShowKitPicker: (show: boolean) => void
   setHasPickedKit: (v: boolean) => void
@@ -196,6 +198,7 @@ export const useJamStore = create<JamState>()(
       setSongTimeFeel: (songTimeFeel) => set({ songTimeFeel }),
       setSongTimeFeelBase: (songTimeFeelBase) => set({ songTimeFeelBase }),
       resetSongTimeFeel: () => set({ songTimeFeel: 'normal', songTimeFeelBase: null }),
+      resetWalkDensity: () => set({ walkDensity: 1 }),
       setLockKit: (lockKit) => set({ lockKit }),
       setShowKitPicker: (showKitPicker) => set({ showKitPicker }),
       setHasPickedKit: (hasPickedKit) => set({ hasPickedKit }),

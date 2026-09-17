@@ -118,6 +118,8 @@ export function applyKit(
     scale = resolved.scale
   }
   // New kit / applyKit: do NOT pin previous N — rollSeed picks uniform {2,3,4}.
+  // Structure change: densify resets like half/double + intensity.
+  jam.resetWalkDensity()
   const seed = rollSeed({
     root,
     scale,
@@ -227,6 +229,7 @@ export function reshuffleUnlocked(): {
   jam.setSongSeed(seed)
   const plan = planShuffleTargets(state.tracks)
   const targets = plan.ok ? plan.targets : []
+  jam.resetWalkDensity()
   let shuffled = 0
   for (const t of targets) {
     let next = reshuffleTrack(t.role, t.code, {
@@ -235,7 +238,7 @@ export function reshuffleUnlocked(): {
       bank: activeKit?.drumsBank,
       shuffle: songAwareShuffle(activeKit?.shuffle),
       seed,
-      walkDensity: jam.walkDensity ?? 1,
+      walkDensity: 1,
     })
     const oct = t.octave ?? 0
     if (oct && isMelodicRole(t.role)) next = shiftNotesByOctaves(next, oct)
@@ -516,6 +519,7 @@ export function rollSongHarmony(): {
   jam.setSongScale(scale)
   jam.setSongSeed(nextSeed)
 
+  jam.resetWalkDensity()
   const pinEffects = useUIStore.getState().pinEffects
   const state = useSessionStore.getState()
   let remapped = 0
@@ -528,6 +532,7 @@ export function rollSongHarmony(): {
       bank: activeKit?.drumsBank,
       shuffle: songAwareShuffle(activeKit?.shuffle),
       seed: nextSeed,
+      walkDensity: 1,
     })
     const oct = t.octave ?? 0
     if (oct) next = shiftNotesByOctaves(next, oct)
@@ -580,6 +585,7 @@ export function setWalkLength(
         walkLength: n,
       })
   jam.setSongSeed(seed)
+  jam.resetWalkDensity()
   const pinEffects = useUIStore.getState().pinEffects
   const state = useSessionStore.getState()
   for (const t of state.tracks) {
@@ -591,7 +597,7 @@ export function setWalkLength(
       bank: activeKit?.drumsBank,
       shuffle: songAwareShuffle(activeKit?.shuffle),
       seed,
-      walkDensity: jam.walkDensity ?? 1,
+      walkDensity: 1,
     })
     const oct = t.octave ?? 0
     if (oct && isMelodicRole(t.role)) next = shiftNotesByOctaves(next, oct)
