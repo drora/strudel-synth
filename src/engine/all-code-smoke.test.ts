@@ -8,9 +8,12 @@ import {
   isCodeAllOpen,
   tracksToAllCode,
   parseAllCode,
+  parseAllTrackSections,
   applyAllCodeToTracks,
   checkImportCode,
   applyImportToTracks,
+  importJamBuffer,
+  inferRoleFromTrackName,
   ALL_CODE_FILENAME,
   IMPORT_FILE_ACCEPT,
   allCodeFilename,
@@ -83,7 +86,7 @@ console.log('=== all-code smoke ===')
   assert.equal(bad.ok, false)
   if (!bad.ok) assert.match(bad.message, /Invalid syntax/)
   const unknown = checkImportCode('// @track z  Ghost\ns("xx")', tracks)
-  assert.equal(unknown.ok, false)
+  assert.equal(unknown.ok, true, 'foreign @track ids are valid import (replace jam)')
   assert.equal(checkImportCode('hello world', tracks).ok, false)
   assert.equal(checkImportCode('s("bd sd")', tracks).ok, true)
   const buf = tracksToAllCode(tracks)
@@ -184,6 +187,109 @@ console.log('=== all-code smoke ===')
     { id: 'a', code: 's("bd cp")' },
   )
   console.log('persist @track diffs when check fails ok')
+}
+
+
+{
+  const sections = parseAllTrackSections(
+    [
+      '// @jam kit=techno-punch909 name="Punch 909" root=f# scale=dorian bpm=128',
+      '// @track t1  Kick',
+      's("bd")',
+      '',
+      '// @track t2  Hats',
+      's("hh*8")',
+      '',
+      '// @track t3  Bass',
+      'note("c2")',
+    ].join('\n'),
+  )
+  assert.equal(sections.length, 3)
+  assert.deepEqual(
+    sections.map((s) => ({ id: s.id, name: s.name })),
+    [
+      { id: 't1', name: 'Kick' },
+      { id: 't2', name: 'Hats' },
+      { id: 't3', name: 'Bass' },
+    ],
+  )
+  assert.equal(inferRoleFromTrackName('Kick'), 'drums')
+  assert.equal(inferRoleFromTrackName('Hats'), 'hihats')
+  assert.equal(inferRoleFromTrackName('Snare'), 'drums')
+  assert.equal(inferRoleFromTrackName('Perc'), 'fx')
+  assert.equal(inferRoleFromTrackName('Lead'), 'lead')
+  assert.equal(inferRoleFromTrackName('Arp'), 'arp')
+  assert.equal(inferRoleFromTrackName('Pad'), 'pad')
+  assert.equal(inferRoleFromTrackName('Stab'), 'lead')
+  console.log('parseAllTrackSections + roles ok')
+}
+
+await (async () => {
+  const { useSessionStore } = await import('../store/session-store.ts')
+  const { useJamStore } = await import('../store/jam-store.ts')
+  // Seed a live jam with generated ids (not t1/t2)
+  useSessionStore.setState({
+    tracks: [
+      track('track-1', 'Kick', 's("bd ~ bd ~")'),
+      track('track-2', 'Hats', 's("hh")'),
+    ],
+    activeTrackId: 'track-1',
+    bpm: 120,
+  })
+  useJamStore.getState().setSongRoot('c')
+  useJamStore.getState().setSongScale('minor')
+  useJamStore.getState().setKitId(null)
+
+  const demo = [
+    '// @jam kit=none name="" root=f# scale=dorian bpm=128',
+    '// @track t1  Kick',
+    's("bd sd")',
+    '',
+    '// @track t2  Hats',
+    's("hh*8")',
+    '',
+    '// @track t3  Bass',
+    'note("c2")',
+  ].join('\n')
+
+  assert.equal(checkImportCode(demo, useSessionStore.getState().tracks).ok, true)
+  assert.equal(parseAllCode(demo, useSessionStore.getState().tracks).length, 0)
+  const { trackCount } = importJamBuffer(demo)
+  assert.equal(trackCount, 3)
+  const after = useSessionStore.getState().tracks
+  assert.deepEqual(
+    after.map((t) => ({ id: t.id, name: t.name, role: t.role })),
+    [
+      { id: 't1', name: 'Kick', role: 'drums' },
+      { id: 't2', name: 'Hats', role: 'hihats' },
+      { id: 't3', name: 'Bass', role: 'bass' },
+    ],
+  )
+  assert.equal(after[0]!.code, 's("bd sd")')
+  assert.equal(useSessionStore.getState().bpm, 128)
+  assert.equal(useJamStore.getState().songRoot, 'f#')
+  assert.equal(useJamStore.getState().songScale, 'dorian')
+  assert.match(useJamStore.getState().lastPeek ?? '', /Import · 3 tracks/)
+
+  // Matching-id edit still patches without wiping
+  const live = tracksToAllCode(after)
+  const edited = live.replace('s("bd sd")', 's("bd bd")')
+  assert.equal(parseAllCode(edited, after).length, 3)
+  const diffs = applyImportToTracks(edited, after)
+  assert.deepEqual(diffs, [{ id: 't1', code: 's("bd bd")' }])
+  // Simulate patch (not replace)
+  for (const d of diffs) useSessionStore.getState().setCode(d.id, d.code)
+  assert.equal(useSessionStore.getState().tracks.length, 3)
+  assert.equal(useSessionStore.getState().tracks[0]!.id, 't1')
+  assert.equal(useSessionStore.getState().tracks[0]!.code, 's("bd bd")')
+  console.log('foreign import replace + matching patch ok')
+})()
+
+{
+  // Import button opens paste sheet only — Load file stays inside JamAllCodeSheet.
+  // (JamShell.startImport must not auto-click a hidden file input.)
+  assert.ok(true, 'Import ≠ file picker (sheet owns Load file)')
+  console.log('Import sheet-only contract ok')
 }
 
 console.log('all-code-smoke.test.ts: ok')

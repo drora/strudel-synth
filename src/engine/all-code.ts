@@ -1,4 +1,5 @@
-import type { Track } from './types'
+import type { Track, TrackRole } from './types'
+import { ROLE_COLORS } from './types'
 import type { ScaleKind } from './kits-types'
 import { getKit, KITS } from './kits'
 import { SONG_SCALES } from './note-harmony'
@@ -62,7 +63,7 @@ export function allCodeFilename(meta: {
   return `${jamFileStem(meta)}.strudel`
 }
 
-const HEAD = /^\/\/ @track (\S+)(?:\s+.*)?$/
+const HEAD = /^\/\/ @track (\S+)(?:\s+(.*))?$/
 const JAM_LINE = /^\/\/\s*@jam\b(.*)$/
 
 function escapeJamName(name: string): string {
@@ -221,6 +222,98 @@ export function applyAllCodeToTracks(
   })
 }
 
+export type AllTrackSection = { id: string; name: string; code: string }
+
+/**
+ * Parse every `// @track <id> [Name]` section — does not filter by known session ids.
+ * `// @jam` lines are skipped.
+ */
+export function parseAllTrackSections(text: string): AllTrackSection[] {
+  const lines = text.replace(/\r\n/g, '\n').split('\n')
+  const out: AllTrackSection[] = []
+  let curId: string | null = null
+  let curName = ''
+  let buf: string[] = []
+
+  const flush = () => {
+    if (curId) {
+      out.push({
+        id: curId,
+        name: (curName.trim() || curId),
+        code: buf.join('\n').trim(),
+      })
+    }
+    curId = null
+    curName = ''
+    buf = []
+  }
+
+  for (const line of lines) {
+    if (JAM_LINE.test(line)) continue
+    const m = line.match(HEAD)
+    if (m) {
+      flush()
+      curId = m[1]!
+      curName = (m[2] ?? '').trim()
+      buf = []
+      continue
+    }
+    if (curId) buf.push(line)
+  }
+  flush()
+  return out
+}
+
+/** Infer TrackRole from a track display name (case-insensitive). */
+export function inferRoleFromTrackName(name: string): TrackRole {
+  const n = name.toLowerCase()
+  if (/\bhat|\bhihat|\bhh\b/.test(n) || n.includes('hat')) return 'hihats'
+  if (/\bbass\b/.test(n) || n.includes('bass')) return 'bass'
+  if (/\bpad\b/.test(n) || n.includes('pad')) return 'pad'
+  if (/\barp\b/.test(n) || n.includes('arp')) return 'arp'
+  if (/\blead\b|\bmotif\b|\bstab\b/.test(n) || /lead|motif|stab/.test(n)) return 'lead'
+  if (/\bvox\b|\bvocal\b/.test(n)) return 'vox'
+  if (/\bfx\b|\bperc\b|\brim\b/.test(n) || /perc|rim/.test(n)) return 'fx'
+  if (/\bsnare\b|\bclap\b/.test(n) || /snare|clap/.test(n)) return 'drums'
+  if (/\bkick\b|\bdrum\b/.test(n) || /kick|drum/.test(n)) return 'drums'
+  return 'drums'
+}
+
+/**
+ * Full-jam replace from a foreign (or any) `@track` buffer.
+ * Keeps imported ids for Export round-trip. Applies `// @jam` chrome, resets intensity.
+ */
+export function importJamBuffer(text: string): { trackCount: number } {
+  const sections = parseAllTrackSections(text)
+  const tracks: Track[] = sections.map((s) => {
+    const name = s.name.trim() || s.id
+    const role = inferRoleFromTrackName(name)
+    return {
+      id: s.id,
+      name,
+      role,
+      code: s.code,
+      color: ROLE_COLORS[role],
+      muted: false,
+      soloed: false,
+      locked: false,
+      volume: 1,
+      octave: 0,
+      error: null,
+    }
+  })
+  useSessionStore.setState({
+    tracks,
+    activeTrackId: tracks[0]?.id ?? null,
+  })
+  applyJamHeader(text)
+  const jam = useJamStore.getState()
+  jam.resetIntensitySession()
+  if (tracks[0]) jam.touchTrack(tracks[0].id)
+  jam.setLastPeek(`Import · ${tracks.length} tracks`)
+  return { trackCount: tracks.length }
+}
+
 export function hasUnbalancedSyntax(text: string): boolean {
   const pairs: [string, string][] = [
     ['(', ')'],
@@ -270,18 +363,15 @@ const SNIPPET_RE = /\b(?:s|note|sound)\s*\(/
 
 export type ImportCheck = { ok: true } | { ok: false; message: string }
 
-/** Paste / file import: syntax + // @track shape. */
+/** Paste / file import: syntax + // @track shape (known or foreign ids). */
 export function checkImportCode(text: string, tracks: Track[]): ImportCheck {
   const t = text.trim()
   if (!t) return { ok: false, message: 'Nothing to import' }
   if (hasUnbalancedSyntax(t)) {
     return { ok: false, message: 'Invalid syntax — unmatched brackets or quotes' }
   }
-  const parsed = parseAllCode(text, tracks)
-  if (parsed.length > 0) return { ok: true }
-  if (/\/\/\s*@track\b/.test(text)) {
-    return { ok: false, message: 'No // @track ids match this jam' }
-  }
+  if (parseAllCode(text, tracks).length > 0) return { ok: true }
+  if (parseAllTrackSections(text).length > 0) return { ok: true }
   if (SNIPPET_RE.test(t)) return { ok: true }
   return { ok: false, message: 'Need // @track id lines, or a s()/note() line' }
 }
