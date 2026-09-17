@@ -169,4 +169,28 @@ assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
   assert.equal(HIDDEN_PITCHED_CHOICES.length, 37)
 }
 
+
+// Dirt one-shots live on FX sheet, not melodic pad/lead (keep sax/gtr/arpy)
+{
+  const padSounds = SOUND_CHOICES.pad.map((c) => c.sound)
+  const leadSounds = SOUND_CHOICES.lead.map((c) => c.sound)
+  const fxDirt = SOUND_CHOICES.fx.filter((c) => c.sound).map((c) => c.sound)
+  for (const s of ['pad', 'padlong', 'stab', 'hoover', 'pluck', 'juno']) {
+    assert.ok(fxDirt.includes(s), `fx has ${s}`)
+  }
+  assert.ok(!padSounds.includes('pad') && !padSounds.includes('padlong'), 'pad sheet dropped dirt pads')
+  assert.ok(!leadSounds.includes('stab') && !leadSounds.includes('hoover'), 'lead dropped stab/hoover')
+  assert.ok(!leadSounds.includes('pluck') && !leadSounds.includes('juno'), 'lead dropped pluck/juno')
+  assert.ok(['sax', 'gtr', 'arpy'].every((s) => leadSounds.includes(s)), 'lead keeps sax/gtr/arpy')
+  assert.ok(SOUND_CHOICES.arp.some((c) => c.sound === 'arpy'), 'arp keeps arpy')
+  assert.ok(!SOUND_CHOICES.arp.some((c) => c.sound === 'pluck'), 'arp dropped pluck')
+
+  const applied = applySoundChoiceToCode(
+    's("cp ~ ~ cp").bank("RolandTR909").gain(0.8)',
+    { id: 'dirt-pad', label: 'Dirt pad', sound: 'pad' },
+  )
+  assert.equal(applied, 's("pad").gain(0.8)', `dirt pad apply cleared bank; got ${applied}`)
+  assert.ok(matchSoundChoice(applied, { id: 'dirt-pad', label: 'Dirt pad', sound: 'pad' }))
+}
+
 console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, melodic=catalog, nobank dirt, bank fallback, match/apply, vox vocals, +Track random voice, visit pad voice')
