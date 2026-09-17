@@ -229,4 +229,23 @@ assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
   assert.ok(kept.includes('.clip(0.8)'), `keep user clip; got ${kept}`)
 }
 
-console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, melodic=catalog, nobank dirt, bank fallback, match/apply, vox vocals, +Track random voice, visit pad voice, voice-profile clip/gain')
+
+// GM bowed-strings on role catalogs + voice-profile wash keys
+{
+  assert.ok(SOUND_CHOICES.pad.some((c) => c.sound === 'gm_string_ensemble_1'), 'pad has String ensemble')
+  assert.ok(SOUND_CHOICES.lead.some((c) => c.sound === 'gm_violin'), 'lead has Violin')
+  assert.ok(SOUND_CHOICES.bass.some((c) => c.sound === 'gm_cello'), 'bass has Cello')
+  assert.equal(sampleGainBoost('gm_string_ensemble_1') < 1, true, 'ensemble gain cut')
+  assert.equal(defaultClipForVoice('gm_string_ensemble_1', 'pad'), 0.55)
+  assert.equal(defaultClipForVoice('gm_violin', 'lead'), 0.2)
+  assert.equal(defaultClipForVoice('gm_cello', 'bass'), 0.2)
+  const ens = applySoundChoiceToCode(
+    'note("c3 e3 g3").sound("sine").gain(0.6)',
+    { id: 'gm-string-ensemble', label: 'String ensemble', sound: 'gm_string_ensemble_1' },
+    'pad',
+  )
+  assert.ok(ens.includes('.sound("gm_string_ensemble_1")'), `ensemble sound; got ${ens}`)
+  assert.ok(ens.includes('.clip(0.55)'), `ensemble pad auto-clip; got ${ens}`)
+}
+
+console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, melodic=catalog, nobank dirt, bank fallback, match/apply, vox vocals, +Track random voice, visit pad voice, voice-profile clip/gain, gm bowed-strings')

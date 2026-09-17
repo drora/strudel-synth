@@ -53,6 +53,7 @@ export const MELODIC_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = 
     { id: 'jvbass', label: 'JV bass', sound: 'jvbass' },
     { id: 'wobble', label: 'Wobble', sound: 'wobble' },
     { id: 'jungbass', label: 'Jungle bass', sound: 'jungbass' },
+    { id: 'gm-cello', label: 'Cello', sound: 'gm_cello' },
   ],
   lead: [
     { id: 'square', label: 'Square lead', sound: 'square' },
@@ -70,6 +71,7 @@ export const MELODIC_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = 
     { id: 'sax', label: 'Sax', sound: 'sax' },
     { id: 'gtr', label: 'Guitar', sound: 'gtr' },
     { id: 'arpy', label: 'Arpy', sound: 'arpy' },
+    { id: 'gm-violin', label: 'Violin', sound: 'gm_violin' },
     ...HIDDEN_PITCHED_CHOICES,
   ],
   pad: [
@@ -78,6 +80,7 @@ export const MELODIC_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = 
     { id: 'saw', label: 'Saw pad', sound: 'sawtooth' },
     { id: 'square', label: 'Square pad', sound: 'square' },
     { id: 'piano', label: 'Piano room', sound: 'piano' },
+    { id: 'gm-string-ensemble', label: 'String ensemble', sound: 'gm_string_ensemble_1' },
     { id: 'organ-wash', label: 'Organ wash', sound: 'organ_8inch' },
     { id: 'pipeorgan', label: 'Pipe organ', sound: 'pipeorgan_loud' },
     { id: 'vcsl-organ', label: 'VCSL organ', sound: 'organ_full' },

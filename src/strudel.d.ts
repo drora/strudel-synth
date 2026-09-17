@@ -53,3 +53,9 @@ declare module '@strudel/webaudio' {
     output?: { destinationGain?: GainNode }
   }
 }
+
+declare module '@strudel/soundfonts' {
+  /** Register GM soundfont instruments (gm_violin, gm_cello, …). Fonts load on first note. */
+  export function registerSoundfonts(): void
+  export function setSoundfontUrl(url: string): void
+}

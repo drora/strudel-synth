@@ -8,7 +8,7 @@ export default defineConfig({
   optimizeDeps: {
     // Force Vite to pre-bundle all @strudel/* packages together
     // so circular dependencies between sub-packages resolve correctly.
-    include: ['@strudel/web'],
+    include: ['@strudel/web', '@strudel/soundfonts'],
   },
   build: {
     commonjsOptions: {

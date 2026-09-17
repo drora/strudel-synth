@@ -71,4 +71,7 @@ export const EXTRA_AUTOCOMPLETE_SAMPLES: string[] = [
   'tubularbells2',
   'wineglass',
   'wineglass_slow',
+  'gm_violin',
+  'gm_cello',
+  'gm_string_ensemble_1',
 ]

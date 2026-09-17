@@ -156,8 +156,8 @@ export async function initEngine(): Promise<void> {
     prebake: async () => {
       const ui = useUIStore.getState()
       const DRUM_CDN = 'https://strudel.b-cdn.net'
-      // dirt + tidal-drum-machines + piano + VCSL + mridangam + uzu-drumkit + uzu-wavetables
-      const PREBAKE_TOTAL = 7
+      // dirt + tidal-drum-machines + piano + VCSL + mridangam + uzu-drumkit + uzu-wavetables + GM soundfonts
+      const PREBAKE_TOTAL = 8
       ui.beginSampleLoading(PREBAKE_TOTAL, 'prebake')
       // Let React paint the Jam/Studio loading banner before CDN fetches block the main thread.
       await new Promise<void>((resolve) => {
@@ -197,6 +197,12 @@ export async function initEngine(): Promise<void> {
         ),
         track(() => samples(`${DRUM_CDN}/uzu-wavetables.json`, `${DRUM_CDN}/uzu-wavetables/`, { prebake: true })),
       ])
+      // GM soundfonts (violin/cello/string ensemble, etc.) — register handlers; fonts load on first note
+      // Dynamic import keeps Node smoke tests (kits→jam-store→strudel) free of @strudel/core.
+      await track(async () => {
+        const { registerSoundfonts } = await import('@strudel/soundfonts')
+        registerSoundfonts()
+      })
       try {
         const alias = (globalThis as any).aliasBank
         if (typeof alias === 'function') {
