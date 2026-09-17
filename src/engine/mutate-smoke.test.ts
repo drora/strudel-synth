@@ -59,14 +59,16 @@ function track(id: string, code: string, role: Track['role'] = 'drums'): Track {
 
 console.log('=== Mutate smoke ===')
 
-assert.equal(MUTATIONS.length, 15, '13 + intensity up/down')
+assert.equal(MUTATIONS.length, 17, '15 + intensity up/down')
 assert.ok(MUTATIONS.every((m) => m.label && m.id))
 assert.equal(MUTATIONS.find((m) => m.id === 'half-time')?.scope, 'song')
 assert.equal(MUTATIONS.find((m) => m.id === 'double-time')?.scope, 'song')
 assert.equal(MUTATIONS.find((m) => m.id === 'intensity-up')?.scope, 'song')
 assert.equal(MUTATIONS.find((m) => m.id === 'intensity-down')?.scope, 'song')
 assert.equal(MUTATIONS.find((m) => m.id === 'sparse')?.scope, 'track')
-console.log('  catalog: 15 transforms; half/double/intensity song-scoped')
+assert.equal(MUTATIONS.find((m) => m.id === 'densify-walk')?.scope, 'song')
+assert.equal(MUTATIONS.find((m) => m.id === 'undensify-walk')?.scope, 'song')
+console.log('  catalog: 17 transforms; half/double/densify/intensity song-scoped')
 
 {
   const toks = tokenizeMini('bd [sd, cp] <hh oh> ~')

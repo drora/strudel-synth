@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { VibeId, ScaleKind } from '../engine/kits'
 import type { SongSeed } from '../engine/song-seed'
+import type { WalkDensity } from '../engine/reshuffle'
 import type { SectionSnap } from '../engine/session-manager'
 import { useSessionStore } from './session-store'
 import { liveUpdateEngine } from '../engine/live-update'
@@ -37,6 +38,8 @@ interface JamState {
   songScale: ScaleKind
   /** Shared chord walk for melodic generate / track shuffle. */
   songSeed: SongSeed | null
+  /** Chords per drum cycle for melodic walk (1 stretch · 2 densified). */
+  walkDensity: WalkDensity
   lockKit: boolean
   showKitPicker: boolean
   hasPickedKit: boolean
@@ -74,6 +77,7 @@ interface JamState {
   setSongRoot: (root: string) => void
   setSongScale: (scale: ScaleKind) => void
   setSongSeed: (seed: SongSeed | null) => void
+  setWalkDensity: (d: WalkDensity) => void
   setLockKit: (lock: boolean) => void
   setShowKitPicker: (show: boolean) => void
   setHasPickedKit: (v: boolean) => void
@@ -125,6 +129,7 @@ function snapshotSection(): SectionSnap {
     songRoot: j.songRoot,
     songScale: j.songScale,
     songSeed: cloneSeed(j.songSeed),
+    walkDensity: j.walkDensity,
   }
 }
 
@@ -144,6 +149,7 @@ export const useJamStore = create<JamState>()(
       songRoot: 'c',
       songScale: 'minor',
       songSeed: null,
+      walkDensity: 1,
       lockKit: true,
       showKitPicker: true,
       hasPickedKit: false,
@@ -169,6 +175,7 @@ export const useJamStore = create<JamState>()(
       setSongRoot: (songRoot) => set({ songRoot }),
       setSongScale: (songScale) => set({ songScale }),
       setSongSeed: (songSeed) => set({ songSeed }),
+      setWalkDensity: (walkDensity) => set({ walkDensity }),
       setLockKit: (lockKit) => set({ lockKit }),
       setShowKitPicker: (showKitPicker) => set({ showKitPicker }),
       setHasPickedKit: (hasPickedKit) => set({ hasPickedKit }),
@@ -245,6 +252,7 @@ export const useJamStore = create<JamState>()(
         if (snap.songRoot) set({ songRoot: snap.songRoot })
         if (snap.songScale) set({ songScale: snap.songScale })
         if ('songSeed' in snap) set({ songSeed: cloneSeed(snap.songSeed ?? null) })
+        if ('walkDensity' in snap && snap.walkDensity) set({ walkDensity: snap.walkDensity })
         set({ activeVariant: slot })
         get().setLastPeek(`A/B · punch ${slot.toUpperCase()}`)
         queueSectionUpdate()
@@ -283,6 +291,7 @@ export const useJamStore = create<JamState>()(
         songRoot: s.songRoot,
         songScale: s.songScale,
         songSeed: s.songSeed,
+        walkDensity: s.walkDensity,
         lockKit: s.lockKit,
         hasPickedKit: s.hasPickedKit,
         improvOctave: s.improvOctave,

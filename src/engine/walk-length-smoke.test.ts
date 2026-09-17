@@ -87,7 +87,13 @@ console.log('=== Walk length smoke ===')
   }
   for (const t of after.tracks.filter((x) => isMelodicRole(x.role) && !x.locked)) {
     assert.ok(t.code.includes('note(') || t.code.includes('s('), `melodic ${t.id} still code`)
-    assert.ok(!t.code.includes('cat('), `no cat() on ${t.id}`)
+    // Stretch default: N>=2 melodic uses slowcat (not N-packed into one cycle).
+    if (r2.walkLength >= 2) {
+      assert.ok(
+        t.code.includes('slowcat(') || !t.code.includes('note('),
+        `stretch slowcat expected on ${t.id}: ${t.code.slice(0, 120)}`,
+      )
+    }
   }
   // At least one unlocked melodic lane changed (reshuffled to new walk)
   const melodicChanged = after.tracks.some(
@@ -159,45 +165,101 @@ console.log('=== Walk length smoke ===')
     console.log(`  dice from hold→${dice.walkLength}: ok`)
   }
 
-  // After dice, unlocked pad note("<…>") cell count matches seed walk length
+  
+  // Stretch: setWalkLength N=2 vs N=4 — melodic slowcat arity equals N (chord duration equal)
   {
-    function noteAngleArity(code: string): number | null {
-      const m = code.match(/note\s*\(\s*[`'"]\s*<([^>]+)>/)
-      if (!m) return null
-      const parts = m[1]!.trim().split(/\s+/).filter(Boolean)
-      return parts.length || null
-    }
-    const jam = useJamStore.getState()
-    let matched = 0
-    for (let i = 0; i < 12; i++) {
-      jam.setSongSeed(rollSeed({ root: 'c', scale: 'minor', walkLength: 3 }))
-      jam.setSongRoot('c')
-      jam.setSongScale('minor')
-      for (const t of useSessionStore.getState().tracks) {
-        if (t.role === 'pad' && !t.locked) {
-          useSessionStore
-            .getState()
-            .setCode(t.id, `note("<[c3,eb3,g3] [c3,eb3,g3] [c3,eb3,g3]>").s("sawtooth").gain(0.4)`)
-        }
+    function slowcatArity(code: string): number | null {
+      const m = code.match(/slowcat\((.*)\)\s*(?:\.sound|\.s\b|$)/s)
+      if (!m) {
+        // N=1 may be a bare note("…")
+        return code.includes('note(') ? 1 : null
       }
-      const dice = rollSongHarmony()
-      const N = dice.walkLength
-      assert.equal(useJamStore.getState().songSeed!.walk.length, N)
-      for (const t of useSessionStore.getState().tracks) {
-        if (t.role !== 'pad' || t.locked) continue
-        const arity = noteAngleArity(t.code)
+      // Count top-level note("…") / s("…").note("…") args
+      const body = m[1]!
+      const notes = body.match(/\bnote\s*\(/g)
+      return notes ? notes.length : null
+    }
+    const kitOk = applyKit(kit.id, { fromPicker: true })
+    assert.equal(kitOk.ok, true)
+    for (const n of [2, 4] as WalkLength[]) {
+      const r = setWalkLength(n)
+      assert.equal(r.ok, true)
+      assert.equal(useJamStore.getState().songSeed!.walk.length, n)
+      let seen = 0
+      for (const tr of useSessionStore.getState().tracks) {
+        if (!isMelodicRole(tr.role) || tr.locked) continue
+        if (!tr.code.includes('note(')) continue
+        const arity = slowcatArity(tr.code)
         if (arity == null) continue
         assert.equal(
           arity,
-          N,
-          `after dice walk=${N} pad note() arity=${arity} code=${t.code.slice(0, 100)}`,
+          n,
+          `walk=${n} ${tr.role} slowcat arity=${arity} code=${tr.code.slice(0, 140)}`,
         )
-        matched++
+        seen++
       }
+      assert.ok(seen >= 1, `expected melodic stretch arity for N=${n}`)
     }
-    assert.ok(matched >= 1, `expected pad note() arity match (matched=${matched})`)
-    console.log(`  dice pad arity matches walk (matched ${matched}): ok`)
+    console.log('  stretch slowcat arity N=2 vs N=4: ok')
   }
+
+  // Densify walk 1→2; second densify no-op; undensify 2→1; drums untouched
+  {
+    const { setWalkDensity, applyMutate } = await import('./jam-actions.ts')
+    setWalkLength(3)
+    useJamStore.getState().setWalkDensity(1)
+    const drumsBefore = Object.fromEntries(
+      useSessionStore.getState().tracks.filter((x) => x.role === 'drums').map((x) => [x.id, x.code]),
+    )
+    const d1 = setWalkDensity(2)
+    assert.equal(d1.ok, true)
+    assert.equal(d1.noop, false)
+    assert.equal(useJamStore.getState().walkDensity, 2)
+    const d2 = setWalkDensity(2)
+    assert.equal(d2.ok, true)
+    assert.equal(d2.noop, true, 'second densify is no-op')
+    for (const tr of useSessionStore.getState().tracks) {
+      if (tr.role !== 'drums') continue
+      assert.equal(tr.code, drumsBefore[tr.id], 'densify skips drums')
+    }
+    // Mutate path
+    const u = applyMutate('undensify-walk')
+    assert.equal(u.ok, true)
+    assert.equal(useJamStore.getState().walkDensity, 1)
+    const u2 = applyMutate('undensify-walk')
+    assert.equal(u2.ok, true)
+    assert.equal(u2.changed, 0, 'second undensify no-op / zero changed')
+    console.log('  densify/undensify 1↔2 + drums pinned: ok')
+  }
+
+  // Highlight math: cycleInt % N (integer cycles) — source smoke
+  {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const src = readFileSync(join(process.cwd(), 'src/components/jam/JamShell.tsx'), 'utf8')
+    assert.ok(/cycleInt\s*%\s*walkChips\.length/.test(src), 'highlight uses cycleInt % N')
+    console.log('  highlight cycleInt % N: ok')
+  }
+
+  // Intensity-adjacent smoke: N=3 + density 1/2 melodic generate does not throw
+  {
+    const { setWalkDensity: setWD, reshuffleUnlocked } = await import('./jam-actions.ts')
+    setWalkLength(3)
+    useJamStore.getState().setWalkDensity(1)
+    assert.doesNotThrow(() => reshuffleUnlocked())
+    setWD(2)
+    assert.doesNotThrow(() => reshuffleUnlocked())
+    // L4 recipe on stretched bass should still touch note() cells (enrich), not throw
+    const { applyIntensityL4Layer } = await import('./mutate.ts')
+    const bass = useSessionStore.getState().tracks.find((x) => x.role === 'bass' && !x.locked)
+    if (bass) {
+      assert.doesNotThrow(() => applyIntensityL4Layer(bass.code, 'bass'))
+      const out = applyIntensityL4Layer(bass.code, 'bass')
+      assert.ok(typeof out === 'string' && out.length > 0)
+    }
+    console.log('  intensity N=3 density 1/2 smoke: ok')
+  }
+
 
   // applyKit does NOT pin N — over several rolls, not all stay 3
   {

@@ -220,7 +220,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'set_walk_length',
     description:
-      'Set chord-walk length to 1–4 cycles (same as Jam walk-row 1/2/3/4). Picks a legal walk of that length; reshuffles unlocked melodic lanes; keeps root/scale/drums. Sticky N for later Song Shuffle. Not song bar-length / cat() tiling.',
+      'Set chord-walk length N (1–4): N chord centers stretched across N drum cycles (1 chord/cycle by default; densify-walk → 2/cycle). Reshuffles unlocked melodic; drums/hats/fx unchanged. Sticky N for later Song Shuffle. Not Intensity L4.',
     inputSchema: {
       type: 'object',
       properties: {

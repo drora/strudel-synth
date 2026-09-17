@@ -19,6 +19,7 @@ export {
   setSongHarmony,
   rollSongHarmony,
   setWalkLength,
+  setWalkDensity,
   setTrackOctave,
   applyMutate,
 } from './jam-actions-a'

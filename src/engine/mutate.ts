@@ -24,6 +24,8 @@ export type MutateId =
   | 'reverse'
   | 'every-other'
   | 'double-time'
+  | 'densify-walk'
+  | 'undensify-walk'
   | 'intensity-up'
   | 'intensity-down'
 
@@ -49,6 +51,8 @@ export const MUTATIONS: readonly MutateDef[] = [
   { id: 'reverse', label: 'Reverse', hint: 'Flip the pattern', scope: 'track' },
   { id: 'every-other', label: 'Every other', hint: 'Keep alternate hits', scope: 'track' },
   { id: 'double-time', label: 'Double-time', hint: 'Tighten feel · all tracks', scope: 'song' },
+  { id: 'densify-walk', label: 'Densify walk', hint: '2 chords / drum cycle · unlocked melodic', scope: 'song' },
+  { id: 'undensify-walk', label: 'Undensify walk', hint: '1 chord / drum cycle · unlocked melodic', scope: 'song' },
   { id: 'intensity-up', label: 'Intensity+', hint: '1 as-is · 2 hats fill gaps · 3 pad → arp → keys → fx · 4 bd ~ ~ ~ → bd ~ bd ~ · *N→*2N · perc snares; bass+keys walk @0.5', scope: 'song' },
   { id: 'intensity-down', label: 'Intensity−', hint: 'wind down those same steps', scope: 'song' },
 ] as const

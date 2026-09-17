@@ -221,6 +221,7 @@ export function getJamStateSnapshot() {
           patternId: jam.songSeed.patternId,
           walkLength: jam.songSeed.walk.length,
           concertNames: walkConcertNames(jam.songSeed),
+          walkDensity: jam.walkDensity ?? 1,
         }
       : null,
     lockKit: jam.lockKit,
