@@ -10,6 +10,7 @@ import {
 import { soundChoicesForKit, improvSoundChoices } from '../../engine/kit-sound-choices'
 import { listMicSampleNames } from '../../engine/mic-sample'
 import { isPadsKeepTrack, setImprovVoiceInCode, groupedFxControls, type FxGroupId } from '../../engine/improv-plate'
+import { applyVoiceClipToCode } from '../../engine/voice-profile'
 import {
   parseEffectValue,
   setEffectInCode,
@@ -87,7 +88,10 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
     })
     let next = isPadsKeepTrack(live) && choice.sound
       ? setImprovVoiceInCode(live.code, choice.sound)
-      : applySoundChoiceToCode(live.code, choice)
+      : applySoundChoiceToCode(live.code, choice, live.role)
+    if (isPadsKeepTrack(live) && choice.sound) {
+      next = applyVoiceClipToCode(next, choice.sound, live.role)
+    }
     if (
       live.role === 'vox' &&
       choice.sound &&

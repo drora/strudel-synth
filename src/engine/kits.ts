@@ -1,6 +1,7 @@
 import type { TrackRole, Template } from './types'
 import { ROLE_COLORS } from './types'
 import { setBankInCode, setSoundInCode, setNInCode, getBankFromCode, getSoundFromCode, getNFromCode, primarySSample, rewriteSPatternSample } from './code-effects'
+import { applyVoiceClipToCode } from './voice-profile'
 import { KITS_A } from './kits-data-a'
 import { KITS_B } from './kits-data-b'
 import { KITS_C } from './kits-data-c'
@@ -126,7 +127,7 @@ export function matchSoundChoice(code: string, choice: SoundChoice): boolean {
   return false
 }
 
-export function applySoundChoiceToCode(code: string, choice: SoundChoice): string {
+export function applySoundChoiceToCode(code: string, choice: SoundChoice, role?: TrackRole): string {
   let next = code
   if (choice.bank) next = setBankInCode(next, choice.bank)
   if (choice.sound) {
@@ -152,6 +153,7 @@ export function applySoundChoiceToCode(code: string, choice: SoundChoice): strin
     }
   }
   if (choice.n != null) next = setNInCode(next, choice.n)
+  if (choice.sound && role) next = applyVoiceClipToCode(next, choice.sound, role)
   return next
 }
 
