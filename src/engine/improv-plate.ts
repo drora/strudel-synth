@@ -132,7 +132,12 @@ export function improvVoiceCode(note: string, voice: string): string {
   return `note("${note}").sound("${voice}")`
 }
 
-const PHRASE_GAP_SEC = 1.6
+/** Silence that ends a Keep sentence = one full walk (+ cushion), floored ~2s. */
+export function phraseGapSec(bpm = 120, walkLength = 1): number {
+  const nWalk = Math.max(1, Math.min(4, Math.trunc(walkLength) || 1))
+  const walkSec = nWalk * 4 * (60 / Math.max(bpm, 40))
+  return Math.max(2, walkSec + 0.25)
+}
 
 const NOTE_CHROMA: Record<string, number> = {
   c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11,
@@ -247,7 +252,7 @@ export function bridgeImprovPhrase(hits: ImprovHit[], now = performance.now()): 
 }
 
 /** Last phrase only — a long silence means “I started a new sequence.” */
-export function lastImprovPhrase(hits: ImprovHit[]): ImprovHit[] {
+export function lastImprovPhrase(hits: ImprovHit[], gapSec = phraseGapSec()): ImprovHit[] {
   if (hits.length === 0) return []
   const src = hits.slice(-16)
   const timed = src.every((h) => h.at != null)
@@ -262,7 +267,7 @@ export function lastImprovPhrase(hits: ImprovHit[]): ImprovHit[] {
     const cur = src[i]!
     const prevEnd = (prev.at ?? 0) + (prev.dur ?? 0.25) * 1000
     const gap = ((cur.at ?? prevEnd) - prevEnd) / 1000
-    if (gap >= PHRASE_GAP_SEC) start = i
+    if (gap >= gapSec) start = i
   }
   return src.slice(start).slice(-8)
 }
@@ -280,7 +285,7 @@ export function hitsToNoteCode(
 ): string {
   const nWalk = Math.max(1, Math.min(4, Math.trunc(walkLength) || 1))
   if (hits.length === 0) return bakeVoxAttack(improvVoiceCode('c4', voice), voice)
-  const use = lastImprovPhrase(hits)
+  const use = lastImprovPhrase(hits, phraseGapSec(bpm, nWalk))
   if (use.length === 0) return bakeVoxAttack(improvVoiceCode('c4', voice), voice)
   const durs = use.map((h) => h.dur ?? 0.25)
   const anyLong = durs.some((d) => quantizeBeats(d, bpm, nWalk) >= 2)
