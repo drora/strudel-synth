@@ -20,6 +20,7 @@ import { listMicSampleNames, micSampleDuration } from '../../engine/mic-sample'
 import { liveUpdateEngine } from '../../engine/live-update'
 import { startImprovNote, stopImprovNote, warmImprovTrigger, preloadImprovVoice, padVelocity } from '../../engine/improv-trigger'
 import { ROLE_COLORS } from '../../engine/types'
+import { SoundPickerSheet } from './SoundPickerSheet'
 
 interface Props {
   onClose: () => void
@@ -73,6 +74,7 @@ export function JamImprovPlate({ onClose }: Props) {
 
   const hitsRef = useRef<ImprovHit[]>([])
   const [hitCount, setHitCount] = useState(0)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const activePadRef = useRef<number | null>(null)
   const pendingRef = useRef<{ note: string; cycle: number; at: number; velocity: number } | null>(null)
   const phraseGapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -247,28 +249,34 @@ export function JamImprovPlate({ onClose }: Props) {
           </div>
         </div>
 
-        <div className="shrink-0 px-2 pt-2 overflow-x-auto">
-          <div className="flex gap-1.5 pb-1 min-w-min">
-            {voices.map((v) => {
-              const id = v.sound ?? v.id
-              const selected = id === voice
-              return (
-                <button
-                  key={v.id}
-                  type="button"
-                  onClick={() => useJamStore.getState().setImprovVoice(id)}
-                  className={`shrink-0 min-h-9 px-2.5 rounded-lg text-[11px] font-medium border transition-colors ${
-                    selected
-                      ? 'bg-accent/20 text-accent border-accent/40'
-                      : 'bg-bg text-text-muted border-border hover:text-text'
-                  }`}
-                >
-                  {v.label}
-                </button>
-              )
-            })}
+                <div className="shrink-0 px-3 pt-2">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0 rounded-xl border border-border bg-bg px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wider text-text-muted">Voice</div>
+              <div className="text-sm font-semibold text-text truncate">
+                {voices.find((v) => (v.sound ?? v.id) === voice)?.label ?? voice}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="shrink-0 min-h-11 px-4 rounded-xl text-xs font-semibold border border-accent/40 bg-accent/15 text-accent hover:bg-accent/25"
+            >
+              Browse
+            </button>
           </div>
         </div>
+
+        {pickerOpen && (
+          <SoundPickerSheet
+            title="Pads · Voice"
+            choices={voices}
+            isActive={(c) => (c.sound ?? c.id) === voice}
+            onChoose={(c) => useJamStore.getState().setImprovVoice(c.sound ?? c.id)}
+            onClose={() => setPickerOpen(false)}
+            closeOnChoose={false}
+          />
+        )}
 
         <div className="flex-1 min-h-0 p-3">
           <div

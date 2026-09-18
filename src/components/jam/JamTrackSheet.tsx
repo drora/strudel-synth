@@ -22,6 +22,7 @@ import { reshuffleTrackById, setTrackOctave } from '../../engine/jam-actions'
 import { isMelodicRole } from '../../engine/note-harmony'
 import type { Track } from '../../engine/types'
 import { queueJam, queueJamImmediate } from './jam-shell-utils'
+import { SoundPickerSheet } from './SoundPickerSheet'
 
 /** Lean Jam FX — stepped chips; mirrors EffectsPanel keys via code-effects. */
 const JAM_FX_CONTROLS: Array<{
@@ -54,6 +55,7 @@ type SheetTab = 'sound' | 'fx' | 'mix'
 
 export function JamTrackSheet({ track }: JamTrackSheetProps) {
   const [sheetTab, setSheetTab] = useState<SheetTab>('sound')
+  const [pickerOpen, setPickerOpen] = useState(false)
   const live = useSessionStore((s) => s.tracks.find((t) => t.id === track.id))
   const trackCount = useSessionStore((s) => s.tracks.length)
   const canRemove = trackCount > 1
@@ -219,27 +221,33 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
           </div>
         </div>
 
-        {sheetTab === 'sound' && (
-          <div className="grid grid-cols-2 gap-2">
-            {soundChoices.map((c) => {
-              const active = matchSoundChoice(live.code, c)
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => applySound(c)}
-                  aria-pressed={active}
-                  className={`min-h-12 px-3 rounded-xl border text-xs text-left ${
-                    active
-                      ? 'border-accent bg-accent/20 text-accent'
-                      : 'border-border hover:border-accent'
-                  }`}
-                >
-                  {c.label}
-                </button>
-              )
-            })}
+                {sheetTab === 'sound' && (
+          <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0 rounded-xl border border-border bg-bg px-3 py-2.5">
+              <div className="text-[10px] uppercase tracking-wider text-text-muted">Current</div>
+              <div className="text-sm font-semibold text-text truncate">
+                {soundChoices.find((c) => matchSoundChoice(live.code, c))?.label ?? 'Custom sound'}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="shrink-0 min-h-11 px-4 rounded-xl text-xs font-semibold border border-accent/40 bg-accent/15 text-accent hover:bg-accent/25"
+            >
+              Browse
+            </button>
           </div>
+        )}
+
+        {pickerOpen && (
+          <SoundPickerSheet
+            title={`${live.name} · Sound`}
+            choices={soundChoices}
+            isActive={(c) => matchSoundChoice(live.code, c)}
+            onChoose={applySound}
+            onClose={() => setPickerOpen(false)}
+            closeOnChoose={false}
+          />
         )}
 
         {sheetTab === 'fx' && (
