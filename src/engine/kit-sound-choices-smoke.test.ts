@@ -268,15 +268,29 @@ assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
   assert.equal(sampleGainBoost('gm_piano'), 0.85, 'gm default held gain')
   assert.equal(defaultClipForVoice('gm_pad_warm', 'pad'), 0.55, 'gm pad wash clip')
   assert.equal(sampleGainBoost('gm_pad_warm'), 1.15, 'gm quiet wash pad boost')
-  assert.equal(sampleGainBoost('gm_flute'), 1.45, 'gm quiet held flute boost')
+  assert.equal(sampleGainBoost('gm_flute'), 1.45, 'gm quiet wash flute boost')
+  assert.equal(defaultClipForVoice('gm_flute', 'lead'), 0.2, 'gm flute wash clip')
+  assert.equal(defaultClipForVoice('gm_clarinet', 'lead'), 0.2, 'gm clarinet wash clip')
+  assert.equal(defaultClipForVoice('gm_alto_sax', 'lead'), 0.2, 'gm alto sax wash clip')
+  assert.equal(defaultClipForVoice('gm_bagpipe', 'lead'), 0.2, 'gm bagpipe wash clip')
+  assert.equal(defaultClipForVoice('gm_fiddle', 'lead'), 0.2, 'gm fiddle wash clip')
+  assert.equal(defaultClipForVoice('gm_marimba', 'arp'), null, 'gm marimba stays held')
+  assert.equal(defaultClipForVoice('gm_piano', 'lead'), null, 'gm piano stays held')
   assert.equal(sampleGainBoost('gm_orchestra_hit'), 0.6, 'gm loud hit cut')
   assert.equal(sampleGainBoost('pipeorgan_quiet'), 6, 'pipeorgan quiet boost')
+  assert.equal(defaultClipForVoice('pipeorgan_quiet', 'lead'), 0.2, 'pipeorgan quiet wash')
   assert.equal(sampleGainBoost('vibraphone_bowed'), 8, 'bowed vibes boost')
+  assert.equal(defaultClipForVoice('vibraphone_bowed', 'pad'), 0.55, 'bowed vibes wash')
   assert.equal(sampleGainBoost('psaltery_spiccato'), 1.75, 'spiccato mild boost')
+  assert.equal(defaultClipForVoice('psaltery_spiccato', 'lead'), null, 'spiccato stays short')
   assert.equal(sampleGainBoost('didgeridoo'), 0.75, 'didgeridoo leave cut')
+  assert.equal(defaultClipForVoice('didgeridoo', 'bass'), 0.2, 'didgeridoo wash')
   assert.equal(sampleGainBoost('sid'), 2, 'dirt sid boost')
-  assert.equal(sampleGainBoost('sitar'), 1, 'dirt sitar leave')
-  assert.equal(sampleGainBoost('fm'), 1, 'dirt fm leave (loud)')
+  assert.equal(defaultClipForVoice('sid', 'lead'), null, 'dirt sid stays short')
+  assert.equal(sampleGainBoost('sitar'), 1, 'dirt sitar leave gain')
+  assert.equal(defaultClipForVoice('sitar', 'lead'), 0.2, 'dirt sitar wash clip')
+  assert.equal(sampleGainBoost('fm'), 0.55, 'dirt fm wash cut')
+  assert.equal(defaultClipForVoice('fm', 'arp'), 0.2, 'dirt fm wash clip')
   const ens = applySoundChoiceToCode(
     'note("c3 e3 g3").sound("sine").gain(0.6)',
     { id: 'gm-string-ensemble', label: 'String ensemble', sound: 'gm_string_ensemble_1' },
@@ -284,6 +298,13 @@ assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
   )
   assert.ok(ens.includes('.sound("gm_string_ensemble_1")'), `ensemble sound; got ${ens}`)
   assert.ok(ens.includes('.clip(0.55)'), `ensemble pad auto-clip; got ${ens}`)
+  const fluteLead = applySoundChoiceToCode(
+    'note("c4 ~ eb4").sound("sine").gain(0.7)',
+    { id: 'gm-flute', label: 'GM Flute', sound: 'gm_flute' },
+    'lead',
+  )
+  assert.ok(fluteLead.includes('.sound("gm_flute")'), `flute sound; got ${fluteLead}`)
+  assert.ok(fluteLead.includes('.clip(0.2)'), `flute lead auto-clip; got ${fluteLead}`)
 }
 
 console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, melodic=catalog, nobank dirt, bank fallback, match/apply, vox vocals, +Track random voice, visit pad voice, voice-profile clip/gain, gm useful set + orphans')
