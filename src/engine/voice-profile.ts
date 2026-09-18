@@ -40,9 +40,13 @@ export const VOICE_PROFILES: Record<string, VoiceProfile> = {
   didgeridoo: { gain: 0.75, length: 'wash' }, // peak ~0.57 — leave cut
   psaltery_spiccato: { gain: 1.75, length: 'short' },
 
-  // Dirt orphans (#161)
-  sid: { gain: 2, length: 'short' }, // peaks ~0.04–0.45; boost toward arpy
-  // sitar / fm: leave default (sitar ~0.5–0.7 OK; fm near-clip loud)
+  // Dirt orphans (#161) — measured peak/duration
+  // sid: ~0.1–0.5s one-shots → short + boost toward arpy
+  sid: { gain: 2, length: 'short' },
+  // fm: 2–10s sustaining / near-clip → wash + cut
+  fm: { gain: 0.55, length: 'wash' },
+  // sitar: 4–8s decaying chords — stack-risk on melodic rates → wash (peak ~0.5 OK)
+  sitar: { gain: 1, length: 'wash' },
 
   // short — Dirt FX / one-shots (gain cuts for loud hits)
   hoover: { gain: 0.4, length: 'short' },
@@ -81,24 +85,31 @@ export function voiceKey(sound: string): string {
  * WebAudioFont PCM often peaks near 1 but SuperDough SF envelope peaks ~0.3,
  * so profile cuts of 0.55 made pads/strings/choir read quiet vs synths.
  * Quiet families get higher multipliers; known-loud stay cut.
+ * Sustaining / looping families (pads, strings, choir, organs, winds, saxes)
+ * are wash so Sound apply / Shuffle auto-`.clip` like older Dirt/VCSL wash.
  */
 const GM_WASH_QUIET_RE =
-  /^gm_(string_ensemble_[12]|synth_strings_[12]|tremolo_strings|choir_aahs|voice_oohs|synth_choir|pad_.+|cello|contrabass|violin|viola|fx_(atmosphere|echoes|soundtrack|brightness|goblins|sci_fi|rain|crystal))$/
+  /^gm_(string_ensemble_[12]|synth_strings_[12]|tremolo_strings|choir_aahs|voice_oohs|synth_choir|pad_.+|cello|contrabass|violin|viola|fiddle|fx_(atmosphere|echoes|soundtrack|brightness|goblins|sci_fi|rain|crystal))$/
 
 const GM_WASH_ORGAN_RE =
   /^gm_(drawbar_organ|percussive_organ|rock_organ|church_organ|reed_organ|accordion|bandoneon)$/
 
-/** Soft pluck / woodwind / mallet / nylon — need boost vs sawtooth baseline. */
-const GM_HELD_QUIET_RE =
-  /^gm_(flute|piccolo|clarinet|oboe|english_horn|bassoon|recorder|whistle|ocarina|pan_flute|blow_bottle|shakuhachi|acoustic_guitar_nylon|music_box|kalimba|celesta|glockenspiel|marimba|xylophone|vibraphone|tubular_bells|orchestral_harp|dulcimer|koto|shamisen|sitar|bagpipe|harmonica|fretless_bass|acoustic_bass)$/
+/** Sustaining winds / saxes / reed drones — quiet + wash (loop while held). */
+const GM_WASH_WIND_RE =
+  /^gm_(flute|piccolo|clarinet|oboe|english_horn|bassoon|recorder|whistle|ocarina|pan_flute|blown_bottle|shakuhachi|soprano_sax|alto_sax|tenor_sax|baritone_sax|bagpipe|harmonica|shanai)$/
 
-/** Brass / slap / distortion / hits — stay cut so they don't clip. */
+/** Soft pluck / mallet / nylon — boost vs sawtooth; stay held/short (decay). */
+const GM_HELD_QUIET_RE =
+  /^gm_(acoustic_guitar_nylon|music_box|kalimba|celesta|glockenspiel|marimba|xylophone|vibraphone|tubular_bells|orchestral_harp|dulcimer|koto|shamisen|sitar|fretless_bass|acoustic_bass)$/
+
+/** Brass / slap / distortion / hits — stay cut so they don't clip; held (punchy). */
 const GM_HELD_LOUD_RE =
   /^gm_(trumpet|trombone|tuba|muted_trumpet|french_horn|brass_section|synth_brass_[12]|slap_bass_[12]|overdriven_guitar|distortion_guitar|guitar_harmonics|orchestra_hit|synth_bass_[12]|electric_guitar_(jazz|clean|muted)|lead_[257]_.*)$/
 
 function gmDefaultProfile(key: string): VoiceProfile {
   if (GM_WASH_QUIET_RE.test(key)) return { gain: 1.15, length: 'wash' }
   if (GM_WASH_ORGAN_RE.test(key)) return { gain: 0.7, length: 'wash' }
+  if (GM_WASH_WIND_RE.test(key)) return { gain: 1.45, length: 'wash' }
   if (GM_HELD_QUIET_RE.test(key)) return { gain: 1.45, length: 'held' }
   if (GM_HELD_LOUD_RE.test(key)) return { gain: 0.6, length: 'held' }
   return { gain: 0.85, length: 'held' }
