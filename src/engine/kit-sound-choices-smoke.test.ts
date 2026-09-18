@@ -261,12 +261,22 @@ assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
     assert.ok(!SOUND_CHOICES[role].some((c) => c.sound === 'pad'), `${role} no dirt pad`)
     assert.ok(!SOUND_CHOICES[role].some((c) => c.sound === 'stab'), `${role} no dirt stab`)
   }
-  assert.equal(sampleGainBoost('gm_string_ensemble_1') < 1, true, 'ensemble gain cut')
+  assert.equal(sampleGainBoost('gm_string_ensemble_1'), 0.95, 'ensemble mild wash gain')
   assert.equal(defaultClipForVoice('gm_string_ensemble_1', 'pad'), 0.55)
   assert.equal(defaultClipForVoice('gm_violin', 'lead'), 0.2)
   assert.equal(defaultClipForVoice('gm_cello', 'bass'), 0.2)
   assert.equal(sampleGainBoost('gm_piano'), 0.85, 'gm default held gain')
   assert.equal(defaultClipForVoice('gm_pad_warm', 'pad'), 0.55, 'gm pad wash clip')
+  assert.equal(sampleGainBoost('gm_pad_warm'), 1.15, 'gm quiet wash pad boost')
+  assert.equal(sampleGainBoost('gm_flute'), 1.45, 'gm quiet held flute boost')
+  assert.equal(sampleGainBoost('gm_orchestra_hit'), 0.6, 'gm loud hit cut')
+  assert.equal(sampleGainBoost('pipeorgan_quiet'), 6, 'pipeorgan quiet boost')
+  assert.equal(sampleGainBoost('vibraphone_bowed'), 8, 'bowed vibes boost')
+  assert.equal(sampleGainBoost('psaltery_spiccato'), 1.75, 'spiccato mild boost')
+  assert.equal(sampleGainBoost('didgeridoo'), 0.75, 'didgeridoo leave cut')
+  assert.equal(sampleGainBoost('sid'), 2, 'dirt sid boost')
+  assert.equal(sampleGainBoost('sitar'), 1, 'dirt sitar leave')
+  assert.equal(sampleGainBoost('fm'), 1, 'dirt fm leave (loud)')
   const ens = applySoundChoiceToCode(
     'note("c3 e3 g3").sound("sine").gain(0.6)',
     { id: 'gm-string-ensemble', label: 'String ensemble', sound: 'gm_string_ensemble_1' },
