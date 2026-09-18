@@ -22,7 +22,8 @@ export const VOICE_PROFILES: Record<string, VoiceProfile> = {
   organ_full: { gain: 0.55, length: 'wash' },
   organ_4inch: { gain: 6, length: 'wash' },
   pipeorgan_loud: { gain: 0.5, length: 'wash' },
-  pipeorgan_quiet: { gain: 1, length: 'wash' },
+  // VCSL quiet pipe: peak ~0.07 → boost like organ_4inch
+  pipeorgan_quiet: { gain: 6, length: 'wash' },
   wineglass: { gain: 12, length: 'wash' },
   wineglass_slow: { gain: 12, length: 'wash' },
   recorder_alto_sus: { gain: 6, length: 'wash' },
@@ -30,14 +31,18 @@ export const VOICE_PROFILES: Record<string, VoiceProfile> = {
   recorder_soprano_sus: { gain: 6, length: 'wash' },
   recorder_tenor_sus: { gain: 6, length: 'wash' },
   psaltery_bow: { gain: 0.7, length: 'wash' },
-  // GM soundfonts (bowed strings) — stack-risk; auto-clip on melodic roles
-  gm_string_ensemble_1: { gain: 0.5, length: 'wash' },
-  gm_cello: { gain: 0.6, length: 'wash' },
-  gm_violin: { gain: 0.7, length: 'wash' },
-  // New long VCSL orphans
-  vibraphone_bowed: { gain: 0.7, length: 'wash' },
-  didgeridoo: { gain: 0.75, length: 'wash' },
-  psaltery_spiccato: { gain: 1, length: 'short' },
+  // GM bowed trio — wash + mild cut (was deeper; reads quiet vs synths)
+  gm_string_ensemble_1: { gain: 0.95, length: 'wash' },
+  gm_cello: { gain: 1.0, length: 'wash' },
+  gm_violin: { gain: 1.05, length: 'wash' },
+  // VCSL orphans (#161): bowed vibes very quiet (peak ~0.035); spiccato mild
+  vibraphone_bowed: { gain: 8, length: 'wash' },
+  didgeridoo: { gain: 0.75, length: 'wash' }, // peak ~0.57 — leave cut
+  psaltery_spiccato: { gain: 1.75, length: 'short' },
+
+  // Dirt orphans (#161)
+  sid: { gain: 2, length: 'short' }, // peaks ~0.04–0.45; boost toward arpy
+  // sitar / fm: leave default (sitar ~0.5–0.7 OK; fm near-clip loud)
 
   // short — Dirt FX / one-shots (gain cuts for loud hits)
   hoover: { gain: 0.4, length: 'short' },
@@ -71,12 +76,31 @@ export function voiceKey(sound: string): string {
   return (sound.split(':')[0] ?? '').toLowerCase()
 }
 
-/** Long GM families → wash; everything else gm_* → held @ 0.85. */
-const GM_WASH_RE =
-  /^gm_(string_ensemble_[12]|synth_strings_[12]|tremolo_strings|choir_aahs|voice_oohs|synth_choir|pad_.+|drawbar_organ|percussive_organ|rock_organ|church_organ|reed_organ|cello|contrabass|violin|viola|accordion|bandoneon)$/
+/**
+ * GM length + family gain heuristics.
+ * WebAudioFont PCM often peaks near 1 but SuperDough SF envelope peaks ~0.3,
+ * so profile cuts of 0.55 made pads/strings/choir read quiet vs synths.
+ * Quiet families get higher multipliers; known-loud stay cut.
+ */
+const GM_WASH_QUIET_RE =
+  /^gm_(string_ensemble_[12]|synth_strings_[12]|tremolo_strings|choir_aahs|voice_oohs|synth_choir|pad_.+|cello|contrabass|violin|viola|fx_(atmosphere|echoes|soundtrack|brightness|goblins|sci_fi|rain|crystal))$/
+
+const GM_WASH_ORGAN_RE =
+  /^gm_(drawbar_organ|percussive_organ|rock_organ|church_organ|reed_organ|accordion|bandoneon)$/
+
+/** Soft pluck / woodwind / mallet / nylon — need boost vs sawtooth baseline. */
+const GM_HELD_QUIET_RE =
+  /^gm_(flute|piccolo|clarinet|oboe|english_horn|bassoon|recorder|whistle|ocarina|pan_flute|blow_bottle|shakuhachi|acoustic_guitar_nylon|music_box|kalimba|celesta|glockenspiel|marimba|xylophone|vibraphone|tubular_bells|orchestral_harp|dulcimer|koto|shamisen|sitar|bagpipe|harmonica|fretless_bass|acoustic_bass)$/
+
+/** Brass / slap / distortion / hits — stay cut so they don't clip. */
+const GM_HELD_LOUD_RE =
+  /^gm_(trumpet|trombone|tuba|muted_trumpet|french_horn|brass_section|synth_brass_[12]|slap_bass_[12]|overdriven_guitar|distortion_guitar|guitar_harmonics|orchestra_hit|synth_bass_[12]|electric_guitar_(jazz|clean|muted)|lead_[257]_.*)$/
 
 function gmDefaultProfile(key: string): VoiceProfile {
-  if (GM_WASH_RE.test(key)) return { gain: 0.55, length: 'wash' }
+  if (GM_WASH_QUIET_RE.test(key)) return { gain: 1.15, length: 'wash' }
+  if (GM_WASH_ORGAN_RE.test(key)) return { gain: 0.7, length: 'wash' }
+  if (GM_HELD_QUIET_RE.test(key)) return { gain: 1.45, length: 'held' }
+  if (GM_HELD_LOUD_RE.test(key)) return { gain: 0.6, length: 'held' }
   return { gain: 0.85, length: 'held' }
 }
 
