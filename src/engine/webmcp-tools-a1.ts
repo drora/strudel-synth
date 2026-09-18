@@ -13,6 +13,7 @@ import {
   setLockKit,
   setSongHarmony,
   setWalkLength,
+  setWalkCenter,
   setTrackOctave,
   setTrackLock,
   setVolume,
@@ -236,6 +237,38 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
       const r = setWalkLength(walkLength)
       if (!r.ok) return fail('set_walk_length', { walkLength }, r.error)
       return ok('set_walk_length', { walkLength }, r, `Walk · ${r.walkLength}`)
+    },
+  })
+  register({
+    name: 'set_walk_center',
+    description:
+      'Replace one chord-walk slot (0-based index) with a legal in-scale center (degree + quality). Same pool as walk generation (NEIGHBORS + tonic); rejects illegal / out-of-range. Keeps walk length; reshuffles unlocked melodic (skips Pads Keep / locked). Dice / New kit / Song Shuffle still roll a fresh walk.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        index: { type: 'number', description: 'Walk slot index 0..N-1' },
+        degree: { type: 'number', description: 'Semitones from song home (0, 2, 3, 5, 7, 8, 10…)' },
+        quality: { type: 'string', enum: ['min', 'maj'], description: 'Triad quality' },
+      },
+      required: ['index', 'degree', 'quality'],
+    },
+    execute: ({
+      index,
+      degree,
+      quality,
+    }: {
+      index: number
+      degree: number
+      quality: 'min' | 'maj'
+    }) => {
+      const r = setWalkCenter(index, { degree, quality })
+      if (!r.ok) return fail('set_walk_center', { index, degree, quality }, r.error)
+      return ok(
+        'set_walk_center',
+        { index, degree, quality },
+        r,
+        r.noop ? 'Walk · unchanged' : `Walk · ${(r.concertNames ?? []).join(' · ')}`,
+      )
     },
   })
   register({

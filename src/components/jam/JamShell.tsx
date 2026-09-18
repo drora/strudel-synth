@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useJamStore } from '../../store/jam-store'
 import { useSessionStore } from '../../store/session-store'
 import { useUIStore } from '../../store/ui-store'
@@ -8,6 +8,7 @@ import { JamTrackSheet } from './JamTrackSheet'
 import { JamCodeSheet } from './JamCodeSheet'
 import { JamAllCodeSheet } from './JamAllCodeSheet'
 import { JamMutateSheet } from './JamMutateSheet'
+import { JamWalkChordSheet } from './JamWalkChordSheet'
 import { JamIntensityControl } from './JamIntensityControl'
 import { JamImprovPlate } from './JamImprovPlate'
 import { liveUpdateEngine } from '../../engine/live-update'
@@ -36,6 +37,7 @@ export function JamShell() {
     () => (songSeed ? walkConcertNames(songSeed) : []),
     [songSeed],
   )
+  const [walkEditIdx, setWalkEditIdx] = useState<number | null>(null)
   const { cycleInt } = usePlayingLoopPhase()
   const walkLen = (songSeed?.walk.length ?? 0) as number
   const walkN = (walkLen >= 1 && walkLen <= 4 ? walkLen : 1) as WalkLength
@@ -245,22 +247,25 @@ export function JamShell() {
               </button>
             </div>
             <div
-              className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0"
+              className="flex flex-wrap items-center gap-1.5 min-w-0"
               aria-label="Chord walk"
             >
               {walkChips.map((label, i) => (
-                <span
+                <button
                   key={`${label}-${i}`}
+                  type="button"
                   className={
                     i === currentWalkIdx
-                      ? 'text-[11px] text-accent opacity-90 pointer-events-none select-none'
-                      : 'text-[11px] text-text-muted/55 pointer-events-none select-none'
+                      ? 'min-h-9 px-2 rounded-lg text-[11px] font-medium text-accent bg-accent/15 border border-accent/40'
+                      : 'min-h-9 px-2 rounded-lg text-[11px] font-medium text-text-muted border border-border bg-bg-elevated hover:text-accent hover:border-accent/40'
                   }
-                  aria-disabled="true"
                   aria-current={i === currentWalkIdx ? 'true' : undefined}
+                  aria-label={`Walk chord ${i + 1}: ${label}. Tap to change`}
+                  title={`Change walk chord ${i + 1}`}
+                  onClick={() => setWalkEditIdx(i)}
                 >
                   {label}
-                </span>
+                </button>
               ))}
             </div>
           </div>
@@ -389,6 +394,12 @@ export function JamShell() {
       {j.soundTrack && <JamTrackSheet track={j.soundTrack} />}
       {codeAll && <JamAllCodeSheet />}
       {codeTrack && <JamCodeSheet track={codeTrack} />}
+      {walkEditIdx != null && songSeed && (
+        <JamWalkChordSheet
+          index={walkEditIdx}
+          onClose={() => setWalkEditIdx(null)}
+        />
+      )}
       {j.showMutateSheet && (
         <JamMutateSheet onClose={() => j.setShowMutateSheet(false)} />
       )}

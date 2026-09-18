@@ -31,10 +31,10 @@ installLocalStorage()
 
 const { useJamStore } = await import('../store/jam-store.ts')
 const { useSessionStore } = await import('../store/session-store.ts')
-const { applyKit, setWalkLength, rollSongHarmony, reshuffleUnlocked } = await import(
+const { applyKit, setWalkLength, setWalkCenter, rollSongHarmony, reshuffleUnlocked } = await import(
   './jam-actions.ts'
 )
-const { rollSeed } = await import('./song-seed.ts')
+const { rollSeed, walkConcertNames, legalWalkCenters, legalWalkCentersForSlot } = await import('./song-seed.ts')
 type WalkLength = 1 | 2 | 3 | 4
 const { KITS } = await import('./kits.ts')
 const { isMelodicRole } = await import('./note-harmony.ts')
@@ -326,5 +326,104 @@ console.log('=== Walk length smoke ===')
     assert.equal(after!.code, padsCode, 'setWalkLength must not wipe Pads Keep')
     console.log('  Pads Keep survives setWalkLength: ok')
   }
+
+
+// setWalkCenter: tap-to-replace walk slot
+{
+  console.log('--- setWalkCenter ---')
+  const kit =
+    KITS.find((k) => k.tracks.some((t) => t.role === 'bass') && k.tracks.some((t) => t.role === 'pad')) ??
+    KITS[0]!
+  applyKit(kit.id, { fromPicker: true })
+  const jam = useJamStore.getState()
+  jam.setSongSeed(
+    rollSeed({
+      root: 'c',
+      scale: 'minor',
+      walkLength: 4,
+      vibe: kit.vibe,
+    }),
+  )
+  // Force a known legal walk for assertions
+  jam.setSongSeed({
+    root: 'c',
+    scale: 'minor',
+    patternId: 'i_bVI_bIII_v',
+    walk: [
+      { degree: 0, quality: 'min' },
+      { degree: 8, quality: 'maj' },
+      { degree: 3, quality: 'maj' },
+      { degree: 7, quality: 'min' },
+    ],
+  })
+  assert.deepEqual(walkConcertNames(useJamStore.getState().songSeed!), ['Cm', 'Ab', 'Eb', 'Gm'])
+
+  const pool = legalWalkCenters('minor')
+  assert.ok(pool.length >= 5, 'minor legal pool')
+  const midPool = legalWalkCentersForSlot('minor', useJamStore.getState().songSeed!.walk, 1)
+  assert.ok(
+    !midPool.some((c) => c.degree === 7 && c.quality === 'maj'),
+    'minor maj-V not pickable mid-walk',
+  )
+  const lastPool = legalWalkCentersForSlot('minor', useJamStore.getState().songSeed!.walk, 3)
+  assert.ok(
+    lastPool.some((c) => c.degree === 7 && c.quality === 'maj'),
+    'minor maj-V pickable at last slot',
+  )
+
+  const badIdx = setWalkCenter(99, { degree: 0, quality: 'min' })
+  assert.equal(badIdx.ok, false, 'out-of-range rejected')
+  const illegal = setWalkCenter(1, { degree: 7, quality: 'maj' })
+  assert.equal(illegal.ok, false, 'illegal mid maj-V rejected')
+  assert.deepEqual(walkConcertNames(useJamStore.getState().songSeed!), ['Cm', 'Ab', 'Eb', 'Gm'])
+
+  const session = useSessionStore.getState()
+  const padsCode = 'note("c3@16").s("jam_mic_9").speed(0.1).stretch(9).clip(1).slow(4)'
+  const padsId = session.addTrack({
+    name: 'Pads',
+    role: 'vox',
+    code: padsCode,
+    color: '#a78bfa',
+    muted: false,
+    soloed: false,
+    locked: false,
+    volume: 1,
+    octave: 0,
+    error: null,
+  })
+  const melodicBefore = Object.fromEntries(
+    useSessionStore
+      .getState()
+      .tracks.filter((t) => isMelodicRole(t.role) && !t.locked && t.id !== padsId)
+      .map((t) => [t.id, t.code]),
+  )
+
+  const r = setWalkCenter(1, { degree: 5, quality: 'min' }) // iv → Fm
+  assert.equal(r.ok, true)
+  if (!r.ok) throw new Error(r.error)
+  assert.equal(r.noop, undefined)
+  assert.deepEqual(r.concertNames, ['Cm', 'Fm', 'Eb', 'Gm'])
+  assert.deepEqual(walkConcertNames(useJamStore.getState().songSeed!), ['Cm', 'Fm', 'Eb', 'Gm'])
+  assert.equal(useJamStore.getState().songSeed!.patternId, 'custom')
+  assert.equal(useJamStore.getState().songSeed!.walk.length, 4, 'length preserved')
+
+  const same = setWalkCenter(1, { degree: 5, quality: 'min' })
+  assert.equal(same.ok, true)
+  if (same.ok) assert.equal(same.noop, true)
+
+  const after = useSessionStore.getState()
+  const padsAfter = after.tracks.find((t) => t.id === padsId)
+  assert.equal(padsAfter?.code, padsCode, 'Pads Keep skipped on setWalkCenter')
+  const melodicChanged = after.tracks.some(
+    (t) =>
+      isMelodicRole(t.role) &&
+      !t.locked &&
+      t.id !== padsId &&
+      melodicBefore[t.id] !== undefined &&
+      melodicBefore[t.id] !== t.code,
+  )
+  assert.ok(melodicChanged || Object.keys(melodicBefore).length === 0, 'unlocked melodic reshuffled')
+  console.log('  setWalkCenter replace + reject illegal + Pads Keep: ok')
+}
 
 console.log('ALL WALK-LENGTH CHECKS PASSED')
