@@ -167,7 +167,7 @@ assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
     assert.ok(HIDDEN_PITCHED_CHOICES.some((c) => c.sound === s), `hidden ${s}`)
     assert.ok(SOUND_CHOICES.lead.some((c) => c.sound === s), `lead has ${s}`)
   }
-  assert.equal(HIDDEN_PITCHED_CHOICES.length, 40)
+  assert.equal(HIDDEN_PITCHED_CHOICES.length, 36)
   // Useful VCSL orphans promoted onto melodic sheets
   for (const s of ['psaltery_spiccato', 'vibraphone_bowed', 'didgeridoo']) {
     assert.ok(HIDDEN_PITCHED_CHOICES.some((c) => c.sound === s), `orphan hidden ${s}`)
@@ -247,6 +247,13 @@ assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
   assert.ok(SOUND_CHOICES.pad.some((c) => c.sound === 'gm_pad_warm'), 'pad has GM Pad warm')
   assert.ok(SOUND_CHOICES.arp.some((c) => c.sound === 'gm_kalimba'), 'arp has GM Kalimba')
   assert.ok(SOUND_CHOICES.fx.some((c) => c.sound === 'gm_orchestra_hit'), 'fx has GM Orchestra hit')
+  // FX-flavored WTs moved off melodic
+  for (const role of ['bass', 'lead', 'pad', 'arp'] as const) {
+    assert.ok(!SOUND_CHOICES[role].some((c) => c.sound === 'wt_digital_crickets'), `${role} no WT crickets`)
+    assert.ok(!SOUND_CHOICES[role].some((c) => c.sound === 'wt_digital_curses'), `${role} no WT curses`)
+  }
+  assert.ok(SOUND_CHOICES.fx.some((c) => c.sound === 'wt_digital_crickets'), 'fx has WT crickets')
+  assert.ok(SOUND_CHOICES.lead.some((c) => c.sound === 'wt_digital_basique'), 'lead keeps WT basique')
   // Novelty must NOT pollute melodic pools
   for (const role of ['bass', 'lead', 'pad', 'arp'] as const) {
     assert.ok(!SOUND_CHOICES[role].some((c) => c.sound === 'gm_gunshot'), `${role} excluded gunshot`)
