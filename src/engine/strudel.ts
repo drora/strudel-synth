@@ -197,11 +197,41 @@ export async function initEngine(): Promise<void> {
         ),
         track(() => samples(`${DRUM_CDN}/uzu-wavetables.json`, `${DRUM_CDN}/uzu-wavetables/`, { prebake: true })),
       ])
-      // GM soundfonts (violin/cello/string ensemble, etc.) — register handlers; fonts load on first note
-      // Dynamic import keeps Node smoke tests (kits→jam-store→strudel) free of @strudel/core.
+      // GM soundfonts — register onto the LIVE SuperDough map (not package registerSoundfonts,
+      // which can hit a dead map when @strudel/web dist embeds its own webaudio). Then warm
+      // catalog gm_* fonts so first stack haps are not discarded as "still loading".
+      // Dynamic import keeps Node smoke tests free of @strudel/core.
       await track(async () => {
-        const { registerSoundfonts } = await import('@strudel/soundfonts')
-        registerSoundfonts()
+        const {
+          registerLiveGmSoundfonts,
+          warmGmFonts,
+          gmRegistryReady,
+          catalogGmSoundIds,
+        } = await import('./gm-soundfonts')
+        const n = await registerLiveGmSoundfonts()
+        if (!gmRegistryReady()) throw new Error(`GM registry not ready after registering ${n}`)
+        // Priority warm: trio + a few family anchors so first Shuffle hits are audible.
+        const priority = [
+          'gm_violin',
+          'gm_cello',
+          'gm_string_ensemble_1',
+          'gm_piano',
+          'gm_acoustic_bass',
+          'gm_flute',
+          'gm_pad_warm',
+          'gm_epiano1',
+          'gm_trumpet',
+          'gm_synth_bass_1',
+        ]
+        const warmPri = await warmGmFonts(priority)
+        console.log(
+          `[Strudel Studio] GM live-registered ${n}; priority warmed ${warmPri.ok.length}/${priority.length}`,
+        )
+        // Remainder of catalog warms in background (does not block Jam ready).
+        const rest = catalogGmSoundIds().filter((id) => !priority.includes(id))
+        void warmGmFonts(rest).then(({ ok, fail }) => {
+          console.log(`[Strudel Studio] GM background warm ${ok.length} ok, ${fail.length} fail`)
+        })
       })
       try {
         const alias = (globalThis as any).aliasBank

@@ -2,8 +2,9 @@ import type { TrackRole } from './types'
 import type { SoundChoice } from './kits-types'
 
 /**
- * Pitched VCSL / extra wavetables that actually play.
+ * Pitched VCSL / wavetables that actually play as melodic voices.
  * Soft/stacc/vib clones omitted. Useful orphans only (bowed vibes, spiccato, didgeridoo).
+ * FX-flavored WTs (crickets/curses/bad_day/echoes) live on the FX sheet — not here.
  */
 export const HIDDEN_PITCHED_CHOICES: SoundChoice[] = [
   { id: 'vibraphone', label: 'Vibraphone', sound: 'vibraphone' },
@@ -41,8 +42,12 @@ export const HIDDEN_PITCHED_CHOICES: SoundChoice[] = [
   { id: 'tubularbells', label: 'Tubular bells', sound: 'tubularbells' },
   { id: 'tubularbells2', label: 'Tubular bells 2', sound: 'tubularbells2' },
   { id: 'wineglass', label: 'Wineglass', sound: 'wineglass_slow' },
-  { id: 'wt-bad-day', label: 'WT bad day', sound: 'wt_digital_bad_day' },
   { id: 'wt-basique', label: 'WT basique', sound: 'wt_digital_basique' },
+]
+
+/** FX-flavored wavetables — one-shot / texture, not melodic Shuffle citizens. */
+export const WT_FX_CHOICES: SoundChoice[] = [
+  { id: 'wt-bad-day', label: 'WT bad day', sound: 'wt_digital_bad_day' },
   { id: 'wt-crickets', label: 'WT crickets', sound: 'wt_digital_crickets' },
   { id: 'wt-curses', label: 'WT curses', sound: 'wt_digital_curses' },
   { id: 'wt-echoes', label: 'WT echoes', sound: 'wt_digital_echoes' },
