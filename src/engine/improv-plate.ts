@@ -213,22 +213,24 @@ export function phraseCycles(tokens: string[], beatsPerCycle = 4): number {
   return total / Math.max(beatsPerCycle, 1)
 }
 
-/** `@` is relative — a 1-beat sentence would fill the bar and tile. Rest-pad to 4. */
-function padTokensToBar(
+/** `@` is relative — a short sentence would tile mid-walk. Rest-pad to walkLength×4. */
+export function padTokensToWalk(
   tokens: string[],
   vels: number[],
   speeds: number[],
   stretches: number[],
-  beatsPerCycle = 4,
+  walkLength = 1,
 ) {
+  const target = Math.max(1, Math.min(4, Math.trunc(walkLength) || 1)) * 4
   const total = tokens.reduce((n, tok) => n + tokenBeats(tok), 0)
-  if (total <= 0 || total >= beatsPerCycle) return
-  const pad = round3(beatsPerCycle - total)
+  if (total <= 0 || total >= target) return
+  const pad = round3(target - total)
   tokens.push(pad === 1 ? '~' : `~@${pad}`)
   vels.push(1)
   speeds.push(1)
   stretches.push(0)
 }
+
 
 function restToken(gapSec: number, bpm: number, walkLength = 1): string | null {
   const beats = quantizeBeats(gapSec, bpm, walkLength)
@@ -324,7 +326,7 @@ export function hitsToNoteCode(
       stretches.push(0)
     }
   }
-  padTokensToBar(tokens, vels, speeds, stretches)
+  padTokensToWalk(tokens, vels, speeds, stretches, nWalk)
   let code = improvVoiceCode(tokens.join(' '), voice)
   const allDefault = vels.every((v) => Math.abs(v - 1) < 0.06)
   if (!allDefault) {
@@ -343,7 +345,10 @@ export function hitsToNoteCode(
   }
   if (anyLong || anySmear || tokens.some((tok) => tok.startsWith('~'))) code += '.clip(1)'
   const cycles = phraseCycles(tokens)
-  if (cycles > 1) code += `.slow(${round3(cycles)})`
+  // After walk rest-pad, cycles === nWalk → .slow(nWalk). Longer-than-walk still uses cycles.
+  if (cycles > nWalk) code += `.slow(${round3(cycles)})`
+  else if (nWalk > 1) code += `.slow(${nWalk})`
+  else if (cycles > 1) code += `.slow(${round3(cycles)})`
   return bakeVoxAttack(code, voice)
 }
 

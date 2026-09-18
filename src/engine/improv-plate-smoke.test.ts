@@ -548,4 +548,48 @@ console.log('=== Improv plate smoke ===')
   console.log('refitMicKeepCode same-N pitch / changed-N refit ok')
 }
 
+
+{
+  // Short sentence on walk 2/3 must rest-pad to N×4 and .slow(N) — not .slow(~1.75) mid-walk tile
+  const t0 = 20_000
+  const shortSentence = [
+    { note: 'c4', cycle: 0, dur: 0.25, velocity: 1, at: t0 },
+    { note: 'eb4', cycle: 0, dur: 0.25, velocity: 1, at: t0 + 1250 },
+    { note: 'g4', cycle: 0, dur: 0.25, velocity: 1, at: t0 + 2000 },
+    { note: 'c5', cycle: 0, dur: 0.25, velocity: 1, at: t0 + 3250 },
+  ]
+  const noteBeats = (code: string) => {
+    const inner = code.match(/note\("([^"]+)"\)/)![1]!
+    return inner.split(/\s+/).reduce((n, tok) => n + tokenBeats(tok), 0)
+  }
+  // 7 beats raw → pad to 8 / .slow(2) (not ~1.75)
+  const w2 = hitsToNoteCode(shortSentence, 'sine', 120, undefined, 2)
+  assert.equal(noteBeats(w2), 8, w2)
+  assert.match(w2, /\.slow\(2\)/, w2)
+  assert.doesNotMatch(w2, /\.slow\(1\.75\)/, w2)
+  assert.match(w2, /c4@0\.5 ~@2 eb4@0\.5 ~ g4@0\.5 ~@2 c5@0\.5 ~/, w2)
+
+  const w3 = hitsToNoteCode(shortSentence, 'sine', 120, undefined, 3)
+  assert.equal(noteBeats(w3), 12, w3)
+  assert.match(w3, /\.slow\(3\)/, w3)
+
+  const w4 = hitsToNoteCode(shortSentence, 'sine', 120, undefined, 4)
+  assert.equal(noteBeats(w4), 16, w4)
+  assert.match(w4, /\.slow\(4\)/, w4)
+
+  // Long single hold already spans walk — unchanged full-walk bake
+  for (const n of [2, 3, 4] as const) {
+    const held = hitsToNoteCode(
+      [{ note: 'c3', cycle: 0, dur: 8, velocity: 1, at: t0 }],
+      'sine',
+      120,
+      undefined,
+      n,
+    )
+    assert.match(held, new RegExp(`note\\("c3@${n * 4}"\\)`), held)
+    assert.match(held, new RegExp(`\\.slow\\(${n}\\)`), held)
+  }
+  console.log('keep rest-pad to walk N ok')
+}
+
 console.log('improv-plate-smoke.test.ts: ok')
