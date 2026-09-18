@@ -6,8 +6,8 @@ import assert from 'node:assert/strict'
 import { getKit } from './kits'
 import { soundChoicesForKit, pickRandomSoundChoice, pickRandomImprovVoice, improvSoundChoices } from './kit-sound-choices'
 import { matchSoundChoice, applySoundChoiceToCode } from './kits'
+import { primarySSample, getSoundFromCode } from './code-effects'
 import { sampleGainBoost, applyVoiceClipToCode, defaultClipForVoice } from './voice-profile'
-import { getSoundFromCode } from './code-effects'
 import { SOUND_CHOICES } from './kits-sound-choices'
 import { HIDDEN_PITCHED_CHOICES } from './kits-sound-choices-melodic'
 
@@ -307,4 +307,48 @@ assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
   assert.ok(fluteLead.includes('.clip(0.2)'), `flute lead auto-clip; got ${fluteLead}`)
 }
 
-console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, melodic=catalog, nobank dirt, bank fallback, match/apply, vox vocals, +Track random voice, visit pad voice, voice-profile clip/gain, gm useful set + orphans')
+
+// Sound-only (gm_*) on ANY bank s() lane (drums/hihats/fx): strip bank, rewrite pattern; single highlight
+{
+  const goblins = { id: 'gm-fx-goblins', label: 'GM Goblins', sound: 'gm_fx_goblins' }
+  const bankTile = { id: 'bank-drumtraks', label: 'Drumtraks', bank: 'SequentialCircuitsDrumtracks' }
+
+  const lanes: { role: 'drums' | 'hihats' | 'fx'; code: string }[] = [
+    { role: 'drums', code: 's("bd ~ cp ~").bank("SequentialCircuitsDrumtracks").gain(0.8)' },
+    { role: 'hihats', code: 's("hh*8").bank("SequentialCircuitsDrumtracks").gain(0.4)' },
+    { role: 'fx', code: 's("~ ~ cp ~").bank("SequentialCircuitsDrumtracks").gain(0.55).pan(-0.12).room(0.5)' },
+  ]
+
+  for (const { role, code: bankCode } of lanes) {
+    // Legacy stacked bug: bank + .sound(gm) — only GM tile selected
+    const stacked = `${bankCode}.sound("gm_fx_goblins")`
+    assert.ok(matchSoundChoice(stacked, goblins), `${role} stacked: gm selected`)
+    assert.ok(!matchSoundChoice(stacked, bankTile), `${role} stacked: bank NOT selected when .sound present`)
+
+    const applied = applySoundChoiceToCode(bankCode, goblins, role)
+    assert.ok(!applied.includes('.bank('), `${role}: gm apply clears bank; got ${applied}`)
+    assert.ok(!applied.includes('.sound('), `${role}: gm apply uses s() not .sound; got ${applied}`)
+    assert.equal(primarySSample(applied), 'gm_fx_goblins', `${role}: primary is goblins; got ${applied}`)
+    assert.ok(matchSoundChoice(applied, goblins), `${role} applied: gm selected`)
+    assert.ok(!matchSoundChoice(applied, bankTile), `${role} applied: bank not selected`)
+
+    // Switching back to bank strips stray .sound
+    const back = applySoundChoiceToCode(stacked, bankTile, role)
+    assert.ok(back.includes('.bank("SequentialCircuitsDrumtracks")'), `${role} bank restore; got ${back}`)
+    assert.ok(!back.includes('.sound('), `${role} bank restore strips .sound; got ${back}`)
+    assert.ok(matchSoundChoice(back, bankTile), `${role} bank restore: bank selected`)
+    assert.ok(!matchSoundChoice(back, goblins), `${role} bank restore: gm not selected`)
+  }
+
+  // Melodic note() lines still use setSoundInCode (keep note path)
+  const melodic = applySoundChoiceToCode(
+    'note("c4 ~ eb4").sound("sine").gain(0.7)',
+    goblins,
+    'lead',
+  )
+  assert.ok(melodic.includes('.sound("gm_fx_goblins")'), `note() keeps .sound path; got ${melodic}`)
+  assert.ok(melodic.includes('note('), `note() preserved; got ${melodic}`)
+  assert.ok(!melodic.includes('s('), `note() path does not rewrite s(); got ${melodic}`)
+}
+
+console.log('ok — tabla native, Punch 909 prioritizes RolandTR909, amen/mridangam, melodic=catalog, nobank dirt, bank fallback, match/apply, vox vocals, +Track random voice, visit pad voice, voice-profile clip/gain, gm useful set + orphans, gm sound-only strips bank on drums/hihats/fx')

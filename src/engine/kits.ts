@@ -100,7 +100,12 @@ function isSampleVoiceChoice(choice: SoundChoice): boolean {
   )
 }
 
-/** Drop bank/n/sound when switching a drum line to a dirt sample voice. */
+/** Any catalog voice with .sound and no .bank (GM / synth / VCSL / Dirt on fx|drums). */
+function isSoundOnlyVoice(choice: SoundChoice): boolean {
+  return Boolean(choice.sound && !choice.bank)
+}
+
+/** Drop bank/n/sound when switching a drum line to a dirt/sample/GM voice. */
 function stripBankVoiceExtras(code: string): string {
   return code
     .replace(/\.bank\(\s*["'][^"']+["']\s*\)/g, '')
@@ -115,6 +120,8 @@ export function matchSoundChoice(code: string, choice: SoundChoice): boolean {
   const n = getNFromCode(code)
 
   if (choice.bank) {
+    // Bank kits use .bank(+.n), not .sound — a real .sound() means another voice is selected
+    if (/\.sound\(\s*["'][^"']+["']\s*\)/.test(code)) return false
     if (bank !== choice.bank) return false
     if (choice.n != null) return n === choice.n
     // Base bank tile: selected when n is unset or 0 (default hit)
@@ -130,14 +137,18 @@ export function matchSoundChoice(code: string, choice: SoundChoice): boolean {
 
 export function applySoundChoiceToCode(code: string, choice: SoundChoice, role?: TrackRole): string {
   let next = code
-  if (choice.bank) next = setBankInCode(next, choice.bank)
+  if (choice.bank) {
+    next = setBankInCode(next, choice.bank)
+    // Clear stray .sound so bank line is clean (no bank + gm_* stack)
+    next = next.replace(/\.sound\(\s*["'][^"']+["']\s*\)/g, '')
+  }
   if (choice.sound) {
     if (
-      isSampleVoiceChoice(choice) &&
+      (isSampleVoiceChoice(choice) || isSoundOnlyVoice(choice)) &&
       /\bs\(\s*["'][^"']+["']\s*\)/.test(next) &&
       !/\bnote\(/.test(next)
     ) {
-      // Dirt FX one-shots: whole s("…") becomes the sample; special voices keep pattern shape
+      // Dirt FX one-shots: whole s("…") becomes the sample; special/GM voices keep pattern shape
       if (/^(pad|padlong|stab|hoover|pluck|juno)$/.test(choice.sound)) {
         next = next.replace(/\bs\(\s*["'][^"']+["']\s*\)/, `s("${choice.sound}")`)
       } else {
