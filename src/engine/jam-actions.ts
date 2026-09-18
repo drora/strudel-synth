@@ -19,6 +19,7 @@ export {
   setSongHarmony,
   rollSongHarmony,
   setWalkLength,
+  setWalkCenter,
   setWalkDensity,
   setTrackOctave,
   applySongTimeFeel,

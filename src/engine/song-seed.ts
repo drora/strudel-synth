@@ -603,3 +603,53 @@ export function isLegalWalk(scale: ScaleKind, walk: WalkCenter[]): boolean {
   }
   return true
 }
+
+function walkCenterKey(c: WalkCenter): string {
+  return `${c.degree}:${c.quality}`
+}
+
+/** Deduped legal centers for a scale (NEIGHBORS pool, includes tonic). */
+export function legalWalkCenters(scale: ScaleKind): WalkCenter[] {
+  const seen = new Set<string>()
+  const out: WalkCenter[] = []
+  for (const c of NEIGHBORS[scale] ?? []) {
+    const k = walkCenterKey(c)
+    if (seen.has(k)) continue
+    seen.add(k)
+    out.push({ degree: c.degree, quality: c.quality })
+  }
+  return out
+}
+
+/**
+ * Legal pickable centers for replacing walk[index] — same pool as generation,
+ * filtered so the resulting walk still passes isLegalWalk (e.g. minor maj-V last only).
+ */
+export function legalWalkCentersForSlot(
+  scale: ScaleKind,
+  walk: WalkCenter[],
+  index: number,
+): WalkCenter[] {
+  if (index < 0 || index >= walk.length) return []
+  return legalWalkCenters(scale).filter((c) => {
+    const next = walk.map((x, i) => (i === index ? c : { ...x }))
+    return isLegalWalk(scale, next)
+  })
+}
+
+/** Concert-name labels for pickable centers in song key. */
+export function formatLegalWalkChords(
+  root: string,
+  scale: ScaleKind,
+  walk?: WalkCenter[],
+  index?: number,
+): { center: WalkCenter; label: string }[] {
+  const pool =
+    walk && index != null
+      ? legalWalkCentersForSlot(scale, walk, index)
+      : legalWalkCenters(scale)
+  return pool.map((center) => ({
+    center,
+    label: formatConcertChord(root, center),
+  }))
+}

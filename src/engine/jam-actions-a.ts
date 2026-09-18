@@ -9,7 +9,7 @@ import { pickRandomKit } from './kit-browser'
 import { reshuffleTrack } from './reshuffle'
 import { resolveShuffleProfile } from './kits-types'
 import type { ScaleKind } from './kits-types'
-import { rollSeed, retargetSeed, hydrateSeed, randomSongRoot, randomSongScale, randomWalkLength, pickWalkOfLength, type SongSeed, type WalkLength } from './song-seed'
+import { rollSeed, retargetSeed, hydrateSeed, randomSongRoot, randomSongScale, randomWalkLength, pickWalkOfLength, isLegalWalk, formatConcertChord, type SongSeed, type WalkLength, type WalkCenter } from './song-seed'
 import { ROLE_PRESETS } from './presets'
 import type { TrackRole } from './types'
 import {
@@ -628,6 +628,79 @@ export function setWalkLength(
   queueLive('reshuffle')
   return { ok: true, walkLength: n, patternId: seed.patternId }
 }
+
+export function setWalkCenter(
+  index: number,
+  center: WalkCenter,
+):
+  | { ok: true; walkLength: number; patternId: string; concertNames: string[]; noop?: true }
+  | { ok: false; error: string } {
+  const jam = useJamStore.getState()
+  const existing = jam.songSeed
+  if (!existing || !existing.walk.length) {
+    return { ok: false, error: 'No song walk to edit' }
+  }
+  const n = existing.walk.length
+  if (!Number.isInteger(index) || index < 0 || index >= n) {
+    return { ok: false, error: `Walk index must be 0..${n - 1} (got ${index})` }
+  }
+  const nextCenter: WalkCenter = { degree: center.degree, quality: center.quality }
+  const prev = existing.walk[index]!
+  if (prev.degree === nextCenter.degree && prev.quality === nextCenter.quality) {
+    jam.setLastPeek(`Walk · ${formatConcertChord(existing.root, prev)}`)
+    return {
+      ok: true,
+      walkLength: n,
+      patternId: existing.patternId,
+      concertNames: existing.walk.map((c) => formatConcertChord(existing.root, c)),
+      noop: true,
+    }
+  }
+  const nextWalk = existing.walk.map((c, i) => (i === index ? nextCenter : { ...c }))
+  if (!isLegalWalk(existing.scale, nextWalk)) {
+    return {
+      ok: false,
+      error: `Illegal walk chord ${formatConcertChord(existing.root, nextCenter)} at slot ${index} for ${existing.scale}`,
+    }
+  }
+  endTakeIfCapturing()
+  const seed: SongSeed = {
+    ...existing,
+    walk: nextWalk,
+    patternId: 'custom',
+  }
+  jam.setSongSeed(seed)
+  jam.resetWalkDensity()
+  const activeKit = jam.kitId ? getKit(jam.kitId) : undefined
+  const pinEffects = useUIStore.getState().pinEffects
+  const state = useSessionStore.getState()
+  for (const t of state.tracks) {
+    if (!isMelodicRole(t.role)) continue
+    if (t.locked) continue
+    if (isPadsKeepTrack(t)) continue
+    let next = reshuffleTrack(t.role, t.code, {
+      pinEffects,
+      lockKit: jam.lockKit || !!activeKit,
+      bank: activeKit?.drumsBank,
+      shuffle: songAwareShuffle(activeKit?.shuffle),
+      seed,
+      walkDensity: 1,
+      bpm: state.bpm,
+      takeSec: micTakeSecForCode(t.code),
+    })
+    const oct = t.octave ?? 0
+    if (oct && isMelodicRole(t.role)) next = shiftNotesByOctaves(next, oct)
+    state.setCode(t.id, next)
+  }
+  dropSpawnedPad()
+  jam.resetIntensitySession()
+  jam.resetSongTimeFeel()
+  const concertNames = nextWalk.map((c) => formatConcertChord(seed.root, c))
+  jam.setLastPeek(`Walk · ${concertNames.join(' · ')}`)
+  queueLive('reshuffle')
+  return { ok: true, walkLength: n, patternId: seed.patternId, concertNames }
+}
+
 
 export function setTrackOctave(
   trackId: string,
