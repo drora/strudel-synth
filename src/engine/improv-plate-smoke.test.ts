@@ -10,6 +10,7 @@ import {
   improvVoiceHapWithMix,
   applyImprovMixToCode,
   lastImprovPhrase,
+  phraseGapSec,
   bridgeImprovPhrase,
   hitsToNoteCode,
   quantizeBeats,
@@ -352,16 +353,39 @@ console.log('=== Improv plate smoke ===')
 }
 
 {
+  // Explicit small gapSec still exercises split (default gap is walk-sized, not 1.6s)
   const early = { note: 'c4', cycle: 0, dur: 0.2, at: 0 }
   const late = { note: 'e5', cycle: 0, dur: 0.2, at: 2200 }
-  const split = lastImprovPhrase([early, late])
+  const split = lastImprovPhrase([early, late], 1.6)
   assert.equal(split.length, 1)
   assert.equal(split[0]!.note, 'e5')
   const bridged = [{ ...early }]
   bridgeImprovPhrase(bridged, 2000)
-  const kept = lastImprovPhrase([...bridged, { note: 'e5', cycle: 0, dur: 0.2, at: 2100 }])
+  const kept = lastImprovPhrase(
+    [...bridged, { note: 'e5', cycle: 0, dur: 0.2, at: 2100 }],
+    1.6,
+  )
   assert.equal(kept.map((h) => h.note).join(' '), 'c4 e5', 'octave does not split Keep')
   console.log('octave bridge ok')
+}
+
+{
+  // Gap = one full walk in seconds (+0.25 cushion), floored at 2s; BPM-aware
+  assert.equal(phraseGapSec(120, 1), 2.25, 'N=1 @120 → 2+0.25')
+  assert.equal(phraseGapSec(120, 4), 8.25, 'N=4 @120 → 8+0.25')
+  assert.equal(phraseGapSec(90, 4), 4 * 4 * (60 / 90) + 0.25, 'N=4 @90 longer than @120')
+  assert.ok(phraseGapSec(90, 4) > phraseGapSec(120, 4), 'lower tempo → longer gap')
+  assert.equal(phraseGapSec(90, 1), 1 * 4 * (60 / 90) + 0.25, 'N=1 @90')
+  assert.ok(phraseGapSec(90, 1) > phraseGapSec(120, 1), 'N=1 also BPM-aware')
+  assert.equal(phraseGapSec(240, 1), 2, 'fast/short floors at 2s')
+  // ~3s pause must NOT split when gapSec is walk-4 sized (~8.25s @120)
+  const a = { note: 'c4', cycle: 0, dur: 0.25, at: 10_000 }
+  const b = { note: 'g4', cycle: 0, dur: 0.25, at: 10_000 + 250 + 3000 }
+  const joined = lastImprovPhrase([a, b], phraseGapSec(120, 4))
+  assert.equal(joined.map((h) => h.note).join(' '), 'c4 g4', '3s pause stays one sentence at walk-4')
+  const splitFast = lastImprovPhrase([a, b], 1.6)
+  assert.equal(splitFast.length, 1, 'same 3s pause still splits with tiny gapSec')
+  console.log('phraseGapSec walk/BPM ok')
 }
 
 {

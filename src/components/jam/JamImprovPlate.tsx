@@ -7,6 +7,7 @@ import {
   hitsToNoteCode,
   applyImprovMixToCode,
   bridgeImprovPhrase,
+  phraseGapSec,
   IMPROV_VOL_STEPS,
   IMPROV_VEL_STEPS,
   IMPROV_FX_CONTROLS,
@@ -74,13 +75,43 @@ export function JamImprovPlate({ onClose }: Props) {
   const [hitCount, setHitCount] = useState(0)
   const activePadRef = useRef<number | null>(null)
   const pendingRef = useRef<{ note: string; cycle: number; at: number; velocity: number } | null>(null)
+  const phraseGapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useEffect(() => () => stopImprovNote(), [])
+  const clearPhraseGapTimer = useCallback(() => {
+    if (phraseGapTimerRef.current != null) {
+      clearTimeout(phraseGapTimerRef.current)
+      phraseGapTimerRef.current = null
+    }
+  }, [])
+
+  const schedulePhraseGapReset = useCallback(() => {
+    clearPhraseGapTimer()
+    const bpm = useSessionStore.getState().bpm
+    const walkLength = useJamStore.getState().songSeed?.walk.length ?? 1
+    const ms = phraseGapSec(bpm, walkLength) * 1000
+    phraseGapTimerRef.current = setTimeout(() => {
+      phraseGapTimerRef.current = null
+      // Idle sentence timeout — drop buffered hits so Keep · N reinit to 0
+      if (activePadRef.current != null) return
+      pendingRef.current = null
+      hitsRef.current = []
+      setHitCount(0)
+    }, ms)
+  }, [clearPhraseGapTimer])
+
+  useEffect(
+    () => () => {
+      stopImprovNote()
+      clearPhraseGapTimer()
+    },
+    [clearPhraseGapTimer],
+  )
 
   const padDown = useCallback(
     (slot: number, ev: React.PointerEvent) => {
       const pad = bySlot.get(slot)
       if (!pad?.enabled || !pad.note) return
+      clearPhraseGapTimer()
       ev.currentTarget.setPointerCapture(ev.pointerId)
       activePadRef.current = slot
       setPressed(slot)
@@ -90,7 +121,7 @@ export function JamImprovPlate({ onClose }: Props) {
       const cycle = playing ? liveUpdateEngine.getCurrentCycle() : 0
       pendingRef.current = { note: pad.note, cycle, at: performance.now(), velocity: vel }
     },
-    [bySlot, voice, mix],
+    [bySlot, voice, mix, clearPhraseGapTimer],
   )
 
   const padUp = useCallback(() => {
@@ -106,18 +137,21 @@ export function JamImprovPlate({ onClose }: Props) {
       { note: pending.note, cycle: pending.cycle, dur, velocity: pending.velocity, at: pending.at },
     ]
     setHitCount(hitsRef.current.length)
-  }, [])
+    schedulePhraseGapReset()
+  }, [schedulePhraseGapReset])
 
   const onClear = useCallback(() => {
+    clearPhraseGapTimer()
     stopImprovNote()
     pendingRef.current = null
     activePadRef.current = null
     setPressed(null)
     hitsRef.current = []
     setHitCount(0)
-  }, [])
+  }, [clearPhraseGapTimer])
 
   const onKeep = useCallback(() => {
+    clearPhraseGapTimer()
     if (pendingRef.current) padUp()
     const hits = hitsRef.current
     if (hits.length === 0) return
@@ -151,7 +185,7 @@ export function JamImprovPlate({ onClose }: Props) {
       liveUpdateEngine.queueUpdate('immediate', 'jam')
     }
     onClose()
-  }, [voice, mix, padUp, onClose])
+  }, [voice, mix, padUp, onClose, clearPhraseGapTimer])
 
   return (
     <div
