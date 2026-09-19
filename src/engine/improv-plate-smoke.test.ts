@@ -20,6 +20,8 @@ import {
   noteTransposeRate,
   isPadsKeepTrack,
   groupedFxControls,
+  summarizeFxGroup,
+  formatFxSummaryPart,
   IMPROV_FX_CONTROLS,
   setImprovVoiceInCode,
   refitMicKeepCode,
@@ -340,6 +342,7 @@ console.log('=== Improv plate smoke ===')
   assert.doesNotMatch(keptVolOnly, /\.gain\(/)
   const groups = groupedFxControls(IMPROV_FX_CONTROLS)
   assert.equal(IMPROV_FX_CONTROLS[0]?.key, 'gain', 'Gain first')
+  assert.equal(groups[0]?.group, null, 'Gain ungrouped (always open)')
   assert.ok(IMPROV_FX_CONTROLS[0]?.steps.includes(2), 'Gain chips to 2')
   const filt = groups.find((g) => g.group === 'filter')
   assert.deepEqual(filt?.items.map((c) => c.key), ['lpf', 'hpf'])
@@ -349,6 +352,28 @@ console.log('=== Improv plate smoke ===')
   assert.deepEqual(del?.items.map((c) => c.key), ['delay', 'delaytime'])
   const env = groups.find((g) => g.group === 'envelope')
   assert.deepEqual(env?.items.map((c) => c.key), ['attack', 'decay', 'sustain', 'release'])
+  const flatKeys = groups.flatMap((g) => g.items.map((c) => c.key))
+  assert.deepEqual(
+    flatKeys,
+    IMPROV_FX_CONTROLS.map((c) => c.key),
+    'groupedFxControls lossless',
+  )
+  assert.equal(formatFxSummaryPart('lpf', 'LPF', 2000), 'LPF 2k')
+  assert.equal(formatFxSummaryPart('room', 'Reverb', 0.3), '0.3')
+  const offSum = summarizeFxGroup('Filter', filt!.items, () => undefined)
+  assert.equal(offSum.text, 'Filter · off')
+  assert.equal(offSum.active, false)
+  const vals: Record<string, number> = { lpf: 2000, room: 0.3 }
+  const filtOn = summarizeFxGroup('Filter', filt!.items, (k) => vals[k])
+  assert.equal(filtOn.text, 'Filter · LPF 2k')
+  assert.equal(filtOn.active, true)
+  const revOn = summarizeFxGroup('Reverb', rev!.items, (k) => vals[k])
+  assert.equal(revOn.text, 'Reverb · 0.3')
+  // Pads off defaults: LPF 12000 / HPF 20 inactive
+  const padsOff = summarizeFxGroup('Filter', filt!.items, (k) =>
+    k === 'lpf' ? 12000 : k === 'hpf' ? 20 : undefined,
+  )
+  assert.equal(padsOff.text, 'Filter · off')
   console.log('pad mix ok')
 }
 

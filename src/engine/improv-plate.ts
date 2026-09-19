@@ -408,6 +408,58 @@ export function groupedFxControls<T extends { key: string; group?: FxGroupId }>(
   return out
 }
 
+/** True when a chip value is set (non-null) and not the control's off/default. */
+export function isFxControlActive(
+  control: { off?: number },
+  value: number | null | undefined,
+): boolean {
+  if (value == null) return false
+  if (control.off !== undefined) return value !== control.off
+  return true
+}
+
+/** Compact display for one active FX value (e.g. `LPF 2k`, `0.3`, `A 0.1`). */
+export function formatFxSummaryPart(
+  key: string,
+  label: string,
+  value: number,
+): string {
+  if (key === 'lpf' || key === 'hpf') {
+    const pretty =
+      value >= 1000
+        ? `${Number((value / 1000).toFixed(1))}`.replace(/\.0$/, '') + 'k'
+        : String(value)
+    return `${label} ${pretty}`
+  }
+  if (key === 'roomsize') return `size ${value}`
+  if (key === 'delaytime') return `time ${value}`
+  if (key === 'room' || key === 'delay' || key === 'gain') return String(value)
+  const short: Record<string, string> = {
+    attack: 'A',
+    decay: 'D',
+    sustain: 'S',
+    release: 'R',
+  }
+  if (short[key]) return `${short[key]} ${value}`
+  return `${label} ${value}`
+}
+
+/** Collapsed accordion line: `Reverb · 0.3`, `Filter · off`, `Filter · LPF 2k`. */
+export function summarizeFxGroup(
+  groupLabel: string,
+  items: Array<{ key: string; label: string; off?: number }>,
+  getValue: (key: string) => number | null | undefined,
+): { text: string; active: boolean } {
+  const parts: string[] = []
+  for (const item of items) {
+    const v = getValue(item.key)
+    if (!isFxControlActive(item, v)) continue
+    parts.push(formatFxSummaryPart(item.key, item.label, v as number))
+  }
+  if (parts.length === 0) return { text: `${groupLabel} · off`, active: false }
+  return { text: `${groupLabel} · ${parts.join(' · ')}`, active: true }
+}
+
 export const IMPROV_FX_CONTROLS: Array<{
   key: keyof Pick<ImprovPadMix, 'lpf' | 'hpf' | 'room' | 'roomsize' | 'delay' | 'delaytime' | 'attack' | 'decay' | 'sustain' | 'release' | 'gain'>
   label: string
