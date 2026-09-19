@@ -170,7 +170,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setVolume: (trackId, volume) =>
     set((state) => ({
       tracks: state.tracks.map((t) =>
-        t.id === trackId ? { ...t, volume: Math.max(0, Math.min(1.5, volume)) } : t
+        t.id === trackId ? { ...t, volume: Math.max(0, Math.min(2, volume)) } : t
       ),
     })),
 

@@ -53,10 +53,9 @@ export const WT_FX_CHOICES: SoundChoice[] = [
   { id: 'wt-echoes', label: 'WT echoes', sound: 'wt_digital_echoes' },
 ]
 
-/** Useful Dirt melodic orphans (instruments / pitched synths — not FX one-shots). */
+/** Useful Dirt melodic orphans (instruments / pitched synths — fm moved to FX sheet). */
 export const DIRT_MELODIC_ORPHANS: SoundChoice[] = [
   { id: 'dirt-sitar', label: 'Dirt sitar', sound: 'sitar' },
-  { id: 'dirt-fm', label: 'Dirt FM', sound: 'fm' },
   { id: 'dirt-sid', label: 'Dirt SID', sound: 'sid' },
 ]
 
@@ -138,8 +137,7 @@ export const MELODIC_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = 
     { id: 'gtr', label: 'Guitar', sound: 'gtr' },
     { id: 'arpy', label: 'Arpy', sound: 'arpy' },
     { id: 'dirt-sitar', label: 'Dirt sitar', sound: 'sitar' },
-    { id: 'dirt-fm', label: 'Dirt FM', sound: 'fm' },
-    { id: 'dirt-sid', label: 'Dirt SID', sound: 'sid' },
+      { id: 'dirt-sid', label: 'Dirt SID', sound: 'sid' },
     // GM keys
     { id: 'gm-piano', label: 'GM Piano', sound: 'gm_piano' },
     { id: 'gm-epiano1', label: 'GM E-piano 1', sound: 'gm_epiano1' },
@@ -279,8 +277,7 @@ export const MELODIC_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = 
     // Wavetables
     { id: 'wt-digital', label: 'WT digital', sound: 'wt_digital' },
     // Dirt pitched
-    { id: 'dirt-fm-arp', label: 'Dirt FM', sound: 'fm' },
-    { id: 'dirt-sid-arp', label: 'Dirt SID', sound: 'sid' },
+      { id: 'dirt-sid-arp', label: 'Dirt SID', sound: 'sid' },
     { id: 'dirt-sitar-arp', label: 'Dirt sitar', sound: 'sitar' },
     // GM plucky
     { id: 'gm-pizzicato-strings', label: 'GM Pizzicato', sound: 'gm_pizzicato_strings' },
@@ -321,8 +318,7 @@ export const MELODIC_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = 
     { id: 'wt-digital', label: 'WT digital', sound: 'wt_digital' },
     { id: 'wt-vgame', label: 'WT vgame', sound: 'wt_vgame' },
     { id: 'dirt-sitar', label: 'Dirt sitar', sound: 'sitar' },
-    { id: 'dirt-fm', label: 'Dirt FM', sound: 'fm' },
-    { id: 'dirt-sid', label: 'Dirt SID', sound: 'sid' },
+      { id: 'dirt-sid', label: 'Dirt SID', sound: 'sid' },
     // GM (keys → guitars → strings → brass → winds → leads → pads → choir → organs → world → bass)
     { id: 'gm-piano', label: 'GM Piano', sound: 'gm_piano' },
     { id: 'gm-epiano1', label: 'GM E-piano 1', sound: 'gm_epiano1' },

@@ -45,7 +45,7 @@ const JAM_FX_CONTROLS: Array<{
   { key: 'delaytime', label: 'Time', group: 'delay', steps: [0.125, 0.25, 0.5, 0.75, 1] },
 ]
 
-const VOL_STEPS = [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5]
+const VOL_STEPS = [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
 
 interface JamTrackSheetProps {
   track: Track
@@ -360,7 +360,7 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
               <input
                 type="range"
                 min={0}
-                max={1.5}
+                max={2}
                 step={0.05}
                 value={live.volume}
                 onChange={(e) => setVolume(Number(e.target.value))}
