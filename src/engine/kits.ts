@@ -96,7 +96,7 @@ function isSampleVoiceChoice(choice: SoundChoice): boolean {
     /^(tabla2?|tablex|amencutup|breaks\d+|gretsch|electro1|jazz|mridangam_|bassdrum\d*|snare_|hihat)/.test(s) ||
     /^(bd|sd|cp|hh|oh|rim|perc|cb|rd)$/.test(s) ||
     // Dirt one-shots on the FX sheet (moved off melodic pad/lead)
-    /^(pad|padlong|stab|hoover|pluck|juno|fm)$/.test(s)
+    /^(pad|padlong|stab|hoover|pluck|juno|fm|didgeridoo)$/.test(s)
   )
 }
 
@@ -149,7 +149,7 @@ export function applySoundChoiceToCode(code: string, choice: SoundChoice, role?:
       !/\bnote\(/.test(next)
     ) {
       // Dirt FX one-shots: whole s("…") becomes the sample; special/GM voices keep pattern shape
-      if (/^(pad|padlong|stab|hoover|pluck|juno|fm)$/.test(choice.sound)) {
+      if (/^(pad|padlong|stab|hoover|pluck|juno|fm|didgeridoo)$/.test(choice.sound)) {
         next = next.replace(/\bs\(\s*["'][^"']+["']\s*\)/, `s("${choice.sound}")`)
       } else {
         next = rewriteSPatternSample(next, choice.sound)

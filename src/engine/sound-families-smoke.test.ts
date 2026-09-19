@@ -43,12 +43,17 @@ for (const role of roles) {
 assertLossless('improv', improvSoundChoices(punch, ['jam_mic_take1', 'jam_mic_foo']))
 
 
-// Dirt fm is FX (not Synths); fmpiano stays Keys; sid stays Synths (user-verdict pending for sid/sitar)
+// Dirt fm + VCSL didgeridoo are FX; fmpiano stays Keys; sid stays Synths; sitar stays World
 {
   assert.equal(
     soundFamilyForChoice({ id: 'dirt-fm', label: 'Dirt FM', sound: 'fm' }),
     'FX',
     'dirt fm → FX',
+  )
+  assert.equal(
+    soundFamilyForChoice({ id: 'didgeridoo', label: 'Didgeridoo', sound: 'didgeridoo' }),
+    'FX',
+    'didgeridoo → FX (not World)',
   )
   assert.equal(
     soundFamilyForChoice({ id: 'fmpiano', label: 'FM piano', sound: 'fmpiano' }),
@@ -60,11 +65,18 @@ assertLossless('improv', improvSoundChoices(punch, ['jam_mic_take1', 'jam_mic_fo
     'Synths',
     'sid stays Synths (ambiguous)',
   )
+  assert.equal(
+    soundFamilyForChoice({ id: 'dirt-sitar', label: 'Dirt sitar', sound: 'sitar' }),
+    'World',
+    'sitar stays World',
+  )
   const fxIds = new Set(soundChoicesForKit('fx', punch).map((c) => c.sound))
   assert.ok(fxIds.has('fm'), 'fx catalog includes fm')
-  for (const role of ['lead', 'arp', 'custom'] as TrackRole[]) {
+  assert.ok(fxIds.has('didgeridoo'), 'fx catalog includes didgeridoo')
+  for (const role of ['lead', 'pad', 'arp', 'bass', 'custom'] as TrackRole[]) {
     const sounds = soundChoicesForKit(role, punch).map((c) => c.sound)
     assert.ok(!sounds.includes('fm'), `${role} catalog dropped fm`)
+    assert.ok(!sounds.includes('didgeridoo'), `${role} catalog dropped didgeridoo`)
   }
 }
 

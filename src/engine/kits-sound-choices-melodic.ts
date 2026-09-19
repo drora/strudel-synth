@@ -3,7 +3,8 @@ import type { SoundChoice } from './kits-types'
 
 /**
  * Pitched VCSL / wavetables that actually play as melodic voices.
- * Soft/stacc/vib clones omitted. Useful orphans only (bowed vibes, spiccato, didgeridoo).
+ * Soft/stacc/vib clones omitted. Useful orphans only (bowed vibes, spiccato).
+ * Didgeridoo moved to FX sheet (not melodic).
  * FX-flavored WTs (crickets/curses/bad_day/echoes) live on the FX sheet — not here.
  */
 export const HIDDEN_PITCHED_CHOICES: SoundChoice[] = [
@@ -36,7 +37,6 @@ export const HIDDEN_PITCHED_CHOICES: SoundChoice[] = [
   { id: 'recorder-soprano', label: 'Recorder soprano', sound: 'recorder_soprano_sus' },
   { id: 'recorder-tenor', label: 'Recorder tenor', sound: 'recorder_tenor_sus' },
   { id: 'saxello', label: 'Saxello', sound: 'saxello' },
-  { id: 'didgeridoo', label: 'Didgeridoo', sound: 'didgeridoo' },
   { id: 'strumstick', label: 'Strumstick', sound: 'strumstick' },
   { id: 'super64', label: 'Super 64', sound: 'super64' },
   { id: 'tubularbells', label: 'Tubular bells', sound: 'tubularbells' },
@@ -110,8 +110,7 @@ export const MELODIC_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = 
     { id: 'gm-tuba', label: 'GM Tuba', sound: 'gm_tuba' },
     { id: 'gm-bassoon', label: 'GM Bassoon', sound: 'gm_bassoon' },
     { id: 'gm-lead-8-bass-lead', label: 'GM Bass lead', sound: 'gm_lead_8_bass_lead' },
-    // VCSL drone / low
-    { id: 'didgeridoo-bass', label: 'Didgeridoo', sound: 'didgeridoo' },
+    // VCSL low
     { id: 'recorder-bass-b', label: 'Recorder bass', sound: 'recorder_bass_sus' },
   ],
   lead: [

@@ -38,10 +38,10 @@ export function soundFamilyForChoice(choice: SoundChoice): SoundFamily {
   if (has(blob, /(^|_)jam_mic_|(^|_)rec_/) || sound.startsWith('jam_mic_')) return 'Mic'
   if (choice.bank) return 'Drums/Bank'
 
-  // Dirt FX one-shots (exact sounds / ids — avoid psaltery_pluck false positive)
+  // Dirt / VCSL FX one-shots (exact sounds / ids — avoid psaltery_pluck false positive)
   if (
-    ['pad', 'padlong', 'stab', 'hoover', 'pluck', 'juno', 'fm'].includes(sound) ||
-    has(id, /^(dirt_pad|padlong|stab|hoover|pluck|juno|dirt_fm)$/) ||
+    ['pad', 'padlong', 'stab', 'hoover', 'pluck', 'juno', 'fm', 'didgeridoo'].includes(sound) ||
+    has(id, /^(dirt_pad|padlong|stab|hoover|pluck|juno|dirt_fm|didgeridoo)$/) ||
     has(blob, /gm_fx_|gm_orchestra_hit|gm_timpani|gm_steel_drums/) ||
     has(sound, /^wt_digital_(bad_day|crickets|curses|echoes)$/)
   ) {
@@ -89,7 +89,7 @@ export function soundFamilyForChoice(choice: SoundChoice): SoundFamily {
   if (
     has(
       blob,
-      /(^|_)(sitar|didgeridoo|dantranh|psaltery|shamisen|koto|kalimba|bagpipe|shanai|banjo|accordion|harmonica)(_|$)/,
+      /(^|_)(sitar|dantranh|psaltery|shamisen|koto|kalimba|bagpipe|shanai|banjo|accordion|harmonica)(_|$)/,
     )
   ) {
     return 'World'
