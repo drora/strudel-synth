@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { getKit } from './kits'
 import { soundChoicesForKit, improvSoundChoices } from './kit-sound-choices'
-import { groupSoundChoices, SOUND_FAMILY_ORDER } from './sound-families'
+import { groupSoundChoices, SOUND_FAMILY_ORDER, soundFamilyForChoice } from './sound-families'
 import type { TrackRole } from './types'
 
 console.log('=== Sound families smoke ===')
@@ -41,5 +41,31 @@ for (const role of roles) {
 }
 
 assertLossless('improv', improvSoundChoices(punch, ['jam_mic_take1', 'jam_mic_foo']))
+
+
+// Dirt fm is FX (not Synths); fmpiano stays Keys; sid stays Synths (user-verdict pending for sid/sitar)
+{
+  assert.equal(
+    soundFamilyForChoice({ id: 'dirt-fm', label: 'Dirt FM', sound: 'fm' }),
+    'FX',
+    'dirt fm → FX',
+  )
+  assert.equal(
+    soundFamilyForChoice({ id: 'fmpiano', label: 'FM piano', sound: 'fmpiano' }),
+    'Keys',
+    'fmpiano stays Keys',
+  )
+  assert.equal(
+    soundFamilyForChoice({ id: 'dirt-sid', label: 'Dirt SID', sound: 'sid' }),
+    'Synths',
+    'sid stays Synths (ambiguous)',
+  )
+  const fxIds = new Set(soundChoicesForKit('fx', punch).map((c) => c.sound))
+  assert.ok(fxIds.has('fm'), 'fx catalog includes fm')
+  for (const role of ['lead', 'arp', 'custom'] as TrackRole[]) {
+    const sounds = soundChoicesForKit(role, punch).map((c) => c.sound)
+    assert.ok(!sounds.includes('fm'), `${role} catalog dropped fm`)
+  }
+}
 
 console.log('ok — sound family grouping lossless for all roles + improv')

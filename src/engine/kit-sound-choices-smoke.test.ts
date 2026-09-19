@@ -182,13 +182,22 @@ assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
   const padSounds = SOUND_CHOICES.pad.map((c) => c.sound)
   const leadSounds = SOUND_CHOICES.lead.map((c) => c.sound)
   const fxDirt = SOUND_CHOICES.fx.filter((c) => c.sound).map((c) => c.sound)
-  for (const s of ['pad', 'padlong', 'stab', 'hoover', 'pluck', 'juno']) {
+  for (const s of ['pad', 'padlong', 'stab', 'hoover', 'pluck', 'juno', 'fm']) {
     assert.ok(fxDirt.includes(s), `fx has ${s}`)
   }
   assert.ok(!padSounds.includes('pad') && !padSounds.includes('padlong'), 'pad sheet dropped dirt pads')
   assert.ok(!leadSounds.includes('stab') && !leadSounds.includes('hoover'), 'lead dropped stab/hoover')
   assert.ok(!leadSounds.includes('pluck') && !leadSounds.includes('juno'), 'lead dropped pluck/juno')
   assert.ok(['sax', 'gtr', 'arpy'].every((s) => leadSounds.includes(s)), 'lead keeps sax/gtr/arpy')
+  assert.ok(!leadSounds.includes('fm'), 'lead dropped dirt fm')
+  assert.ok(!SOUND_CHOICES.arp.some((c) => c.sound === 'fm'), 'arp dropped dirt fm')
+  assert.ok(!SOUND_CHOICES.custom.some((c) => c.sound === 'fm'), 'custom dropped dirt fm')
+  assert.ok(SOUND_CHOICES.fx.some((c) => c.sound === 'fm'), 'fx has dirt fm')
+  const fmApplied = applySoundChoiceToCode(
+    's("cp ~ ~ cp").bank("RolandTR909").gain(0.8)',
+    { id: 'dirt-fm', label: 'Dirt FM', sound: 'fm' },
+  )
+  assert.equal(fmApplied, 's("fm").gain(0.8)', `dirt fm apply; got ${fmApplied}`)
   assert.ok(SOUND_CHOICES.arp.some((c) => c.sound === 'arpy'), 'arp keeps arpy')
   assert.ok(!SOUND_CHOICES.arp.some((c) => c.sound === 'pluck'), 'arp dropped pluck')
 

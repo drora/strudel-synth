@@ -40,8 +40,8 @@ export function soundFamilyForChoice(choice: SoundChoice): SoundFamily {
 
   // Dirt FX one-shots (exact sounds / ids — avoid psaltery_pluck false positive)
   if (
-    ['pad', 'padlong', 'stab', 'hoover', 'pluck', 'juno'].includes(sound) ||
-    has(id, /^(dirt_pad|padlong|stab|hoover|pluck|juno)$/) ||
+    ['pad', 'padlong', 'stab', 'hoover', 'pluck', 'juno', 'fm'].includes(sound) ||
+    has(id, /^(dirt_pad|padlong|stab|hoover|pluck|juno|dirt_fm)$/) ||
     has(blob, /gm_fx_|gm_orchestra_hit|gm_timpani|gm_steel_drums/) ||
     has(sound, /^wt_digital_(bad_day|crickets|curses|echoes)$/)
   ) {
@@ -49,7 +49,7 @@ export function soundFamilyForChoice(choice: SoundChoice): SoundFamily {
   }
 
   // Melodic families before broad drum heuristics (gm_*_jazz must not become Drums)
-  if (has(blob, /(^|_)(saw|sawtooth|square|sine|triangle|arpy|fm|sid|super64|gm_lead)(_|$)/)) {
+  if (has(blob, /(^|_)(saw|sawtooth|square|sine|triangle|arpy|sid|super64|gm_lead)(_|$)/)) {
     return 'Synths'
   }
   if (

@@ -91,7 +91,7 @@ export function setVolume(trackId: string, volume: number) {
   const session = useSessionStore.getState()
   const track = session.tracks.find((t) => t.id === trackId)
   if (!track) return { ok: false as const, error: 'Track not found' }
-  const v = Math.max(0, Math.min(1.5, volume))
+  const v = Math.max(0, Math.min(2, volume))
   session.setVolume(trackId, v)
   const jam = useJamStore.getState()
   jam.touchTrack(trackId)
