@@ -46,7 +46,6 @@ const JAM_FX_CONTROLS: Array<{
   { key: 'delaytime', label: 'Time', group: 'delay', steps: [0.125, 0.25, 0.5, 0.75, 1] },
 ]
 
-const VOL_STEPS = [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
 
 interface JamTrackSheetProps {
   track: Track
@@ -358,22 +357,6 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
                 className="w-full accent-[var(--color-accent,#a78bfa)]"
                 aria-label="Track volume"
               />
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {VOL_STEPS.map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    onClick={() => setVolume(v)}
-                    className={`min-h-9 px-2.5 rounded-lg text-[11px] border ${
-                      Math.abs(live.volume - v) < 0.001
-                        ? 'border-accent bg-accent/20 text-accent'
-                        : 'border-border text-text-muted'
-                    }`}
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
             </div>
             {isMelodicRole(live.role) && (
               <div>
