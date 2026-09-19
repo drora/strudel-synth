@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { SoundChoice } from '../../engine/kits'
 import { groupSoundChoices } from '../../engine/sound-families'
 
@@ -22,6 +22,16 @@ export function SoundPickerSheet({
 }: Props) {
   const groups = useMemo(() => groupSoundChoices(choices), [choices])
   const current = choices.find(isActive)
+  const activeRef = useRef<HTMLButtonElement | null>(null)
+
+  // On open / when catalog settles, scroll the active tile into view (stay at top if none).
+  useEffect(() => {
+    if (!current) return
+    const id = requestAnimationFrame(() => {
+      activeRef.current?.scrollIntoView({ block: 'center', inline: 'nearest' })
+    })
+    return () => cancelAnimationFrame(id)
+  }, [choices, current?.id])
 
   return (
     <div
@@ -74,6 +84,7 @@ export function SoundPickerSheet({
                     <button
                       key={choice.id}
                       type="button"
+                      ref={active ? activeRef : undefined}
                       onClick={() => {
                         onChoose(choice)
                         if (closeOnChoose) onClose()

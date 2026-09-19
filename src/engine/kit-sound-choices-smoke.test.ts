@@ -167,13 +167,14 @@ assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
     assert.ok(HIDDEN_PITCHED_CHOICES.some((c) => c.sound === s), `hidden ${s}`)
     assert.ok(SOUND_CHOICES.lead.some((c) => c.sound === s), `lead has ${s}`)
   }
-  assert.equal(HIDDEN_PITCHED_CHOICES.length, 36)
-  // Useful VCSL orphans promoted onto melodic sheets
-  for (const s of ['psaltery_spiccato', 'vibraphone_bowed', 'didgeridoo']) {
+  assert.equal(HIDDEN_PITCHED_CHOICES.length, 35)
+  // Useful VCSL orphans promoted onto melodic sheets (didgeridoo → FX)
+  for (const s of ['psaltery_spiccato', 'vibraphone_bowed']) {
     assert.ok(HIDDEN_PITCHED_CHOICES.some((c) => c.sound === s), `orphan hidden ${s}`)
   }
   assert.ok(SOUND_CHOICES.lead.some((c) => c.sound === 'psaltery_spiccato'), 'lead has psaltery_spiccato')
-  assert.ok(SOUND_CHOICES.bass.some((c) => c.sound === 'didgeridoo'), 'bass has didgeridoo')
+  assert.ok(!SOUND_CHOICES.bass.some((c) => c.sound === 'didgeridoo'), 'bass dropped didgeridoo')
+  assert.ok(!HIDDEN_PITCHED_CHOICES.some((c) => c.sound === 'didgeridoo'), 'hidden dropped didgeridoo')
 }
 
 
@@ -182,7 +183,7 @@ assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
   const padSounds = SOUND_CHOICES.pad.map((c) => c.sound)
   const leadSounds = SOUND_CHOICES.lead.map((c) => c.sound)
   const fxDirt = SOUND_CHOICES.fx.filter((c) => c.sound).map((c) => c.sound)
-  for (const s of ['pad', 'padlong', 'stab', 'hoover', 'pluck', 'juno', 'fm']) {
+  for (const s of ['pad', 'padlong', 'stab', 'hoover', 'pluck', 'juno', 'fm', 'didgeridoo']) {
     assert.ok(fxDirt.includes(s), `fx has ${s}`)
   }
   assert.ok(!padSounds.includes('pad') && !padSounds.includes('padlong'), 'pad sheet dropped dirt pads')
@@ -193,11 +194,21 @@ assert.ok(avoidSaw && avoidSaw !== 'sawtooth', 'pads visit roll avoids current')
   assert.ok(!SOUND_CHOICES.arp.some((c) => c.sound === 'fm'), 'arp dropped dirt fm')
   assert.ok(!SOUND_CHOICES.custom.some((c) => c.sound === 'fm'), 'custom dropped dirt fm')
   assert.ok(SOUND_CHOICES.fx.some((c) => c.sound === 'fm'), 'fx has dirt fm')
+  assert.ok(!leadSounds.includes('didgeridoo'), 'lead dropped didgeridoo')
+  assert.ok(!padSounds.includes('didgeridoo'), 'pad dropped didgeridoo')
+  assert.ok(!SOUND_CHOICES.arp.some((c) => c.sound === 'didgeridoo'), 'arp dropped didgeridoo')
+  assert.ok(!SOUND_CHOICES.custom.some((c) => c.sound === 'didgeridoo'), 'custom dropped didgeridoo')
+  assert.ok(SOUND_CHOICES.fx.some((c) => c.sound === 'didgeridoo'), 'fx has didgeridoo')
   const fmApplied = applySoundChoiceToCode(
     's("cp ~ ~ cp").bank("RolandTR909").gain(0.8)',
     { id: 'dirt-fm', label: 'Dirt FM', sound: 'fm' },
   )
   assert.equal(fmApplied, 's("fm").gain(0.8)', `dirt fm apply; got ${fmApplied}`)
+  const digApplied = applySoundChoiceToCode(
+    's("cp ~ ~ cp").bank("RolandTR909").gain(0.8)',
+    { id: 'didgeridoo', label: 'Didgeridoo', sound: 'didgeridoo' },
+  )
+  assert.equal(digApplied, 's("didgeridoo").gain(0.8)', `didgeridoo apply; got ${digApplied}`)
   assert.ok(SOUND_CHOICES.arp.some((c) => c.sound === 'arpy'), 'arp keeps arpy')
   assert.ok(!SOUND_CHOICES.arp.some((c) => c.sound === 'pluck'), 'arp dropped pluck')
 

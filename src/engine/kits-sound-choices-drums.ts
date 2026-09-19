@@ -145,6 +145,7 @@ export const DRUM_SOUND_CHOICES: Partial<Record<TrackRole, SoundChoice[]>> = {
     { id: 'pluck', label: 'Pluck', sound: 'pluck' },
     { id: 'juno', label: 'Juno', sound: 'juno' },
     { id: 'dirt-fm', label: 'Dirt FM', sound: 'fm' },
+    { id: 'didgeridoo', label: 'Didgeridoo', sound: 'didgeridoo' },
     // GM percussion / FX (novelty one-shots stay excluded)
     ...GM_FX_CHOICES,
     // FX-flavored wavetables (moved off melodic)
