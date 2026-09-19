@@ -9,7 +9,8 @@ import {
 } from '../../engine/kits'
 import { soundChoicesForKit, improvSoundChoices } from '../../engine/kit-sound-choices'
 import { listMicSampleNames } from '../../engine/mic-sample'
-import { isPadsKeepTrack, setImprovVoiceInCode, groupedFxControls, type FxGroupId } from '../../engine/improv-plate'
+import { isPadsKeepTrack, setImprovVoiceInCode, type FxGroupId } from '../../engine/improv-plate'
+import { FxAccordion } from './FxAccordion'
 import { applyVoiceClipToCode } from '../../engine/voice-profile'
 import {
   parseEffectValue,
@@ -251,56 +252,46 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
         )}
 
         {sheetTab === 'fx' && (
-          <div className="space-y-3">
-            {groupedFxControls(JAM_FX_CONTROLS).map((row) => {
-              const body = row.items.map((fx) => {
-                const current = parseEffectValue(live.code, fx.key)
-                const patterned = isPatternedEffect(live.code, fx.key)
-                return (
-                  <div key={fx.key}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] font-medium text-text-muted">{fx.label}</span>
-                      <span className="text-[10px] text-text-muted">
-                        {patterned ? 'patterned' : current ?? '—'}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {fx.steps.map((v) => (
-                        <button
-                          key={v}
-                          type="button"
-                          disabled={patterned}
-                          onClick={() => applyFx(fx.key, v)}
-                          className={`min-h-9 px-2.5 rounded-lg text-[11px] border ${
-                            !patterned && current === v
-                              ? 'border-accent bg-accent/20 text-accent'
-                              : 'border-border text-text-muted'
-                          } disabled:opacity-40`}
-                          title={
-                            !patterned && current === v
-                              ? `Remove ${fx.label}`
-                              : `Set ${fx.label} ${v}`
-                          }
-                        >
-                          {v}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })
-              if (!row.group) return <div key={row.items[0]!.key}>{body}</div>
+          <FxAccordion
+            controls={JAM_FX_CONTROLS}
+            getValue={(key) => parseEffectValue(live.code, key)}
+            renderControl={(fx) => {
+              const current = parseEffectValue(live.code, fx.key)
+              const patterned = isPatternedEffect(live.code, fx.key)
               return (
-                <div
-                  key={row.group}
-                  className="rounded-xl border border-border px-2.5 py-2 space-y-2"
-                >
-                  <span className="text-[10px] font-medium text-text-muted">{row.label}</span>
-                  {body}
-                </div>
+                <>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] font-medium text-text-muted">{fx.label}</span>
+                    <span className="text-[10px] text-text-muted">
+                      {patterned ? 'patterned' : current ?? '—'}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {fx.steps.map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        disabled={patterned}
+                        onClick={() => applyFx(fx.key, v)}
+                        className={`min-h-9 px-2.5 rounded-lg text-[11px] border ${
+                          !patterned && current === v
+                            ? 'border-accent bg-accent/20 text-accent'
+                            : 'border-border text-text-muted'
+                        } disabled:opacity-40`}
+                        title={
+                          !patterned && current === v
+                            ? `Remove ${fx.label}`
+                            : `Set ${fx.label} ${v}`
+                        }
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                </>
               )
-            })}
-          </div>
+            }}
+          />
         )}
 
         {sheetTab === 'mix' && (

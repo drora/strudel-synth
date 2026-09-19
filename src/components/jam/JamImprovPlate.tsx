@@ -11,7 +11,6 @@ import {
   IMPROV_VOL_STEPS,
   IMPROV_VEL_STEPS,
   IMPROV_FX_CONTROLS,
-  groupedFxControls,
   isImprovFxOn,
   type ImprovHit,
 } from '../../engine/improv-plate'
@@ -21,6 +20,7 @@ import { liveUpdateEngine } from '../../engine/live-update'
 import { startImprovNote, stopImprovNote, warmImprovTrigger, preloadImprovVoice, padVelocity } from '../../engine/improv-trigger'
 import { ROLE_COLORS } from '../../engine/types'
 import { SoundPickerSheet } from './SoundPickerSheet'
+import { FxAccordion } from './FxAccordion'
 
 interface Props {
   onClose: () => void
@@ -386,12 +386,18 @@ export function JamImprovPlate({ onClose }: Props) {
               ))}
             </div>
           </div>
-          {groupedFxControls(IMPROV_FX_CONTROLS).map((row) => {
-            const body = row.items.map((fx) => {
+          <FxAccordion
+            controls={IMPROV_FX_CONTROLS}
+            getValue={(key) => {
+              const spec = IMPROV_FX_CONTROLS.find((c) => c.key === key)
+              return spec ? mix[spec.key] : undefined
+            }}
+            bodyClassName="space-y-2"
+            renderControl={(fx) => {
               const current = mix[fx.key]
               const on = isImprovFxOn(fx.key, current)
               return (
-                <div key={fx.key}>
+                <>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[11px] font-medium text-text-muted">{fx.label}</span>
                     <span className="text-[10px] text-text-muted tabular-nums">
@@ -421,20 +427,10 @@ export function JamImprovPlate({ onClose }: Props) {
                       )
                     })}
                   </div>
-                </div>
+                </>
               )
-            })
-            if (!row.group) return <div key={row.items[0]!.key}>{body}</div>
-            return (
-              <div
-                key={row.group}
-                className="rounded-xl border border-border px-2.5 py-2 space-y-2"
-              >
-                <span className="text-[10px] font-medium text-text-muted">{row.label}</span>
-                {body}
-              </div>
-            )
-          })}
+            }}
+          />
         </div>
 
         <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-t border-border">
