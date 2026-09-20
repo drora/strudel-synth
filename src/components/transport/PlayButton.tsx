@@ -2,6 +2,23 @@ import { useCallback } from 'react'
 import { useSessionStore } from '../../store/session-store'
 import { startPlayback, pausePlayback } from '../../engine/playback'
 
+function PlayIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+      <path d="M8 5v14l11-7z" />
+    </svg>
+  )
+}
+
+function PauseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+      <rect x="6" y="5" width="4" height="14" rx="0.5" />
+      <rect x="14" y="5" width="4" height="14" rx="0.5" />
+    </svg>
+  )
+}
+
 export function PlayButton({ large = false, fill = false }: { large?: boolean; fill?: boolean }) {
   const isPlaying = useSessionStore((s) => s.isPlaying)
 
@@ -28,7 +45,7 @@ export function PlayButton({ large = false, fill = false }: { large?: boolean; f
       title={isPlaying ? 'Pause' : 'Play'}
       aria-label={isPlaying ? 'Pause' : 'Play'}
     >
-      {isPlaying ? '⏸' : '▶'}
+      {isPlaying ? <PauseIcon /> : <PlayIcon />}
     </button>
   )
 }
