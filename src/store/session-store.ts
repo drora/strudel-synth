@@ -13,12 +13,15 @@ interface SessionState {
   tracks: Track[]
   bpm: number
   isPlaying: boolean
+  /** Frozen cycle while paused; null when stopped (0:00) or playing. */
+  pausedCycle: number | null
   activeTrackId: string | null
   templateId: string | null
 
   setCode: (trackId: string, code: string) => void
   setBpm: (bpm: number) => void
   setPlaying: (playing: boolean) => void
+  setPausedCycle: (cycle: number | null) => void
   setActiveTrack: (trackId: string) => void
   setError: (trackId: string, error: string | null) => void
   setVolume: (trackId: string, volume: number) => void
@@ -61,6 +64,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   tracks: [],
   bpm: 128,
   isPlaying: false,
+  pausedCycle: null,
   activeTrackId: null,
   templateId: null,
 
@@ -74,6 +78,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setBpm: (bpm) => set({ bpm: Math.max(40, Math.min(300, bpm)) }),
 
   setPlaying: (isPlaying) => set({ isPlaying }),
+
+  setPausedCycle: (pausedCycle) => set({ pausedCycle }),
 
   setActiveTrack: (activeTrackId) => set({ activeTrackId }),
 

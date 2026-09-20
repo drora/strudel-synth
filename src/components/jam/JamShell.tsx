@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useJamStore } from '../../store/jam-store'
 import { useSessionStore } from '../../store/session-store'
 import { useUIStore } from '../../store/ui-store'
-import { PlayButton } from '../transport/PlayButton'
+import { TransportControls } from '../transport/TransportControls'
 import { SampleLoadingIndicator } from '../transport/SampleLoadingIndicator'
 import { JamTrackSheet } from './JamTrackSheet'
 import { JamCodeSheet } from './JamCodeSheet'
@@ -41,8 +41,11 @@ export function JamShell() {
   const { cycleInt } = usePlayingLoopPhase()
   const walkLen = (songSeed?.walk.length ?? 0) as number
   const walkN = (walkLen >= 1 && walkLen <= 4 ? walkLen : 1) as WalkLength
+  const pausedCycle = useSessionStore((s) => s.pausedCycle)
   const currentWalkIdx =
-    j.isPlaying && walkChips.length > 0 ? cycleInt % walkChips.length : -1
+    (j.isPlaying || pausedCycle != null) && walkChips.length > 0
+      ? cycleInt % walkChips.length
+      : -1
   const codeAll = isCodeAllOpen(codeTrackId)
   const codeTrack = codeAll ? undefined : j.tracks.find((t) => t.id === codeTrackId)
   const exportJam = () => {
@@ -149,6 +152,15 @@ export function JamShell() {
             <span className="text-accent shrink-0" aria-hidden>
               ▾
             </span>
+          </button>
+          <button
+            type="button"
+            onClick={j.onNewKit}
+            className="min-h-12 px-3 rounded-xl text-xs font-medium bg-bg-elevated text-text-muted border border-border hover:text-accent shrink-0"
+            title="New kit"
+            aria-label="New kit"
+          >
+            New kit
           </button>
           <button
             type="button"
@@ -277,7 +289,11 @@ export function JamShell() {
 
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
         <div className="flex flex-col items-center py-2">
-          <JamPhaseRing bpm={j.bpm} isPlaying={j.isPlaying} />
+          <JamPhaseRing
+            bpm={j.bpm}
+            isPlaying={j.isPlaying}
+            pausedCycle={pausedCycle}
+          />
           {j.showKitLoadingBanner && (
             <div className="mt-2 text-[11px] text-accent animate-pulse font-medium">
               Loading kit samples…
@@ -334,16 +350,9 @@ export function JamShell() {
         )}
         <div className="flex items-stretch gap-2">
           <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-            <div className="grid grid-cols-4 gap-2 [&>*]:min-w-0 [&>button]:!w-full [&>button]:!min-w-0 [&>button]:min-h-12">
-              <PlayButton large={!!j.isMobile} fill />
+            <div className="grid grid-cols-3 gap-2 [&>*]:min-w-0 [&>button]:!w-full [&>button]:!min-w-0 [&>button]:min-h-12">
+              <TransportControls large={!!j.isMobile} fill />
               <JamMicRec large={!!j.isMobile} fill />
-              <button
-                type="button"
-                onClick={j.onNewKit}
-                className="min-h-12 px-2 rounded-xl text-xs font-medium bg-bg-elevated border border-border"
-              >
-                New kit
-              </button>
               <button
                 type="button"
                 onClick={() => j.setShowMutateSheet(true)}

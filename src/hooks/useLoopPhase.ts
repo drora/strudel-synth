@@ -24,6 +24,11 @@ function readPhase(): LoopPhase {
   return { cycle, phase: cycle - cycleInt, cycleInt }
 }
 
+function fromCycle(cycle: number): LoopPhase {
+  const cycleInt = Math.floor(cycle)
+  return { cycle, phase: cycle - cycleInt, cycleInt }
+}
+
 function ensureLoop() {
   if (rafId) return
   const tick = () => {
@@ -81,10 +86,17 @@ export function useLoopPhase(enabled: boolean): LoopPhase {
   return enabled ? phase : { cycle: 0, phase: 0, cycleInt: 0 }
 }
 
-/** Subscribe helper when you only need isPlaying gating from the store. */
+/**
+ * Phase while playing, or frozen paused cycle (not 0:00).
+ * After Stop, pausedCycle is null → zeros.
+ */
 export function usePlayingLoopPhase(): LoopPhase {
   const isPlaying = useSessionStore((s) => s.isPlaying)
-  return useLoopPhase(isPlaying)
+  const pausedCycle = useSessionStore((s) => s.pausedCycle)
+  const live = useLoopPhase(isPlaying)
+  if (isPlaying) return live
+  if (pausedCycle != null) return fromCycle(pausedCycle)
+  return { cycle: 0, phase: 0, cycleInt: 0 }
 }
 
 /** Stable callback form for ref-driven paints (chips). */
