@@ -1,6 +1,14 @@
 import { useCallback } from 'react'
 import { stopPlayback } from '../../engine/playback'
 
+function StopIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+      <rect x="6" y="6" width="12" height="12" rx="1" />
+    </svg>
+  )
+}
+
 /** Hard stop: hush + reset cycle / phase to 0:00. Ctrl+. */
 export function StopButton({ large = false, fill = false }: { large?: boolean; fill?: boolean }) {
   const handleClick = useCallback(async () => {
@@ -20,7 +28,7 @@ export function StopButton({ large = false, fill = false }: { large?: boolean; f
       title="Stop (Ctrl+.)"
       aria-label="Stop"
     >
-      {'■'}
+      <StopIcon />
     </button>
   )
 }
