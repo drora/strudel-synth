@@ -7,7 +7,8 @@ import {
 
 /**
  * Mic control — record mic → register sample → assign to track.
- * Classic red record-dot emblem. Quantizes start/stop to cycle when playing.
+ * Microphone emblem (not red record-dot — that belongs on Take).
+ * Quantizes start/stop to cycle when playing.
  * Header Take (mix capture) is separate — do not say "Rec" on this chrome.
  */
 export function JamMicRec({ large = false, fill = false }: { large?: boolean; fill?: boolean }) {
@@ -89,10 +90,9 @@ export function JamMicRec({ large = false, fill = false }: { large?: boolean; fi
     >
       {recording ? (
         <>
-          <span
-            className="inline-block w-2.5 h-2.5 rounded-full bg-white shrink-0 animate-pulse shadow-[0_0_8px_rgba(255,255,255,0.85)]"
-            aria-hidden
-          />
+          <span className="text-base leading-none shrink-0" aria-hidden>
+            🎤
+          </span>
           <span>{arming ? '…' : '■'}</span>
         </>
       ) : processing ? (
@@ -101,10 +101,9 @@ export function JamMicRec({ large = false, fill = false }: { large?: boolean; fi
         <span className="text-error">!</span>
       ) : (
         <>
-          <span
-            className="inline-block w-2 h-2 rounded-full bg-error shrink-0 shadow-[0_0_6px_rgba(239,68,68,0.65)]"
-            aria-hidden
-          />
+          <span className="text-base leading-none shrink-0" aria-hidden>
+            🎤
+          </span>
           <span>Mic</span>
         </>
       )}
