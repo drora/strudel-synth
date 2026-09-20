@@ -10,7 +10,7 @@ import {
 
 /**
  * Header Take — capture the live mix (tracks + pads) for up to 3:00.
- * Not Rec (mic). Accent, not red.
+ * Classic red record-dot emblem. Not Rec (mic).
  */
 export function JamTakeMix() {
   const [state, setState] = useState<MixCaptureState>('idle')
@@ -65,18 +65,36 @@ export function JamTakeMix() {
     <button
       type="button"
       onClick={() => void handleClick()}
-      className={`min-h-11 px-3 rounded-lg text-xs font-medium border ${
+      className={`min-h-11 px-3 rounded-lg text-xs font-medium border inline-flex items-center justify-center gap-1.5 ${
         recording
-          ? 'bg-accent text-bg border-accent animate-pulse'
+          ? 'bg-error text-white border-error animate-pulse shadow-[0_0_12px_rgba(239,68,68,0.45)]'
           : state === 'error'
             ? 'bg-error/30 text-error border-error/40'
-            : 'bg-bg-elevated text-text-muted border-border hover:text-accent'
+            : 'bg-bg-elevated text-text-muted border-border hover:text-error hover:border-error/50'
       }`}
       title={detail ?? (recording ? 'Stop and download (auto-stops at 3:00)' : 'Take — up to 3:00, starts Play if stopped')}
       aria-label={recording ? 'Stop take' : 'Take'}
       aria-pressed={recording}
     >
-      {label}
+      {state === 'error' ? (
+        <span>{label}</span>
+      ) : recording ? (
+        <>
+          <span
+            className="inline-block w-2 h-2 rounded-full bg-white shrink-0 shadow-[0_0_8px_rgba(255,255,255,0.85)]"
+            aria-hidden
+          />
+          <span>{label}</span>
+        </>
+      ) : (
+        <>
+          <span
+            className="inline-block w-2 h-2 rounded-full bg-error shrink-0 shadow-[0_0_6px_rgba(239,68,68,0.65)]"
+            aria-hidden
+          />
+          <span>{label}</span>
+        </>
+      )}
     </button>
   )
 }
