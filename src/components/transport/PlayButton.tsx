@@ -1,13 +1,13 @@
 import { useCallback } from 'react'
 import { useSessionStore } from '../../store/session-store'
-import { startPlayback, stopPlayback } from '../../engine/playback'
+import { startPlayback, pausePlayback } from '../../engine/playback'
 
 export function PlayButton({ large = false, fill = false }: { large?: boolean; fill?: boolean }) {
   const isPlaying = useSessionStore((s) => s.isPlaying)
 
   const handleClick = useCallback(async () => {
     if (useSessionStore.getState().isPlaying) {
-      await stopPlayback()
+      await pausePlayback()
       return
     }
     await startPlayback()
@@ -25,10 +25,10 @@ export function PlayButton({ large = false, fill = false }: { large?: boolean; f
           : 'bg-accent text-bg hover:bg-accent/90 shadow-[0_0_18px_rgba(167,139,250,0.45)]'
         }
       `}
-      title={isPlaying ? 'Stop (Ctrl+.)' : 'Play'}
-      aria-label={isPlaying ? 'Stop' : 'Play'}
+      title={isPlaying ? 'Pause' : 'Play'}
+      aria-label={isPlaying ? 'Pause' : 'Play'}
     >
-      {isPlaying ? '■' : '▶'}
+      {isPlaying ? '⏸' : '▶'}
     </button>
   )
 }

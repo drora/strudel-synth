@@ -20,6 +20,7 @@ const startInFlightHolder: { current: Promise<StartPlaybackResult> | null } = { 
 
 /**
  * Single start path: unlock → init → compose → evaluate.
+ * Resumes from paused cycle when present; otherwise starts from 0:00.
  * Call only from a user-gesture turn on iOS.
  * Concurrent calls share one in-flight promise.
  */
@@ -50,9 +51,11 @@ async function runStartPlayback(): Promise<StartPlaybackResult> {
     const { tracks: playable, silencedIds } = silenceUnplayableTracks(latest.tracks)
     const code = composeTracks(playable, latest.bpm, overlay)
     await evaluateCode(code)
-    latest.setPlaying(true)
-    // Epoch after evaluate so wall/audio clocks align with audible start
+    // Epoch after evaluate so wall/audio clocks align with audible start.
+    // markPlayStarted consumes pausedCycle (if any) into cycleBias for resume.
     liveUpdateEngine.markPlayStarted()
+    latest.setPlaying(true)
+    latest.setPausedCycle(null)
     maybeLoadCommunityBanks()
     if (silencedIds.length) {
       const name =
@@ -64,6 +67,7 @@ async function runStartPlayback(): Promise<StartPlaybackResult> {
     console.error('Playback error:', err)
     liveUpdateEngine.markPlayStopped()
     state.setPlaying(false)
+    state.setPausedCycle(null)
     const msg = err instanceof Error ? err.message : String(err)
     useJamStore.getState().setLastPeek('Play · ' + msg)
     const session = useSessionStore.getState()
@@ -74,10 +78,30 @@ async function runStartPlayback(): Promise<StartPlaybackResult> {
   }
 }
 
+/**
+ * Pause: hush audio, keep musical / cycle position (resume continues).
+ * Does not reset phase ring to 0:00.
+ */
+export async function pausePlayback(): Promise<void> {
+  liveUpdateEngine.markPlayPaused()
+  const frozen = liveUpdateEngine.getPausedCycle()
+  await stop()
+  const session = useSessionStore.getState()
+  session.setPlaying(false)
+  session.setPausedCycle(frozen)
+  useUIStore.getState().setAudioError(null)
+}
+
+/**
+ * Stop + reset: hush and clear cycle / phase to 0:00.
+ * Next Play starts from the top. Ctrl+. uses this.
+ */
 export async function stopPlayback(): Promise<void> {
   liveUpdateEngine.markPlayStopped()
   await stop()
-  useSessionStore.getState().setPlaying(false)
+  const session = useSessionStore.getState()
+  session.setPlaying(false)
+  session.setPausedCycle(null)
   useUIStore.getState().setAudioError(null)
   try {
     const mix = await import('./mix-capture')
@@ -87,7 +111,7 @@ export async function stopPlayback(): Promise<void> {
   }
 }
 
-/** If already playing, queue a live update; otherwise start playback. */
+/** If already playing, queue a live update; otherwise start/resume playback. */
 export async function startOrQueueUpdate(
   quant: Quantization = '1',
   reason: QueueReason = 'manual',

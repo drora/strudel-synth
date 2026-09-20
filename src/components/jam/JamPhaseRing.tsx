@@ -25,11 +25,15 @@ function applyBpm(next: number) {
 export function JamPhaseRing({
   bpm,
   isPlaying,
+  pausedCycle = null,
 }: {
   bpm: number
   isPlaying: boolean
+  /** Frozen cycle while paused — ring stays mid-song until Stop. */
+  pausedCycle?: number | null
 }) {
   const { phase } = usePlayingLoopPhase()
+  const showPhase = isPlaying || pausedCycle != null
   const arcRef = useRef<SVGCircleElement>(null)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(String(bpm))
@@ -48,6 +52,10 @@ export function JamPhaseRing({
     const dash = c * progress
     el.setAttribute('stroke-dasharray', `${dash} ${c - dash}`)
   })
+
+  // Paint frozen arc once when paused (RAF callback only runs while playing).
+  const frozenPhase =
+    !isPlaying && pausedCycle != null ? pausedCycle - Math.floor(pausedCycle) : null
 
   const clearHold = useCallback(() => {
     if (holdTimer.current) {
@@ -90,7 +98,7 @@ export function JamPhaseRing({
     setEditing(false)
   }
 
-  const progress = isPlaying ? phase : 0
+  const progress = isPlaying ? phase : frozenPhase != null ? frozenPhase : 0
 
   const btnClass =
     'min-h-11 min-w-11 shrink-0 rounded-lg text-xs font-semibold tabular-nums border border-border bg-bg-elevated text-text-muted hover:text-accent hover:border-accent/50 active:bg-accent/15 touch-manipulation select-none'
@@ -98,7 +106,11 @@ export function JamPhaseRing({
   return (
     <div
       className="flex items-center justify-center gap-1.5"
-      aria-label={isPlaying ? `Loop phase ${(progress * 100).toFixed(0)} percent, BPM ${bpm}` : `BPM ${bpm}`}
+      aria-label={
+        showPhase
+          ? `Loop phase ${(progress * 100).toFixed(0)} percent, BPM ${bpm}`
+          : `BPM ${bpm}`
+      }
     >
       <div className="flex flex-col gap-1">
         <button
@@ -154,7 +166,11 @@ export function JamPhaseRing({
             stroke="rgba(167,139,250,0.85)"
             strokeWidth={stroke}
             strokeLinecap="round"
-            strokeDasharray={`0 ${c}`}
+            strokeDasharray={
+              showPhase && !isPlaying
+                ? `${c * progress} ${c - c * progress}`
+                : `0 ${c}`
+            }
             style={{
               transition: isPlaying ? 'none' : 'stroke-dasharray 200ms ease',
               filter: isPlaying
@@ -205,7 +221,7 @@ export function JamPhaseRing({
             {bpm}
           </button>
         )}
-        {isPlaying && (
+        {showPhase && (
           <span className="text-[9px] text-accent/80 tabular-nums relative z-[1] mt-0.5">
             {(progress * 4 + 1).toFixed(1).replace(/\.0$/, '')}/4
           </span>

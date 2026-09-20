@@ -48,6 +48,16 @@ class LiveUpdateEngine {
   private playEpochSec: number | null = null
   /** AudioContext.currentTime at play start — preferred wall/audio fallback epoch. */
   private playEpochAudio: number | null = null
+  /**
+   * Frozen absolute cycle while paused (hush, keep position).
+   * Null when stopped (0:00) or actively playing.
+   */
+  private pausedCycle: number | null = null
+  /**
+   * Added to estimated/scheduler cycle after resume so UI continues from pause.
+   * Cleared on stop / fresh start.
+   */
+  private cycleBias = 0
   private status: UpdateStatus = 'idle'
   private listeners = new Set<StatusListener>()
   private appliedFlashTimer: ReturnType<typeof setTimeout> | null = null
@@ -61,6 +71,9 @@ class LiveUpdateEngine {
   markPlayStarted() {
     // Overlay lane always present while playing (improvHold ?? silence).
     this.lastTrackCount = useSessionStore.getState().tracks.length + 1
+    const resumeFrom = this.pausedCycle
+    this.pausedCycle = null
+
     this.playEpochSec = performance.now() / 1000
     try {
       this.playEpochAudio = getAudioContext().currentTime
@@ -68,9 +81,25 @@ class LiveUpdateEngine {
       this.playEpochAudio = null
     }
     this.lastCycleInt = -1
+
+    const bpm = useSessionStore.getState().bpm
+    const cps = Math.max(1e-6, bpm / 60 / 4)
+    const leadCycles = 0.1 * cps + 1 / 60
+    if (resumeFrom != null && resumeFrom > 0) {
+      // Align so getCurrentCycle ≈ resumeFrom whether scheduler reset or continued.
+      const sched = this.readSchedulerCycle()
+      if (sched != null) {
+        this.cycleBias = resumeFrom - (sched + leadCycles)
+      } else {
+        this.cycleBias = resumeFrom
+      }
+    } else {
+      this.cycleBias = 0
+    }
+
     const now = this.readSchedulerCycle()
     if (now != null) {
-      this.lastCycleInt = Math.floor(now)
+      this.lastCycleInt = Math.floor(now + leadCycles + this.cycleBias)
     }
     // Save-while-stopped → first Play: clear Dirty so the Save button is not stuck.
     this.setStatus('applied')
@@ -80,12 +109,49 @@ class LiveUpdateEngine {
     }, 220)
   }
 
+  /**
+   * Pause: freeze musical position, clear running epochs (clock stops advancing).
+   * Does not reset to 0:00 — use markPlayStopped for that.
+   */
+  markPlayPaused() {
+    this.cancel()
+    if (this.pausedCycle == null) {
+      // Fold running bias into the freeze, then clear bias.
+      this.pausedCycle = this.estimateCycle()
+    }
+    this.cycleBias = 0
+    this.playEpochSec = null
+    this.playEpochAudio = null
+    // Keep lastTrackCount so resume arity hush still works.
+    this.setStatus('idle')
+  }
+
+  /** Stop + reset to 0:00 (clear pause freeze and cycle bias). */
   markPlayStopped() {
     this.cancel()
     this.playEpochSec = null
     this.playEpochAudio = null
+    this.pausedCycle = null
+    this.cycleBias = 0
     this.lastTrackCount = null
     this.setStatus('idle')
+  }
+
+  hasPausedPosition(): boolean {
+    return this.pausedCycle != null
+  }
+
+  getPausedCycle(): number | null {
+    return this.pausedCycle
+  }
+
+  /** Test/helper: wall/audio epoch still marked (playing) or cleared (paused/stopped). */
+  hasPlayEpoch(): boolean {
+    return this.playEpochSec != null || this.playEpochAudio != null
+  }
+
+  getCycleBias(): number {
+    return this.cycleBias
   }
 
   subscribe(listener: StatusListener): () => void {
@@ -154,8 +220,9 @@ class LiveUpdateEngine {
     return this.pending !== null
   }
 
-  /** Current cycle position (fractional). */
+  /** Current cycle position (fractional). Frozen while paused. */
   getCurrentCycle(): number {
+    if (this.pausedCycle != null) return this.pausedCycle
     return this.estimateCycle()
   }
 
@@ -289,23 +356,25 @@ class LiveUpdateEngine {
     const leadCycles = 0.1 * cps + 1 / 60
 
     const fromScheduler = this.readSchedulerCycle()
+    let base: number
     if (fromScheduler != null) {
-      return Math.max(0, fromScheduler + leadCycles)
-    }
-
-    let elapsedSec: number | null = null
-    if (this.playEpochAudio != null) {
-      try {
-        elapsedSec = getAudioContext().currentTime - this.playEpochAudio
-      } catch {
-        elapsedSec = null
+      base = Math.max(0, fromScheduler + leadCycles)
+    } else {
+      let elapsedSec: number | null = null
+      if (this.playEpochAudio != null) {
+        try {
+          elapsedSec = getAudioContext().currentTime - this.playEpochAudio
+        } catch {
+          elapsedSec = null
+        }
       }
+      if (elapsedSec == null && this.playEpochSec != null) {
+        elapsedSec = performance.now() / 1000 - this.playEpochSec
+      }
+      if (elapsedSec == null) return Math.max(0, this.cycleBias)
+      base = Math.max(0, elapsedSec * cps + leadCycles)
     }
-    if (elapsedSec == null && this.playEpochSec != null) {
-      elapsedSec = performance.now() / 1000 - this.playEpochSec
-    }
-    if (elapsedSec == null) return 0
-    return Math.max(0, elapsedSec * cps + leadCycles)
+    return Math.max(0, base + this.cycleBias)
   }
 }
 

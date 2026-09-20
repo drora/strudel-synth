@@ -6,8 +6,9 @@ import {
 } from '../../engine/mic-sample'
 
 /**
- * Big Rec control — record mic → register sample → assign to track.
- * Quantizes start/stop to cycle when playing. iOS unlock inside startMicRecording.
+ * Mic control — record mic → register sample → assign to track.
+ * Classic red record-dot emblem. Quantizes start/stop to cycle when playing.
+ * Header Take (mix capture) is separate — do not say "Rec" on this chrome.
  */
 export function JamMicRec({ large = false, fill = false }: { large?: boolean; fill?: boolean }) {
   const [state, setState] = useState<MicRecState>('idle')
@@ -49,18 +50,22 @@ export function JamMicRec({ large = false, fill = false }: { large?: boolean; fi
   const recording = state === 'recording' || state === 'arming'
   const processing = state === 'processing'
   const errored = state === 'error'
-
-  let label = 'Rec'
-  if (state === 'arming') label = '…'
-  else if (state === 'recording') label = '■'
-  else if (state === 'processing') label = '…'
-  else if (errored) label = '!'
+  const arming = state === 'arming'
 
   const title =
     detail ??
     (recording
-      ? 'Stop (quantized to cycle)'
+      ? 'Stop mic recording (quantized to cycle)'
       : 'Record mic → sample → track')
+
+  const aria =
+    recording
+      ? 'Stop mic recording'
+      : processing
+        ? 'Processing mic sample'
+        : errored
+          ? 'Mic recording error'
+          : 'Record mic → sample → track'
 
   return (
     <button
@@ -68,21 +73,41 @@ export function JamMicRec({ large = false, fill = false }: { large?: boolean; fi
       onClick={handleClick}
       disabled={processing}
       className={`
-        flex items-center justify-center rounded-xl
+        relative flex items-center justify-center gap-1.5 rounded-xl
         transition-all font-bold shrink-0 active:scale-95
-        ${fill ? 'w-full min-w-0 h-12 min-h-12 text-lg' : large ? 'w-16 h-12 min-w-12 min-h-12 text-lg' : 'w-14 h-11 text-base'}
+        ${fill ? 'w-full min-w-0 h-12 min-h-12 text-sm' : large ? 'w-16 h-12 min-w-12 min-h-12 text-sm' : 'w-14 h-11 text-sm'}
         ${recording
-          ? 'bg-error text-white shadow-[0_0_16px_rgba(239,68,68,0.5)] animate-pulse'
+          ? 'bg-error text-white shadow-[0_0_16px_rgba(239,68,68,0.55)]'
           : errored
             ? 'bg-error/30 text-error border border-error/40'
-            : 'bg-bg-elevated text-error border border-error/40 hover:bg-error/15'
+            : 'bg-bg-elevated text-text border border-border hover:border-error/50 hover:text-error'
         }
       `}
       title={title}
-      aria-label={recording ? 'Stop recording' : 'Record mic'}
+      aria-label={aria}
       aria-pressed={recording}
     >
-      {label}
+      {recording ? (
+        <>
+          <span
+            className="inline-block w-2.5 h-2.5 rounded-full bg-white shrink-0 animate-pulse shadow-[0_0_8px_rgba(255,255,255,0.85)]"
+            aria-hidden
+          />
+          <span>{arming ? '…' : '■'}</span>
+        </>
+      ) : processing ? (
+        <span className="animate-pulse text-text-muted">…</span>
+      ) : errored ? (
+        <span className="text-error">!</span>
+      ) : (
+        <>
+          <span
+            className="inline-block w-2 h-2 rounded-full bg-error shrink-0 shadow-[0_0_6px_rgba(239,68,68,0.65)]"
+            aria-hidden
+          />
+          <span>Mic</span>
+        </>
+      )}
     </button>
   )
 }
