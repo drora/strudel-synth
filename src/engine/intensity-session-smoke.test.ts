@@ -5,7 +5,7 @@
  * Run: npm run test:intensity-session
  */
 import assert from 'node:assert/strict'
-import { intensityLevelsShareSpawn } from './intensity'
+import { intensityLevelsShareSpawn, isSnareBackbeatTrack } from './intensity'
 
 function installLocalStorage() {
   const g = globalThis as typeof globalThis & { localStorage?: Storage; window?: typeof globalThis }
@@ -60,7 +60,7 @@ function resetKit(kitId?: string) {
 }
 
 {
-  // Snare sd→rim at L1: L1 updated, L4 snare dropped. L2/L3 show rim. Next L4 densifies rim.
+  // Snare→rim at L1: L2/L3/L4 keep rim; L4 must not densify snare/rim/clap.
   resetKit()
   let drums = useSessionStore.getState().tracks.find((t) => t.role === 'drums')
   assert.ok(drums, 'drums at L1')
@@ -76,9 +76,8 @@ function resetKit(kitId?: string) {
   assert.equal(useJamStore.getState().intensityLevel, 1)
 
   drums = useSessionStore.getState().tracks.find((t) => t.id === drumsId)!
-  const edited = /\b(sd|cp)\b/.test(drums.code)
-    ? drums.code.replace(/\b(sd|cp)\b/g, 'rim')
-    : 's("rim ~ ~ ~")'
+  // Rim-only lane so L4 kick densify cannot change the code — proves snare/rim skip.
+  const edited = 's("rim ~ ~ ~")'
   useSessionStore.getState().setCode(drumsId, edited)
 
   assert.equal(applyMutate('intensity-up').ok, true) // →2
@@ -92,12 +91,14 @@ function resetKit(kitId?: string) {
 
   assert.equal(applyMutate('intensity-up').ok, true) // →4
   at = useSessionStore.getState().tracks.find((t) => t.id === drumsId)!
-  assert.ok(/\brim\b/.test(at.code), `L4 densifies rim (not old sd), got: ${at.code}`)
-  // L4 overlay must have been invalidated / recalculated from rim
+  assert.ok(/\brim\b/.test(at.code), `L4 keeps rim from L1, got: ${at.code}`)
+  assert.ok(!/\b(sd|cp)\b/.test(at.code), `L4 must not revive old sd/cp, got: ${at.code}`)
+  // L4 must not densify rim/snare/clap — pattern stays as edited at L1
+  assert.equal(at.code, edited, `L4 leaves snare/rim/clap alone, got: ${at.code}`)
   const s4 = useJamStore.getState().intensitySnaps[4]
   assert.ok(!s4?.codes.some((c) => c.id === drumsId && /\b(sd|cp)\b/.test(c.code) && !/\brim\b/.test(c.code)))
 
-  console.log('  [1] L1 snare→rim: L2/L3 still rim; L4 densifies rim')
+  console.log('  [1] L1 snare→rim: L2/L3/L4 keep rim; L4 does not densify snare/rim/clap')
 }
 
 {
@@ -251,6 +252,33 @@ function resetKit(kitId?: string) {
     )
   }
   console.log('  L4 densify drops on 4→3; kit chain intact')
+}
+
+
+{
+  assert.equal(isSnareBackbeatTrack({ name: 'Snare' }), true)
+  assert.equal(isSnareBackbeatTrack({ name: 'Rim' }), true)
+  assert.equal(isSnareBackbeatTrack({ name: 'Clap' }), true)
+  assert.equal(isSnareBackbeatTrack({ name: 'Kick' }), false)
+  assert.equal(isSnareBackbeatTrack({ name: 'Hats' }), false)
+  console.log('  isSnareBackbeatTrack: snare/rim/clap yes; kick/hats no')
+}
+
+{
+  // New hihats tracks init Mix volume 0.5
+  const kit =
+    KITS.find((k) => k.tracks.some((t) => t.role === 'hihats')) ?? KITS[0]!
+  resetKit(kit.id)
+  const hats = useSessionStore.getState().tracks.filter((t) => t.role === 'hihats')
+  assert.ok(hats.length > 0, 'kit has hihats')
+  for (const h of hats) {
+    assert.equal(h.volume, 0.5, `hihats "${h.name}" volume init 0.5, got ${h.volume}`)
+  }
+  const others = useSessionStore.getState().tracks.filter((t) => t.role !== 'hihats')
+  for (const t of others) {
+    assert.equal(t.volume, 1, `non-hat "${t.name}" volume init 1, got ${t.volume}`)
+  }
+  console.log('  hihats Mix volume inits at 0.5; others at 1')
 }
 
 console.log('ALL INTENSITY SESSION CHECKS PASSED')

@@ -8,7 +8,7 @@ import type { ScaleKind } from './kits-types'
 import type { SongSeed } from './song-seed'
 import type { WalkDensity } from './reshuffle'
 import type { SongTimeFeel } from './mutate'
-import { ROLE_COLORS } from './types'
+import { ROLE_COLORS, defaultTrackVolume } from './types'
 import {
   AUTOSAVE_KEY,
   SESSIONS_KEY,
@@ -56,7 +56,7 @@ export function applyTemplate(
     muted: false,
     soloed: false,
     locked: false,
-    volume: 1,
+    volume: defaultTrackVolume(t.role),
     octave: 0,
     error: null,
   }))

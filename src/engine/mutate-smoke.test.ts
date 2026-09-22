@@ -35,6 +35,7 @@ import {
   shouldSpawnIntensityPad,
   intensitySpawnRole,
   isKeysTrack,
+  isSnareBackbeatTrack,
   shouldSpawnIntensityLane,
   intensityLevelsShareSpawn,
 } from './intensity'
@@ -228,10 +229,11 @@ console.log('  catalog: 17 transforms; half/double/densify/intensity song-scoped
   assert.equal(applyIntensityFromBase(sparseKicks, 'drums', 4), 's("bd ~ bd ~")')
   assert.equal(applyIntensityFromBase('s("bd ~ ~ ~ bd ~ ~ ~")', 'drums', 4), 's("bd ~ bd ~ bd ~ bd ~")')
 
-  // L4 snare-family densifies rim/rs/clap like sd
-  assert.equal(applyIntensityFromBase('s("rim ~ ~ ~")', 'drums', 4), 's("rim ~ rim ~")')
-  assert.equal(applyIntensityFromBase('s("~ rim ~ ~")', 'drums', 4), 's("~ rim ~ rim")')
-  assert.equal(applyIntensityFromBase('s("cp ~ ~ ~")', 'drums', 4), 's("cp ~ cp ~")')
+  // L4 must NOT densify snare/rim/clap backbeat
+  assert.equal(applyIntensityFromBase('s("rim ~ ~ ~")', 'drums', 4), 's("rim ~ ~ ~")')
+  assert.equal(applyIntensityFromBase('s("~ rim ~ ~")', 'drums', 4), 's("~ rim ~ ~")')
+  assert.equal(applyIntensityFromBase('s("cp ~ ~ ~")', 'drums', 4), 's("cp ~ ~ ~")')
+  assert.equal(applyIntensityFromBase('s("sd ~ ~ ~")', 'drums', 4), 's("sd ~ ~ ~")')
   assert.ok(isSnareish('rim') && isSnareish('rs') && isSnareish('rimshot') && isSnareish('cp') && isSnareish('clap'))
   // L2 hat-fill must not treat rim as a hat
   assert.equal(applyIntensityFromBase('s("rim ~ ~ ~")', 'drums', 2), 's("rim ~ ~ ~")')
@@ -241,7 +243,7 @@ console.log('  catalog: 17 transforms; half/double/densify/intensity song-scoped
 
   const perc = 's("~ sd ~ ~")'
   assert.equal(applyIntensityFromBase(perc, 'fx', 2), perc)
-  assert.equal(applyIntensityFromBase(perc, 'fx', 4), 's("~ sd ~ sd")')
+  assert.equal(applyIntensityFromBase(perc, 'fx', 4), perc, 'L4 leaves fx snare alone')
 
   const keysLine = 'note("c3 ~ g3 ~").sound("piano")'
   assert.equal(applyIntensityFromBase(keysLine, 'lead', 4), keysLine, 'plain lead is not keys')
@@ -288,16 +290,16 @@ console.log('  catalog: 17 transforms; half/double/densify/intensity song-scoped
   const drumsL4layer = applyIntensityL4Layer(drumsL2, 'drums')
   assert.ok(/bd/.test(drumsL4layer) && /sd/.test(drumsL4layer), drumsL4layer)
   assert.ok(!drumsL4layer.includes('hh hh hh'), `must not hat-fill: ${drumsL4layer}`)
-  // kick/snare doubled via doubleImmediate from L2 base
+  // kick doubled; snare/rim/clap left alone
   assert.equal(applyIntensityL4Layer('s("bd ~ ~ ~")', 'drums'), 's("bd ~ bd ~")')
-  assert.equal(applyIntensityL4Layer('s("rim ~ ~ ~")', 'drums'), 's("rim ~ rim ~")')
-  assert.equal(applyIntensityL4Layer('s("~ sd ~ ~")', 'fx'), 's("~ sd ~ sd")')
+  assert.equal(applyIntensityL4Layer('s("rim ~ ~ ~")', 'drums'), 's("rim ~ ~ ~")')
+  assert.equal(applyIntensityL4Layer('s("~ sd ~ ~")', 'fx'), 's("~ sd ~ ~")')
   const bassL2 = 'note("c2 ~ g2 ~").sound("sawtooth")'
   const bassL4l = applyIntensityL4Layer(bassL2, 'bass')
   assert.ok(/@0\.5/.test(bassL4l), `L4 layer bass walk: ${bassL4l}`)
   assert.equal(applyIntensityFromBase(bassL2, 'bass', 4, { from: 3 }), bassL4l)
 
-  console.log('  intensity: 1 as-is · 2 hats fill/bump · 3 same · 4 double bd+sd (not every step) + perc snares; bass walk @0.5')
+  console.log('  intensity: 1 as-is · 2 hats fill/bump · 3 same · 4 double bd (skip snare/rim/clap); bass walk @0.5')
 }
 
 {
@@ -317,6 +319,10 @@ console.log('  catalog: 17 transforms; half/double/densify/intensity song-scoped
   assert.equal(isKeysTrack({ name: 'Keys' }), true)
   assert.equal(isKeysTrack({ name: 'Lead' }), false)
   assert.equal(isKeysTrack({ name: 'Piano' }), true)
+  assert.equal(isSnareBackbeatTrack({ name: 'Snare' }), true)
+  assert.equal(isSnareBackbeatTrack({ name: 'Rimshot' }), true)
+  assert.equal(isSnareBackbeatTrack({ name: 'Clap' }), true)
+  assert.equal(isSnareBackbeatTrack({ name: 'Kick' }), false)
   assert.equal(shouldSpawnIntensityLane(3, false), true)
   assert.equal(shouldSpawnIntensityLane(3, true), false)
   assert.equal(shouldDropSpawnedPad(2), true)
