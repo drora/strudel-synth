@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Track, TrackRole, Template } from '../engine/types'
+import { defaultTrackVolume, type Track, type TrackRole, type Template } from '../engine/types'
 import type { SavedSession } from '../engine/session-codec'
 import {
   applyTemplate,
@@ -53,6 +53,18 @@ interface SessionState {
     tracks: Array<{ id: string; code: string; muted: boolean }>
   }) => void
   setMuted: (trackId: string, muted: boolean) => void
+}
+
+
+/** L3 default-mutes hats with volume 0 — unmute / Mix raise must restore audible gain. */
+function restoreAudibleVolume(track: Track): number {
+  if (track.volume > 0) return track.volume
+  const jam = useJamStore.getState()
+  if (jam.intensityLevel === 3 && track.role === 'hihats') {
+    const prior = jam.intensitySnaps[3]?.hatMutesPrior?.find((h) => h.id === track.id)
+    if (prior && prior.volume > 0) return prior.volume
+  }
+  return defaultTrackVolume(track.role)
 }
 
 let nextId = 1
@@ -145,9 +157,15 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     // Sanity: never mute a non-existent id (no-op; avoids fighting UI after delete).
     if (!get().tracks.some((t) => t.id === trackId)) return
     set((state) => ({
-      tracks: state.tracks.map((t) =>
-        t.id === trackId ? { ...t, muted: !t.muted } : t
-      ),
+      tracks: state.tracks.map((t) => {
+        if (t.id !== trackId) return t
+        const muted = !t.muted
+        // L3 hat default mute uses vol 0 — unmute must restore real Mix gain to be audible.
+        if (!muted && t.volume <= 0) {
+          return { ...t, muted: false, volume: restoreAudibleVolume(t) }
+        }
+        return { ...t, muted }
+      }),
     }))
   },
 
@@ -174,11 +192,25 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     }),
 
   setVolume: (trackId, volume) =>
-    set((state) => ({
-      tracks: state.tracks.map((t) =>
-        t.id === trackId ? { ...t, volume: Math.max(0, Math.min(2, volume)) } : t
-      ),
-    })),
+    set((state) => {
+      const v = Math.max(0, Math.min(2, volume))
+      const jam = useJamStore.getState()
+      return {
+        tracks: state.tracks.map((t) => {
+          if (t.id !== trackId) return t
+          // L3 hat Mix raise: clear mute leftover from default mute so gain is audible.
+          if (
+            v > 0 &&
+            t.muted &&
+            t.role === 'hihats' &&
+            jam.intensityLevel === 3
+          ) {
+            return { ...t, volume: v, muted: false }
+          }
+          return { ...t, volume: v }
+        }),
+      }
+    }),
 
   setOctave: (trackId, octave) =>
     set((state) => ({
@@ -220,9 +252,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setMuted: (trackId, muted) => {
     if (!get().tracks.some((t) => t.id === trackId)) return
     set((state) => ({
-      tracks: state.tracks.map((t) =>
-        t.id === trackId ? { ...t, muted } : t
-      ),
+      tracks: state.tracks.map((t) => {
+        if (t.id !== trackId) return t
+        if (!muted && t.volume <= 0) {
+          return { ...t, muted: false, volume: restoreAudibleVolume(t) }
+        }
+        return { ...t, muted }
+      }),
     }))
   },
 }))
