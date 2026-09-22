@@ -27,8 +27,10 @@ import { isPadsKeepTrack, jamMicNameFromCode } from './improv-plate'
 import { micSampleDuration } from './mic-sample'
 import type { Track } from './types'
 import {
+  captureHatMutes,
   captureL1BaseSnap,
   clampIntensity,
+  defaultL3HatMutes,
   intensityL2TouchesTrack,
   intensityL4TouchesTrack,
   intensitySpawnRole,
@@ -38,7 +40,9 @@ import {
   stripTrackFromSnap,
   upsertSnapCode,
   INTENSITY_LEVELS_ABOVE,
+  type IntensityHatMute,
   type IntensityLevel,
+  type IntensitySnap,
 } from './intensity'
 
 export type JamQueueReason = 'kit' | 'jam' | 'reshuffle' | 'mute-solo'
@@ -168,6 +172,8 @@ export function undoJam(): { ok: true; label: string } | { ok: false; error: str
   if (entry.batch && entry.batch.length > 0) {
     for (const snap of entry.batch) {
       session.setCode(snap.trackId, snap.code)
+      if (snap.muted !== undefined) session.setMuted(snap.trackId, snap.muted)
+      if (snap.volume !== undefined) session.setVolume(snap.trackId, snap.volume)
     }
   } else {
     session.setCode(entry.trackId, entry.code)
@@ -184,9 +190,14 @@ export function undoJam(): { ok: true; label: string } | { ok: false; error: str
   }
   const jam = useJamStore.getState()
   if (entry.addedTrackIds?.includes(jam.spawnedPadId ?? '')) jam.setSpawnedPadId(null)
+  if (entry.addedTrackIds?.includes(jam.spawnedBassId ?? '')) jam.setSpawnedBassId(null)
   if (entry.removedTracks) {
     const pad = entry.removedTracks.find((tr) => tr.role === 'pad')
     if (pad) jam.setSpawnedPadId(pad.id)
+    if (entry.intensityLevel === 4) {
+      const bass = entry.removedTracks.find((tr) => tr.role === 'bass')
+      if (bass) jam.setSpawnedBassId(bass.id)
+    }
   }
   if (entry.intensityLevel != null) {
     jam.setIntensityLevel(entry.intensityLevel)
@@ -258,6 +269,7 @@ export function reshuffleUnlocked(): {
   }
   jam.reconcileLastTouchedAfterSongReshuffle()
   dropSpawnedPad()
+  dropSpawnedBass()
   jam.resetIntensitySession()
   jam.resetSongTimeFeel()
   jam.setLastPeek(activeKit ? `Shuffle · ${activeKit.name}` : jam.lockKit ? 'Shuffle · same kit' : 'Shuffle · free')
@@ -556,6 +568,7 @@ export function rollSongHarmony(): {
     state.setCode(t.id, next)
   }
   dropSpawnedPad()
+  dropSpawnedBass()
   jam.resetIntensitySession()
   jam.resetSongTimeFeel()
   jam.setLastPeek(`Key · ${root} ${scale} · walk ${nextSeed.walk.length}`)
@@ -623,6 +636,7 @@ export function setWalkLength(
     state.setCode(t.id, next)
   }
   dropSpawnedPad()
+  dropSpawnedBass()
   jam.resetIntensitySession()
   jam.resetSongTimeFeel()
   jam.setLastPeek(`Walk · ${n}`)
@@ -694,6 +708,7 @@ export function setWalkCenter(
     state.setCode(t.id, next)
   }
   dropSpawnedPad()
+  dropSpawnedBass()
   jam.resetIntensitySession()
   jam.resetSongTimeFeel()
   const concertNames = nextWalk.map((c) => formatConcertChord(seed.root, c))
@@ -749,7 +764,14 @@ function dropSpawnedPad() {
   jam.setSpawnedPadId(null)
 }
 
-function generateRoleCode(role: 'pad' | 'arp' | 'lead' | 'fx'): { code: string; name: string; color: string } {
+function dropSpawnedBass() {
+  const jam = useJamStore.getState()
+  if (!jam.spawnedBassId) return
+  useSessionStore.getState().removeTrack(jam.spawnedBassId)
+  jam.setSpawnedBassId(null)
+}
+
+function generateRoleCode(role: 'pad' | 'arp' | 'lead' | 'fx' | 'bass'): { code: string; name: string; color: string } {
   const jam = useJamStore.getState()
   const kit = jam.kitId ? getKit(jam.kitId) : undefined
   const resolved = kit ? resolveShuffleProfile(kit) : null
@@ -815,10 +837,38 @@ function spawnIntensityLane(level: IntensityLevel): Track {
   return useSessionStore.getState().tracks.find((tr) => tr.id === id)!
 }
 
+/** L4-owned bass when kit has none — densified walk @0.5 like normal L4 bass. */
+function spawnIntensityBass(): Track {
+  const jam = useJamStore.getState()
+  const built = generateRoleCode('bass')
+  const code = densifyL4(built.code, 'bass', false)
+  const id = useSessionStore.getState().addTrack({
+    name: built.name,
+    role: 'bass',
+    code,
+    color: built.color,
+    muted: false,
+    soloed: false,
+    locked: false,
+    volume: 1,
+    octave: 0,
+    error: null,
+  })
+  jam.setSpawnedBassId(id)
+  jam.touchTrack(id)
+  return useSessionStore.getState().tracks.find((tr) => tr.id === id)!
+}
+
 function liveSpawnedPad(): Track | null {
   const jam = useJamStore.getState()
   if (!jam.spawnedPadId) return null
   return useSessionStore.getState().tracks.find((tr) => tr.id === jam.spawnedPadId) ?? null
+}
+
+function liveSpawnedBass(): Track | null {
+  const jam = useJamStore.getState()
+  if (!jam.spawnedBassId) return null
+  return useSessionStore.getState().tracks.find((tr) => tr.id === jam.spawnedBassId) ?? null
 }
 
 function attachSpawnedPad(pad: Track) {
@@ -831,6 +881,28 @@ function attachSpawnedPad(pad: Track) {
     useSessionStore.getState().setCode(pad.id, pad.code)
   }
   jam.setSpawnedPadId(pad.id)
+}
+
+function attachSpawnedBass(bass: Track) {
+  const jam = useJamStore.getState()
+  const cur = jam.spawnedBassId
+  if (cur && cur !== bass.id) useSessionStore.getState().removeTrack(cur)
+  if (!useSessionStore.getState().tracks.some((tr) => tr.id === bass.id)) {
+    useSessionStore.getState().addTrack({ ...bass, id: bass.id })
+  } else {
+    useSessionStore.getState().setCode(bass.id, bass.code)
+  }
+  jam.setSpawnedBassId(bass.id)
+}
+
+function applyHatMuteOverlay(mutes: IntensityHatMute[] | null | undefined) {
+  if (!mutes?.length) return
+  const session = useSessionStore.getState()
+  for (const m of mutes) {
+    if (!session.tracks.some((t) => t.id === m.id)) continue
+    session.setMuted(m.id, m.muted)
+    session.setVolume(m.id, m.volume)
+  }
 }
 
 function densifyL2(code: string, role: TrackRole) {
@@ -850,6 +922,18 @@ function densifyL4(code: string, role: TrackRole, keys: boolean) {
   })
 }
 
+/** Preserve L3/L4 extra fields when rewriting codes/spawnedPad. */
+function mergeSnap(level: IntensityLevel, patch: Partial<IntensitySnap>): IntensitySnap {
+  const prev = useJamStore.getState().intensitySnaps[level]
+  return {
+    codes: patch.codes ?? prev?.codes ?? [],
+    spawnedPad: patch.spawnedPad !== undefined ? patch.spawnedPad : (prev?.spawnedPad ?? null),
+    hatMutes: patch.hatMutes !== undefined ? patch.hatMutes : prev?.hatMutes,
+    hatMutesPrior: patch.hatMutesPrior !== undefined ? patch.hatMutesPrior : prev?.hatMutesPrior,
+    spawnedBass: patch.spawnedBass !== undefined ? patch.spawnedBass : prev?.spawnedBass,
+  }
+}
+
 /** Invalidate track T in every snap strictly above `fromLevel`. Never writes downward. */
 function invalidateTrackAbove(trackId: string, fromLevel: IntensityLevel) {
   const jam = useJamStore.getState()
@@ -859,7 +943,8 @@ function invalidateTrackAbove(trackId: string, fromLevel: IntensityLevel) {
     const next = stripTrackFromSnap(snap, trackId)
     if (
       next.codes.length === snap.codes.length &&
-      next.spawnedPad === snap.spawnedPad
+      next.spawnedPad === snap.spawnedPad &&
+      next.spawnedBass === snap.spawnedBass
     ) {
       continue
     }
@@ -867,11 +952,11 @@ function invalidateTrackAbove(trackId: string, fromLevel: IntensityLevel) {
   }
 }
 
-function ensureL1Base(spawnId: string | null) {
+function ensureL1Base(spawnId: string | null, bassId: string | null = null) {
   const jam = useJamStore.getState()
   if (jam.intensitySnaps[1]) return
   const tracks = useSessionStore.getState().tracks
-  jam.saveIntensitySnap(1, captureL1BaseSnap(tracks, spawnId))
+  jam.saveIntensitySnap(1, captureL1BaseSnap(tracks, spawnId, bassId ?? jam.spawnedBassId))
 }
 
 function saveSnapCodes(
@@ -879,7 +964,7 @@ function saveSnapCodes(
   codes: { id: string; code: string }[],
   spawnedPad: Track | null,
 ) {
-  useJamStore.getState().saveIntensitySnap(level, { codes, spawnedPad })
+  useJamStore.getState().saveIntensitySnap(level, mergeSnap(level, { codes, spawnedPad }))
 }
 
 function updateOwnedCode(level: IntensityLevel, id: string, code: string) {
@@ -896,7 +981,9 @@ function commitIntensityEdits(from: IntensityLevel) {
   const session = useSessionStore.getState()
   const spawn = liveSpawnedPad()
   const spawnId = spawn?.id ?? null
-  ensureL1Base(spawnId)
+  const bass = liveSpawnedBass()
+  const bassId = bass?.id ?? null
+  ensureL1Base(spawnId, bassId)
 
   const jam = useJamStore.getState()
   const s1 = jam.intensitySnaps[1]!
@@ -933,6 +1020,7 @@ function commitIntensityEdits(from: IntensityLevel) {
 
   for (const tr of session.tracks) {
     if (spawnId && tr.id === spawnId) continue
+    if (bassId && tr.id === bassId) continue
     const exp = expected.get(tr.id)
     if (exp !== undefined && exp === tr.code) continue
 
@@ -970,9 +1058,9 @@ function commitIntensityEdits(from: IntensityLevel) {
     }
 
     if (from === 3) {
-      // L3 owns only spawn (handled below). Kit edits route to L1 or L2.
+      // L3 owns spawn + hat mute (handled below). Kit *code* edits route to L1 or L2.
       if (l2Owned) {
-        // Hat edit while at L3 → still L2-owned.
+        // Hat code edit while at L3 → still L2-owned (densify codes).
         updateOwnedCode(2, tr.id, tr.code)
         invalidateTrackAbove(tr.id, 2)
       } else {
@@ -1020,24 +1108,35 @@ function commitIntensityEdits(from: IntensityLevel) {
   // Spawn ownership
   if (from === 3) {
     const prev = jam.intensitySnaps[3]?.spawnedPad
-    jam.saveIntensitySnap(3, {
-      codes: [],
-      spawnedPad: spawn ? { ...spawn } : null,
-    })
+    const hats = captureHatMutes(session.tracks)
+    jam.saveIntensitySnap(
+      3,
+      mergeSnap(3, {
+        codes: [],
+        spawnedPad: spawn ? { ...spawn } : null,
+        hatMutes: hats,
+      }),
+    )
     if (spawn && (!prev || prev.code !== spawn.code || prev.id !== spawn.id)) {
       invalidateTrackAbove(spawn.id, 3)
     }
   } else if (from === 4) {
-    // L4-only pad slot — never write downward to L3.
+    // L4-only pad + bass slots — never write downward to L3.
     const s4 = jam.intensitySnaps[4] ?? { codes: [], spawnedPad: null }
-    jam.saveIntensitySnap(4, {
-      codes: s4.codes,
-      spawnedPad: spawn ? { ...spawn } : null,
-    })
+    let codes = s4.codes
+    if (bass) codes = upsertSnapCode(codes, bass.id, bass.code)
+    jam.saveIntensitySnap(
+      4,
+      mergeSnap(4, {
+        codes,
+        spawnedPad: spawn ? { ...spawn } : null,
+        spawnedBass: bass ? { ...bass } : null,
+      }),
+    )
   } else if (from <= 2) {
     // Leaving L1/L2: kit already handled; ensure L1 snapshot is current for kit.
     if (from === 1) {
-      jam.saveIntensitySnap(1, captureL1BaseSnap(session.tracks, spawnId))
+      jam.saveIntensitySnap(1, captureL1BaseSnap(session.tracks, spawnId, bassId))
     }
   }
 }
@@ -1051,6 +1150,7 @@ function seedMissingOverlays(level: IntensityLevel) {
   const session = useSessionStore.getState()
   const spawn = liveSpawnedPad()
   const spawnId = spawn?.id ?? null
+  const bass = liveSpawnedBass()
   const s1 = jam.intensitySnaps[1]
   if (!s1) return
   const l1Map = snapCodeMap(s1)
@@ -1060,6 +1160,7 @@ function seedMissingOverlays(level: IntensityLevel) {
     let codes = [...(jam.intensitySnaps[2]?.codes ?? [])]
     for (const tr of session.tracks) {
       if (spawnId && tr.id === spawnId) continue
+      if (bass && tr.id === bass.id) continue
       const l1 = l1Map.get(tr.id) ?? tr.code
       if (!intensityL2TouchesTrack(tr.role, l1, densifyL2)) continue
       if (existing.has(tr.id)) continue
@@ -1070,9 +1171,14 @@ function seedMissingOverlays(level: IntensityLevel) {
   }
 
   if (level === 3) {
-    if (!jam.intensitySnaps[3]?.spawnedPad && spawn) {
-      jam.saveIntensitySnap(3, { codes: [], spawnedPad: { ...spawn } })
+    const s3 = jam.intensitySnaps[3]
+    if (!s3?.spawnedPad && spawn) {
+      jam.saveIntensitySnap(
+        3,
+        mergeSnap(3, { codes: [], spawnedPad: { ...spawn } }),
+      )
     }
+    // Hat mute seed happens in realizeIntensityLevel on first enter.
     return
   }
 
@@ -1098,18 +1204,26 @@ function seedMissingOverlays(level: IntensityLevel) {
     // First visit / invalidated L4 spawn: start from L3 pad.
     const l3Pad = jam.intensitySnaps[3]?.spawnedPad ?? spawn
     const pad = s4.spawnedPad ?? (l3Pad ? { ...l3Pad } : null)
-    jam.saveIntensitySnap(4, { codes, spawnedPad: pad })
+    if (bass) codes = upsertSnapCode(codes, bass.id, bass.code)
+    jam.saveIntensitySnap(
+      4,
+      mergeSnap(4, {
+        codes,
+        spawnedPad: pad,
+        spawnedBass: bass ? { ...bass } : s4.spawnedBass ?? null,
+      }),
+    )
   }
 }
 
 /**
  * Realize by compositing partial overlays — never restore a full-jam tape.
- * L1 base → L2 hat overlay if ≥2 → L3 spawn if ≥3 → L4 densify if 4.
+ * L1 base → L2 hat overlay if ≥2 → L3 spawn + hat mute if ≥3 → L4 densify (+ bass) if 4.
  */
 function realizeIntensityLevel(target: IntensityLevel) {
   const jam = useJamStore.getState()
   const session = useSessionStore.getState()
-  ensureL1Base(jam.spawnedPadId)
+  ensureL1Base(jam.spawnedPadId, jam.spawnedBassId)
 
   const s1 = jam.intensitySnaps[1]!
   const l1Map = snapCodeMap(s1)
@@ -1119,8 +1233,9 @@ function realizeIntensityLevel(target: IntensityLevel) {
   const s4 = jam.intensitySnaps[4]
   const l4Map = snapCodeMap(s4)
 
-  // Drop spawn first; kit rebuild from L1.
+  // Drop intensity-owned spawns first; kit rebuild from L1.
   dropSpawnedPad()
+  dropSpawnedBass()
 
   // Apply L1 base to existing kit tracks.
   for (const c of s1.codes) {
@@ -1129,7 +1244,11 @@ function realizeIntensityLevel(target: IntensityLevel) {
     }
   }
 
-  if (target <= 1) return
+  if (target <= 1) {
+    // Leaving arrangement levels: restore pre-L3 hats if we still have prior.
+    if (s3?.hatMutesPrior) applyHatMuteOverlay(s3.hatMutesPrior)
+    return
+  }
 
   // L2 hat overlays / recalculate
   {
@@ -1146,16 +1265,41 @@ function realizeIntensityLevel(target: IntensityLevel) {
     }
   }
 
-  if (target === 2) return
-
-  // L3 spawn
-  if (target === 3) {
-    if (s3?.spawnedPad) attachSpawnedPad(s3.spawnedPad)
-    else spawnIntensityLane(3)
+  if (target === 2) {
+    // Drop L3 hat overlay → prior L2/L1 mute/volume.
+    if (s3?.hatMutesPrior) applyHatMuteOverlay(s3.hatMutesPrior)
     return
   }
 
-  // target === 4: densify overlays, then spawn (L4 slot or L3 carry)
+  // L3 spawn + hat mute arrangement
+  if (target === 3) {
+    if (s3?.spawnedPad) attachSpawnedPad(s3.spawnedPad)
+    else spawnIntensityLane(3)
+
+    if (s3?.hatMutes) {
+      applyHatMuteOverlay(s3.hatMutes)
+    } else {
+      // First 2→3: capture prior, apply default mute, store both on L3 snap.
+      const live = useSessionStore.getState().tracks
+      const prior = captureHatMutes(live)
+      const defaults = defaultL3HatMutes(live)
+      applyHatMuteOverlay(defaults)
+      const pad = liveSpawnedPad()
+      jam.saveIntensitySnap(
+        3,
+        mergeSnap(3, {
+          codes: [],
+          spawnedPad: pad ? { ...pad } : s3?.spawnedPad ?? null,
+          hatMutes: defaults,
+          hatMutesPrior: prior,
+        }),
+      )
+    }
+    return
+  }
+
+  // target === 4: densify overlays, then spawn (L4 slot or L3 carry), then L4 bass if missing.
+  // Hats: restore prior (densify bed) without erasing L3 hatMutes memory.
   {
     const fresh = useSessionStore.getState()
     const spawnSkip = s4?.spawnedPad?.id ?? s3?.spawnedPad?.id ?? null
@@ -1187,6 +1331,24 @@ function realizeIntensityLevel(target: IntensityLevel) {
   } else {
     spawnIntensityLane(3)
   }
+
+  // L4 bass: restore L4-owned spawn, or create one if kit still has no bass.
+  if (s4?.spawnedBass) {
+    attachSpawnedBass(s4.spawnedBass)
+  } else if (!useSessionStore.getState().tracks.some((tr) => tr.role === 'bass')) {
+    spawnIntensityBass()
+  }
+
+  // Densify bed: unmute/restore hats from prior without touching L3 hatMutes snap.
+  if (s3?.hatMutesPrior) {
+    applyHatMuteOverlay(s3.hatMutesPrior)
+  } else {
+    const hats = useSessionStore.getState().tracks.filter((t) => t.role === 'hihats')
+    for (const h of hats) {
+      useSessionStore.getState().setMuted(h.id, false)
+      useSessionStore.getState().setVolume(h.id, defaultTrackVolume('hihats'))
+    }
+  }
 }
 
 function applyIntensityDir(
@@ -1203,8 +1365,14 @@ function applyIntensityDir(
 
   const beforeIds = session.tracks.map((tr) => tr.id)
   const beforePad = liveSpawnedPad()
+  const beforeBass = liveSpawnedBass()
   // Full live tape for Undo only — snaps stay partial.
-  const beforeCodes = session.tracks.map((tr) => ({ id: tr.id, code: tr.code }))
+  const beforeCodes = session.tracks.map((tr) => ({
+    id: tr.id,
+    code: tr.code,
+    muted: tr.muted,
+    volume: tr.volume,
+  }))
 
   commitIntensityEdits(from)
   realizeIntensityLevel(to)
@@ -1213,14 +1381,20 @@ function applyIntensityDir(
 
   const after = useSessionStore.getState()
   const addedTrackIds = after.tracks.filter((tr) => !beforeIds.includes(tr.id)).map((tr) => tr.id)
-  const removedTracks =
-    beforePad && !after.tracks.some((tr) => tr.id === beforePad.id) ? [beforePad] : []
+  const removedTracks: Track[] = []
+  if (beforePad && !after.tracks.some((tr) => tr.id === beforePad.id)) removedTracks.push(beforePad)
+  if (beforeBass && !after.tracks.some((tr) => tr.id === beforeBass.id)) removedTracks.push(beforeBass)
   const primary = beforeCodes[0]
   jam.pushUndo({
     trackId: primary?.id ?? after.tracks[0]?.id ?? 'track-1',
     code: primary?.code ?? '',
     label: `Intensity ${to}/4`,
-    batch: beforeCodes.map((c) => ({ trackId: c.id, code: c.code })),
+    batch: beforeCodes.map((c) => ({
+      trackId: c.id,
+      code: c.code,
+      muted: c.muted,
+      volume: c.volume,
+    })),
     addedTrackIds: addedTrackIds.length ? addedTrackIds : undefined,
     removedTracks: removedTracks.length ? removedTracks : undefined,
     intensityLevel: from,
@@ -1286,6 +1460,7 @@ export function setWalkDensity(
     })
   }
   dropSpawnedPad()
+  dropSpawnedBass()
   jam.resetIntensitySession()
   jam.resetSongTimeFeel()
   jam.setLastPeek(density === 2 ? 'Densify walk · 2/cycle' : 'Undensify walk · 1/cycle')

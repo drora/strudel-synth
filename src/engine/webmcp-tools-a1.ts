@@ -33,7 +33,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'get_session',
     description:
-      'Get the full current Strudel Studio session + Jam state: tracks (name, role, code, muted, soloed, volume, locked, octave), BPM, playback, kitId, songRoot/songScale, songWalk (centers + patternId + walkLength + concertNames chips), intensityLevel (1–4), spawnedPadId, A/B active, and cheap phase. Always call this first.',
+      'Get the full current Strudel Studio session + Jam state: tracks (name, role, code, muted, soloed, volume, locked, octave), BPM, playback, kitId, songRoot/songScale, songWalk (centers + patternId + walkLength + concertNames chips), intensityLevel (1–4), spawnedPadId/spawnedBassId, A/B active, and cheap phase. Always call this first.',
     inputSchema: { type: 'object', properties: {} },
     annotations: { readOnlyHint: true },
     execute: () => {
@@ -59,6 +59,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
         lockKit: jam.lockKit,
         intensityLevel: jam.intensityLevel ?? 1,
         spawnedPadId: jam.spawnedPadId ?? null,
+        spawnedBassId: jam.spawnedBassId ?? null,
         ab: {
           a: jam.variantA != null,
           b: jam.variantB != null,
@@ -87,7 +88,7 @@ export function registerWebMcpToolsA1(register: WebMcpRegister) {
   register({
     name: 'get_jam_state',
     description:
-      'Jam-only snapshot: kitId, vibe, songRoot/songScale, songWalk (centers + walkLength + concertNames), intensityLevel (1–4), spawnedPadId, lockKit, A/B slots, activeVariant, lastPeek, undoDepth, soundTrackId/codeTrackId.',
+      'Jam-only snapshot: kitId, vibe, songRoot/songScale, songWalk (centers + walkLength + concertNames), intensityLevel (1–4), spawnedPadId/spawnedBassId, lockKit, A/B slots, activeVariant, lastPeek, undoDepth, soundTrackId/codeTrackId.',
     inputSchema: { type: 'object', properties: {} },
     annotations: { readOnlyHint: true },
     execute: () => ok('get_jam_state', {}, getJamStateSnapshot(), 'Jam state'),
