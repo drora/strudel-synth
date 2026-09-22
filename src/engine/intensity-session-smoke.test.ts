@@ -398,4 +398,134 @@ function resetKit(kitId?: string) {
 }
 
 
+{
+  // L4 densify-owned edits (drums kick + bass walk) persist across 4→3→4.
+  // Not kick-only: every intensityL4TouchesTrack lane must survive leave/return.
+  const kit =
+    KITS.find(
+      (k) =>
+        k.tracks.some((t) => /kick/i.test(t.name) && t.role === 'drums') &&
+        k.tracks.some((t) => t.role === 'bass'),
+    ) ?? KITS[0]!
+  resetKit(kit.id)
+  const kick = useSessionStore.getState().tracks.find((t) => /kick/i.test(t.name) && t.role === 'drums')
+  const bass = useSessionStore.getState().tracks.find((t) => t.role === 'bass')
+  assert.ok(kick && bass, 'kit needs Kick + bass')
+  const kickId = kick!.id
+  const bassId = bass!.id
+  // Sparse patterns so L4 densify actually owns these lanes.
+  useSessionStore.getState().setCode(kickId, 's("bd ~ ~ ~")')
+  useSessionStore.getState().setCode(bassId, 'note("c2 ~ ~ ~").sound("gm_synth_bass_1")')
+  const l1Kick = 's("bd ~ ~ ~")'
+  const l1Bass = useSessionStore.getState().tracks.find((t) => t.id === bassId)!.code
+
+  for (let i = 0; i < 3; i++) assert.equal(applyMutate('intensity-up').ok, true)
+  assert.equal(useJamStore.getState().intensityLevel, 4)
+
+  const kickAt4 = useSessionStore.getState().tracks.find((t) => t.id === kickId)!
+  const bassAt4 = useSessionStore.getState().tracks.find((t) => t.id === bassId)!
+  assert.notEqual(kickAt4.code, l1Kick, 'L4 densifies kick')
+  assert.notEqual(bassAt4.code, l1Bass, 'L4 densifies bass walk')
+
+  const kickEdited = `${kickAt4.code}/*l4-drums*/`
+  const bassEdited = `${bassAt4.code}/*l4-bass*/`
+  useSessionStore.getState().setCode(kickId, kickEdited)
+  useSessionStore.getState().setCode(bassId, bassEdited)
+
+  assert.equal(applyMutate('intensity-down').ok, true) // →3
+  const s4 = useJamStore.getState().intensitySnaps[4]
+  assert.equal(
+    s4?.codes.find((c) => c.id === kickId)?.code,
+    kickEdited,
+    'leave-4 must store drums densify edit on snap[4]',
+  )
+  assert.equal(
+    s4?.codes.find((c) => c.id === bassId)?.code,
+    bassEdited,
+    'leave-4 must store bass densify edit on snap[4]',
+  )
+  // Densify-only L4 edit must not wipe L1 kit base.
+  assert.equal(
+    useJamStore.getState().intensitySnaps[1]?.codes.find((c) => c.id === kickId)?.code,
+    l1Kick,
+    'L4 densify edit must not overwrite L1 kick',
+  )
+  assert.equal(
+    useSessionStore.getState().tracks.find((t) => t.id === kickId)!.code,
+    l1Kick,
+    '4→3 drops densify; live kick is L1 base',
+  )
+
+  assert.equal(applyMutate('intensity-up').ok, true) // →4
+  assert.equal(
+    useSessionStore.getState().tracks.find((t) => t.id === kickId)!.code,
+    kickEdited,
+    '4→3→4 keeps L4 drums densify edit',
+  )
+  assert.equal(
+    useSessionStore.getState().tracks.find((t) => t.id === bassId)!.code,
+    bassEdited,
+    '4→3→4 keeps L4 bass densify edit',
+  )
+  console.log('  [8] L4 densify edits (drums + bass) survive 4→3→4; L1 base untouched')
+}
+
+{
+  // General helper: edit any L4-owned live track, leave, return → code matches.
+  function assertOwnedEditSurvivesRoundTrip(
+    level: 2 | 4,
+    pick: () => { id: string; code: string } | undefined,
+    mark: string,
+  ) {
+    const tr = pick()
+    assert.ok(tr, `track for ${mark}`)
+    const edited = `${tr!.code}${mark}`
+    useSessionStore.getState().setCode(tr!.id, edited)
+    const down = level === 4 ? 1 : 1
+    const up = down
+    for (let i = 0; i < down; i++) assert.equal(applyMutate('intensity-down').ok, true)
+    for (let i = 0; i < up; i++) assert.equal(applyMutate('intensity-up').ok, true)
+    assert.equal(
+      useSessionStore.getState().tracks.find((t) => t.id === tr!.id)!.code,
+      edited,
+      `${mark} must survive leave/return at L${level}`,
+    )
+  }
+
+  const kit =
+    KITS.find(
+      (k) =>
+        k.tracks.some((t) => t.role === 'hihats') &&
+        k.tracks.some((t) => /kick/i.test(t.name) && t.role === 'drums'),
+    ) ?? KITS[0]!
+  resetKit(kit.id)
+  useSessionStore.getState().setCode(
+    useSessionStore.getState().tracks.find((t) => /kick/i.test(t.name))!.id,
+    's("bd ~ ~ ~")',
+  )
+  assert.equal(applyMutate('intensity-up').ok, true) // 2
+  assertOwnedEditSurvivesRoundTrip(
+    2,
+    () => {
+      const h =
+        useSessionStore.getState().tracks.find((t) => t.role === 'hihats') ??
+        useSessionStore.getState().tracks.find((t) => t.role === 'drums')
+      return h ? { id: h.id, code: h.code } : undefined
+    },
+    '/*l2-round*/',
+  )
+  assert.equal(applyMutate('intensity-up').ok, true) // 3
+  assert.equal(applyMutate('intensity-up').ok, true) // 4
+  assertOwnedEditSurvivesRoundTrip(
+    4,
+    () => {
+      const k = useSessionStore.getState().tracks.find((t) => /kick/i.test(t.name) && t.role === 'drums')
+      return k ? { id: k.id, code: k.code } : undefined
+    },
+    '/*l4-round*/',
+  )
+  console.log('  [9] owned-edit round-trip helper: L2 hats + L4 kick densify')
+}
+
+
 console.log('ALL INTENSITY SESSION CHECKS PASSED')

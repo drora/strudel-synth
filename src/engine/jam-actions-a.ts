@@ -1121,11 +1121,35 @@ function commitIntensityEdits(from: IntensityLevel) {
       invalidateTrackAbove(spawn.id, 3)
     }
   } else if (from === 4) {
-    // L4-only pad + bass slots — never write downward to L3.
-    const s4 = jam.intensitySnaps[4] ?? { codes: [], spawnedPad: null }
-    let codes = s4.codes
+    // L4-only pad + densify overlays + bass — never write downward to L3.
+    // Re-read snaps after per-track updateOwnedCode; a stale `jam` would clobber
+    // every L4-owned densify edit (kick/drums, bass walk, keys walk).
+    const jamNow = useJamStore.getState()
+    const s4 = jamNow.intensitySnaps[4] ?? { codes: [], spawnedPad: null }
+    let codes = [...s4.codes]
+    const l1Now = snapCodeMap(jamNow.intensitySnaps[1])
+    const l2Now = snapCodeMap(jamNow.intensitySnaps[2])
+    for (const tr of session.tracks) {
+      if (spawnId && tr.id === spawnId) continue
+      if (bassId && tr.id === bassId) continue
+      if (tr.role === 'hihats') continue
+      const keys = isKeysTrack(tr)
+      const l1Code = l1Now.get(tr.id) ?? tr.code
+      const l2Owned = intensityL2TouchesTrack(tr.role, l1Code, densifyL2)
+      const l2Code = l2Now.has(tr.id)
+        ? l2Now.get(tr.id)!
+        : l2Owned
+          ? densifyL2(l1Code, tr.role)
+          : l1Code
+      if (
+        !intensityL4TouchesTrack(tr.role, keys, l2Code, (cd, r) => densifyL4(cd, r, keys), tr)
+      ) {
+        continue
+      }
+      codes = upsertSnapCode(codes, tr.id, tr.code)
+    }
     if (bass) codes = upsertSnapCode(codes, bass.id, bass.code)
-    jam.saveIntensitySnap(
+    jamNow.saveIntensitySnap(
       4,
       mergeSnap(4, {
         codes,
