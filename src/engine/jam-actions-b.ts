@@ -227,6 +227,7 @@ export function getJamStateSnapshot() {
     lockKit: jam.lockKit,
     intensityLevel: jam.intensityLevel ?? 1,
     spawnedPadId: jam.spawnedPadId ?? null,
+    spawnedBassId: jam.spawnedBassId ?? null,
     hasPickedKit: jam.hasPickedKit,
     ab: {
       a: jam.variantA != null,

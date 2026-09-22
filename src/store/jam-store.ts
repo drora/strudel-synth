@@ -22,7 +22,7 @@ export interface JamUndoEntry {
   code: string
   label: string
   /** Song-global Mutate (half/double-time): restore all codes in one Undo. */
-  batch?: { trackId: string; code: string }[]
+  batch?: { trackId: string; code: string; muted?: boolean; volume?: number }[]
   addedTrackIds?: string[]
   removedTracks?: Track[]
   intensityLevel?: IntensityLevel
@@ -57,6 +57,8 @@ interface JamState {
   intensitySnaps: Partial<Record<IntensityLevel, IntensitySnap>>
   /** Pad lane spawned by Intensity 3+ (removed on wind-down). */
   spawnedPadId: string | null
+  /** Bass lane spawned by Intensity 4 when kit had none (removed below 4). */
+  spawnedBassId: string | null
   undoStack: JamUndoEntry[]
   lastPeek: string | null
   soundTrackId: string | null
@@ -98,6 +100,7 @@ interface JamState {
   saveIntensitySnap: (level: IntensityLevel, snap: IntensitySnap) => void
   resetIntensitySession: () => void
   setSpawnedPadId: (id: string | null) => void
+  setSpawnedBassId: (id: string | null) => void
   pushUndo: (entry: JamUndoEntry) => void
   popUndo: () => JamUndoEntry | null
   setLastPeek: (peek: string | null) => void
@@ -175,6 +178,7 @@ export const useJamStore = create<JamState>()(
       intensityLevel: 1,
       intensitySnaps: {},
       spawnedPadId: null,
+      spawnedBassId: null,
       undoStack: [],
       lastPeek: null,
       soundTrackId: null,
@@ -206,8 +210,9 @@ export const useJamStore = create<JamState>()(
       saveIntensitySnap: (level, snap) =>
         set((s) => ({ intensitySnaps: { ...s.intensitySnaps, [level]: snap } })),
       resetIntensitySession: () =>
-        set({ intensityLevel: 1, intensitySnaps: {}, spawnedPadId: null }),
+        set({ intensityLevel: 1, intensitySnaps: {}, spawnedPadId: null, spawnedBassId: null }),
       setSpawnedPadId: (spawnedPadId) => set({ spawnedPadId }),
+      setSpawnedBassId: (spawnedBassId) => set({ spawnedBassId }),
       pushUndo: (entry) =>
         set((s) => ({ undoStack: [...s.undoStack.slice(-19), entry] })),
       popUndo: () => {

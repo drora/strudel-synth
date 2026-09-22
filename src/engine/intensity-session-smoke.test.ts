@@ -1,6 +1,6 @@
 /**
  * Intensity partial-overlay contract:
- * L1 kit base · L2 hats only · L3 spawn only · L4 densify only;
+ * L1 kit base · L2 hats only · L3 spawn + hat mute · L4 densify (+ bass spawn if missing);
  * edit@N owns+invalidate above; enter M recalc if missing.
  * Run: npm run test:intensity-session
  */
@@ -280,5 +280,111 @@ function resetKit(kitId?: string) {
   }
   console.log('  hihats Mix volume inits at 0.5; others at 1')
 }
+
+
+
+{
+  // L4 spawns bass when kit has none; leave 4 drops L4-owned bass.
+  const kit =
+    KITS.find((k) => !k.tracks.some((t) => t.role === 'bass')) ?? null
+  assert.ok(kit, 'need a kit without bass')
+  resetKit(kit!.id)
+  assert.equal(
+    useSessionStore.getState().tracks.some((t) => t.role === 'bass'),
+    false,
+    'kit starts without bass',
+  )
+  assert.equal(applyMutate('intensity-up').ok, true) // 2
+  assert.equal(applyMutate('intensity-up').ok, true) // 3
+  assert.equal(
+    useSessionStore.getState().tracks.some((t) => t.role === 'bass'),
+    false,
+    'L3 still no bass',
+  )
+  assert.equal(applyMutate('intensity-up').ok, true) // 4
+  const bassId = useJamStore.getState().spawnedBassId
+  assert.ok(bassId, 'L4 spawns bass id')
+  const bass = useSessionStore.getState().tracks.find((t) => t.id === bassId)
+  assert.ok(bass && bass.role === 'bass', 'L4 bass track present')
+  assert.notEqual(bassId, useJamStore.getState().spawnedPadId, 'bass id ≠ pad spawn id')
+  const s4 = useJamStore.getState().intensitySnaps[4]
+  assert.ok(s4?.spawnedBass?.id === bassId, 'L4 snap owns spawnedBass')
+
+  assert.equal(applyMutate('intensity-down').ok, true) // 3
+  assert.equal(useJamStore.getState().spawnedBassId, null, '4→3 clears spawnedBassId')
+  assert.equal(
+    useSessionStore.getState().tracks.some((t) => t.id === bassId),
+    false,
+    '4→3 removes L4-spawned bass',
+  )
+  assert.ok(
+    useJamStore.getState().intensitySnaps[4]?.spawnedBass?.id === bassId,
+    'L4 snap keeps bass memory',
+  )
+
+  assert.equal(applyMutate('intensity-up').ok, true) // 4 again
+  assert.equal(useJamStore.getState().spawnedBassId, bassId, '3→4 restores same bass id')
+  assert.ok(useSessionStore.getState().tracks.some((t) => t.id === bassId), 'bass back at L4')
+  console.log('  [6] no bass → L4 spawns; leave 4 drops; re-enter restores')
+}
+
+{
+  // L3 hat mute memory (parallel to L3 pad).
+  const kit =
+    KITS.find((k) => k.tracks.some((t) => t.role === 'hihats')) ?? KITS[0]!
+  resetKit(kit.id)
+  const hats = useSessionStore.getState().tracks.filter((t) => t.role === 'hihats')
+  assert.ok(hats.length > 0, 'kit has hihats')
+  const hatId = hats[0]!.id
+  // Ensure audible at L1/L2
+  useSessionStore.getState().setMuted(hatId, false)
+  useSessionStore.getState().setVolume(hatId, 0.5)
+  const priorMuted = false
+  const priorVol = 0.5
+
+  assert.equal(applyMutate('intensity-up').ok, true) // 2
+  let hat = useSessionStore.getState().tracks.find((t) => t.id === hatId)!
+  assert.equal(hat.muted, false, 'L2 hats still unmuted')
+  assert.equal(hat.volume, priorVol, 'L2 hats keep volume')
+
+  assert.equal(applyMutate('intensity-up').ok, true) // 3
+  hat = useSessionStore.getState().tracks.find((t) => t.id === hatId)!
+  assert.equal(hat.muted, true, '2→3 default-mutes hats')
+  assert.equal(hat.volume, 0, '2→3 hat volume 0')
+  const s3 = useJamStore.getState().intensitySnaps[3]
+  assert.ok(s3?.hatMutes?.some((h) => h.id === hatId && h.muted === true && h.volume === 0))
+  assert.ok(
+    s3?.hatMutesPrior?.some((h) => h.id === hatId && h.muted === priorMuted && h.volume === priorVol),
+    'L3 stores prior hat mute/volume',
+  )
+
+  // User unmutes / Mix edit on L3 — owned by L3
+  useSessionStore.getState().setMuted(hatId, false)
+  useSessionStore.getState().setVolume(hatId, 0.8)
+
+  assert.equal(applyMutate('intensity-up').ok, true) // 4
+  hat = useSessionStore.getState().tracks.find((t) => t.id === hatId)!
+  // L4 densify bed restores prior (not L3 muted)
+  assert.equal(hat.muted, priorMuted, '3→4 restores prior hats for densify bed')
+  assert.equal(hat.volume, priorVol, '3→4 prior hat volume')
+  // L3 memory intact
+  const s3b = useJamStore.getState().intensitySnaps[3]
+  assert.ok(
+    s3b?.hatMutes?.some((h) => h.id === hatId && h.muted === false && h.volume === 0.8),
+    'L3 hat memory kept after 3→4 (user unmute)',
+  )
+
+  assert.equal(applyMutate('intensity-down').ok, true) // 3
+  hat = useSessionStore.getState().tracks.find((t) => t.id === hatId)!
+  assert.equal(hat.muted, false, '4→3 restores L3 unmute edit')
+  assert.equal(hat.volume, 0.8, '4→3 restores L3 hat volume edit')
+
+  assert.equal(applyMutate('intensity-down').ok, true) // 2
+  hat = useSessionStore.getState().tracks.find((t) => t.id === hatId)!
+  assert.equal(hat.muted, priorMuted, '3→2 restores pre-L3 hats')
+  assert.equal(hat.volume, priorVol, '3→2 restores pre-L3 hat volume')
+  console.log('  [7] L3 hat mute memory: default → edit → 3↔4 → 3→2 prior')
+}
+
 
 console.log('ALL INTENSITY SESSION CHECKS PASSED')
