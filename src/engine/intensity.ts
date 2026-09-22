@@ -5,7 +5,7 @@
  * - L1: kit tracks from generate. Base code.
  * - L2: only hat-recipe tracks (hihats, hat tokens on drums, euclid hats). Never snare/kick/bass-only.
  * - L3: only the extra spawn. Same id. Never kit tracks.
- * - L4: only densify-recipe tracks (kick/snare/bass/kit Keys, fx perc). Not hats. Not spawn.
+ * - L4: only densify-recipe tracks (kick/bass/kit Keys; skip snare/rim/clap backbeat). Not hats. Not spawn.
  *
  * Play: composite L1 → L2 overlay if ≥2 → L3 spawn if ≥3 → L4 densify if 4.
  * A level must not rewrite a track it never owned.
@@ -58,6 +58,11 @@ export function shouldSpawnIntensityPad(level: IntensityLevel, hasPad: boolean):
 /** Keys lane = name match (not every lead). Kit "Lead" is not Keys. */
 export function isKeysTrack(t: { name: string }): boolean {
   return /keys|piano|rhodes|epiano|clav/i.test(t.name)
+}
+
+/** Snare / rim / clap backbeat lanes — L4 densify must leave these alone. */
+export function isSnareBackbeatTrack(t: { name: string }): boolean {
+  return /snare|rim|clap|\bsd\b|\bcp\b|\brs\b/i.test(t.name)
 }
 
 /** Level 3+: first missing in pad → arp → keys(lead) → fx. */
@@ -118,14 +123,16 @@ export function intensityL2TouchesTrack(
   return false
 }
 
-/** True when L4 densify-recipe would change this track (not hats). */
+/** True when L4 densify-recipe would change this track (not hats; not snare/rim/clap). */
 export function intensityL4TouchesTrack(
   role: TrackRole,
   keys: boolean,
   baseCode: string,
   densifyL4: (code: string, role: TrackRole) => string,
+  track?: { name: string },
 ): boolean {
   if (role === 'hihats') return false
+  if (track && isSnareBackbeatTrack(track)) return false
   if (role === 'drums' || role === 'bass' || role === 'fx' || keys) {
     return densifyL4(baseCode, role) !== baseCode
   }

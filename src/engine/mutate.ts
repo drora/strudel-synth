@@ -56,7 +56,7 @@ export const MUTATIONS: readonly MutateDef[] = [
   { id: 'double-time', label: 'Double-time', hint: 'Tighten feel · all tracks · once (opp. restores)', scope: 'song' },
   { id: 'densify-walk', label: 'Densify walk', hint: '2 chords / drum cycle · unlocked melodic', scope: 'song' },
   { id: 'undensify-walk', label: 'Undensify walk', hint: '1 chord / drum cycle · unlocked melodic', scope: 'song' },
-  { id: 'intensity-up', label: 'Intensity+', hint: '1 as-is · 2 hats fill gaps · 3 pad → arp → keys → fx · 4 bd ~ ~ ~ → bd ~ bd ~ · *N→*2N · perc snares; bass+keys walk @0.5', scope: 'song' },
+  { id: 'intensity-up', label: 'Intensity+', hint: '1 as-is · 2 hats fill gaps · 3 pad → arp → keys → fx · 4 bd ~ ~ ~ → bd ~ bd ~ · *N→*2N · kick densify (skip snare/rim/clap); bass+keys walk @0.5', scope: 'song' },
   { id: 'intensity-down', label: 'Intensity−', hint: 'wind down those same steps', scope: 'song' },
 ] as const
 
@@ -174,11 +174,6 @@ export function isSnareish(tok: string): boolean {
   return SNARE_RE.test(bare)
 }
 
-function isClapish(tok: string): boolean {
-  const { base } = stripMul(tok)
-  const bare = base.replace(/^\[|\]$/g, '').split(/[,\s]/)[0] ?? base
-  return /^(cp|clap)/i.test(bare)
-}
 
 /** Sparse: turn every other non-rest into ~ (keep first of each pair). */
 export function transformSparse(tokens: string[]): string[] {
@@ -935,7 +930,7 @@ export function enrichBassWalk(tokens: string[], opts?: BassWalkOpts): string[] 
 }
 
 /**
- * L4 densify layer only (kick/snare double, bass/keys walk, fx snare-family).
+ * L4 densify layer only (kick double, bass/keys walk). Skips snare/rim/clap backbeat.
  * No hat fillSilences, no bumpEuclidCalls — for stacking on L3 (= L2 hats + spawn).
  */
 export function applyIntensityL4Layer(
@@ -947,10 +942,10 @@ export function applyIntensityL4Layer(
     code,
     (toks) => {
       if (role === 'drums') {
-        return doubleImmediate(toks, (t) => isKickish(t) || isSnareish(t))
+        return doubleImmediate(toks, (t) => isKickish(t)) // L4: kick only — skip snare/rim/clap
       }
       if (role === 'fx') {
-        return doubleImmediate(toks, (t) => isKickish(t) || isSnareish(t) || isClapish(t))
+        return doubleImmediate(toks, (t) => isKickish(t)) // L4: skip snare/rim/clap backbeat
       }
       if (role === 'bass' || harmony?.keys) return enrichBassWalk(toks, harmony)
       return null
@@ -986,13 +981,13 @@ export function applyIntensityFromBase(
       if (role === 'hihats' && level >= 2) return fillSilences(toks, (t) => !isRest(t))
       if (role === 'drums') {
         if (level >= 4) {
-          const doubled = doubleImmediate(toks, (t) => isKickish(t) || isSnareish(t))
+          const doubled = doubleImmediate(toks, (t) => isKickish(t)) // L4: kick only — skip snare/rim/clap
           return fillSilences(doubled, isHatish)
         }
         if (level >= 2) return fillSilences(toks, isHatish)
       }
       if (role === 'fx' && level >= 4) {
-        return doubleImmediate(toks, (t) => isKickish(t) || isSnareish(t) || isClapish(t))
+        return doubleImmediate(toks, (t) => isKickish(t)) // L4: skip snare/rim/clap backbeat
       }
       if ((role === 'bass' || harmony?.keys) && level >= 4) return enrichBassWalk(toks, harmony)
       return null

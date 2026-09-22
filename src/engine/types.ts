@@ -28,6 +28,11 @@ export interface Template {
   }>
 }
 
+/** Mix fader default for newly created tracks (hihats start quieter). */
+export function defaultTrackVolume(role: TrackRole): number {
+  return role === 'hihats' ? 0.5 : 1
+}
+
 export const ROLE_COLORS: Record<TrackRole, string> = {
   drums: '#ff8c42',
   hihats: '#ffcc00',

@@ -12,6 +12,7 @@ import type { ScaleKind } from './kits-types'
 import { rollSeed, retargetSeed, hydrateSeed, randomSongRoot, randomSongScale, randomWalkLength, pickWalkOfLength, isLegalWalk, formatConcertChord, type SongSeed, type WalkLength, type WalkCenter } from './song-seed'
 import { ROLE_PRESETS } from './presets'
 import type { TrackRole } from './types'
+import { defaultTrackVolume } from './types'
 import {
   clampTrackOctave,
   isMelodicRole,
@@ -368,7 +369,7 @@ export function addJamTrack(
     muted: false,
     soloed: false,
     locked: false,
-    volume: 1,
+    volume: defaultTrackVolume(preset.role),
     octave: 0,
     error: null,
   })
@@ -921,7 +922,7 @@ function commitIntensityEdits(from: IntensityLevel) {
       if (tr && tr.role !== 'hihats') {
         const keys = isKeysTrack(tr)
         const base = code
-        if (intensityL4TouchesTrack(tr.role, keys, base, (cd, r) => densifyL4(cd, r, keys))) {
+        if (intensityL4TouchesTrack(tr.role, keys, base, (cd, r) => densifyL4(cd, r, keys), tr)) {
           const s4 = snapCodeMap(jam.intensitySnaps[4])
           code = s4.has(c.id) ? s4.get(c.id)! : densifyL4(base, tr.role, keys)
         }
@@ -946,6 +947,7 @@ function commitIntensityEdits(from: IntensityLevel) {
         : l1Code
     const l4Owned = intensityL4TouchesTrack(tr.role, keys, l2Code, (cd, r) =>
       densifyL4(cd, r, keys),
+      tr,
     )
 
     if (from === 1) {
@@ -1087,7 +1089,7 @@ function seedMissingOverlays(level: IntensityLevel) {
       const lower = intensityL2TouchesTrack(tr.role, l1, densifyL2)
         ? l2Map.get(tr.id) ?? densifyL2(l1, tr.role)
         : l1
-      if (!intensityL4TouchesTrack(tr.role, keys, lower, (cd, r) => densifyL4(cd, r, keys))) {
+      if (!intensityL4TouchesTrack(tr.role, keys, lower, (cd, r) => densifyL4(cd, r, keys), tr)) {
         continue
       }
       if (existing.has(tr.id)) continue
@@ -1168,7 +1170,7 @@ function realizeIntensityLevel(target: IntensityLevel) {
         : l1
       // Current live may already be lower after L2 pass.
       const base = fresh.tracks.find((t) => t.id === tr.id)?.code ?? lower
-      if (!intensityL4TouchesTrack(tr.role, keys, base, (cd, r) => densifyL4(cd, r, keys))) {
+      if (!intensityL4TouchesTrack(tr.role, keys, base, (cd, r) => densifyL4(cd, r, keys), tr)) {
         continue
       }
       const overlay = l4Map.get(tr.id)

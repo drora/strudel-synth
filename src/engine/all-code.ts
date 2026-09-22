@@ -1,5 +1,5 @@
 import type { Track, TrackRole } from './types'
-import { ROLE_COLORS } from './types'
+import { ROLE_COLORS, defaultTrackVolume } from './types'
 import type { ScaleKind } from './kits-types'
 import { getKit, KITS } from './kits'
 import { SONG_SCALES } from './note-harmony'
@@ -297,7 +297,7 @@ export function importJamBuffer(text: string): { trackCount: number } {
       muted: false,
       soloed: false,
       locked: false,
-      volume: 1,
+      volume: defaultTrackVolume(role),
       octave: 0,
       error: null,
     }
