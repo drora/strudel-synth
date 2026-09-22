@@ -21,7 +21,7 @@
  * (L4 spawn invalidated): L4 starts from last L3 pad. L4-only pad stays on 4; 4→3 is L3.
  * L4 bass spawn: 4→3 drops L4-owned bass; 3→4 restores from L4 snap.
  *
- * L3 hat mute: first 2→3 defaults hihats muted/vol 0 (prior saved); L3 edits remembered;
+ * L3 hat mute: first 2→3 defaults hihats muted (Mix volume unchanged; prior saved); L3 edits remembered;
  * 3→4 may restore prior for densify bed without erasing L3 memory; 4→3 restores L3 hats;
  * 3→2 restores prior. L2 still owns hat densify codes.
  *
@@ -128,11 +128,13 @@ export function captureHatMutes(
     .map((t) => ({ id: t.id, muted: !!t.muted, volume: t.volume }))
 }
 
-/** Default L3 hat arrangement: muted + volume 0. */
+/** Default L3 hat arrangement: muted flag only; keep current Mix volume. */
 export function defaultL3HatMutes(
-  tracks: readonly { id: string; role: TrackRole }[],
+  tracks: readonly { id: string; role: TrackRole; volume: number }[],
 ): IntensityHatMute[] {
-  return tracks.filter((t) => t.role === 'hihats').map((t) => ({ id: t.id, muted: true, volume: 0 }))
+  return tracks
+    .filter((t) => t.role === 'hihats')
+    .map((t) => ({ id: t.id, muted: true, volume: t.volume }))
 }
 
 /** Capture a partial overlay (caller decides which tracks belong). */
