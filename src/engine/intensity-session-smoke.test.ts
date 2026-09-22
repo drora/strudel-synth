@@ -329,7 +329,7 @@ function resetKit(kitId?: string) {
 }
 
 {
-  // L3 hat mute memory (parallel to L3 pad).
+  // L3 hat mute memory — muted flag only; Mix volume untouched by default.
   const kit =
     KITS.find((k) => k.tracks.some((t) => t.role === 'hihats')) ?? KITS[0]!
   resetKit(kit.id)
@@ -350,26 +350,27 @@ function resetKit(kitId?: string) {
   assert.equal(applyMutate('intensity-up').ok, true) // 3
   hat = useSessionStore.getState().tracks.find((t) => t.id === hatId)!
   assert.equal(hat.muted, true, '2→3 default-mutes hats')
-  assert.equal(hat.volume, 0, '2→3 hat volume 0')
+  assert.equal(hat.volume, priorVol, '2→3 leaves Mix volume unchanged')
   const s3 = useJamStore.getState().intensitySnaps[3]
-  assert.ok(s3?.hatMutes?.some((h) => h.id === hatId && h.muted === true && h.volume === 0))
+  assert.ok(
+    s3?.hatMutes?.some((h) => h.id === hatId && h.muted === true && h.volume === priorVol),
+    'L3 default hatMutes muted with prior volume (not 0)',
+  )
   assert.ok(
     s3?.hatMutesPrior?.some((h) => h.id === hatId && h.muted === priorMuted && h.volume === priorVol),
     'L3 stores prior hat mute/volume',
   )
 
-  // Live on L3: toggle unmute alone must restore audible volume (default mute used vol 0).
+  // Live on L3: unmute alone → audible; volume stays prior (no invent).
   useSessionStore.getState().toggleMute(hatId)
   hat = useSessionStore.getState().tracks.find((t) => t.id === hatId)!
   assert.equal(hat.muted, false, 'L3 unmute clears mute')
-  assert.ok(hat.volume > 0, `L3 unmute restores volume>0, got ${hat.volume}`)
+  assert.equal(hat.volume, priorVol, 'L3 unmute keeps Mix volume (no invent)')
 
-  // Mix raise while muted also clears mute (reset then raise).
-  useSessionStore.getState().setMuted(hatId, true)
-  useSessionStore.getState().setVolume(hatId, 0)
+  // Mix volume edit on L3 is independent of mute; remembered on snap leave.
   useSessionStore.getState().setVolume(hatId, 0.8)
   hat = useSessionStore.getState().tracks.find((t) => t.id === hatId)!
-  assert.equal(hat.muted, false, 'L3 Mix raise unmutes hats')
+  assert.equal(hat.muted, false, 'L3 Mix volume edit leaves mute alone')
   assert.equal(hat.volume, 0.8, 'L3 Mix raise sets volume')
 
   assert.equal(applyMutate('intensity-up').ok, true) // 4
@@ -381,7 +382,7 @@ function resetKit(kitId?: string) {
   const s3b = useJamStore.getState().intensitySnaps[3]
   assert.ok(
     s3b?.hatMutes?.some((h) => h.id === hatId && h.muted === false && h.volume === 0.8),
-    'L3 hat memory kept after 3→4 (user unmute)',
+    'L3 hat memory kept after 3→4 (user unmute + Mix edit)',
   )
 
   assert.equal(applyMutate('intensity-down').ok, true) // 3
@@ -393,7 +394,7 @@ function resetKit(kitId?: string) {
   hat = useSessionStore.getState().tracks.find((t) => t.id === hatId)!
   assert.equal(hat.muted, priorMuted, '3→2 restores pre-L3 hats')
   assert.equal(hat.volume, priorVol, '3→2 restores pre-L3 hat volume')
-  console.log('  [7] L3 hat live unmute audible + memory: default → toggle/Mix → 3↔4 → 3→2 prior')
+  console.log('  [7] L3 hat mute flag-only + memory: default keeps vol → unmute → Mix → 3↔4 → 3→2 prior')
 }
 
 
