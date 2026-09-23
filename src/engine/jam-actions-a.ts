@@ -1007,11 +1007,16 @@ function commitIntensityEdits(from: IntensityLevel) {
     if (from >= 4) {
       const tr = session.tracks.find((t) => t.id === c.id)
       if (tr && tr.role !== 'hihats') {
-        const keys = isKeysTrack(tr)
-        const base = code
-        if (intensityL4TouchesTrack(tr.role, keys, base, (cd, r) => densifyL4(cd, r, keys), tr)) {
-          const s4 = snapCodeMap(jam.intensitySnaps[4])
-          code = s4.has(c.id) ? s4.get(c.id)! : densifyL4(base, tr.role, keys)
+        const s4 = snapCodeMap(jam.intensitySnaps[4])
+        // Prefer any L4 in-level overlay (densify OR snare/rim/clap L4-only edit).
+        if (s4.has(c.id)) {
+          code = s4.get(c.id)!
+        } else {
+          const keys = isKeysTrack(tr)
+          const base = code
+          if (intensityL4TouchesTrack(tr.role, keys, base, (cd, r) => densifyL4(cd, r, keys), tr)) {
+            code = densifyL4(base, tr.role, keys)
+          }
         }
       }
     }
@@ -1076,33 +1081,10 @@ function commitIntensityEdits(from: IntensityLevel) {
       invalidateTrackAbove(tr.id, 2)
       continue
     }
-    if (l4Owned) {
-      // Densify-tier edit: store on L4. If base (non-densify) intent changed vs L1,
-      // also fold kick/snare/bass token edits into L1 by using undensified live when
-      // live equals densify(L1+L2) except tokens — keep simple: L4 overlay only;
-      // base token swaps at L4 still update L1 when densify(L1) tokens diverge.
-      updateOwnedCode(4, tr.id, tr.code)
-      // Do not invalidate below. Upper: none.
-      // If this is a base-family edit (rim vs sd) reflected in live, update L1 from
-      // the pre-densify composed code's sibling: use L1 slot when user changed
-      // identity of snare/kick relative to densify(current L1+L2).
-      const composedLower = l2Owned
-        ? l2Map.has(tr.id)
-          ? l2Map.get(tr.id)!
-          : densifyL2(l1Code, tr.role)
-        : l1Code
-      const recipe4 = densifyL4(composedLower, tr.role, keys)
-      if (tr.code !== recipe4) {
-        // In-level L4 edit persists on snap[4]; also push a best-effort L1 update
-        // when the edit is clearly a kit-base change done at L4 (rare). Prefer L1
-        // owner for snare/kick/bass identity: store undensified live if no densify
-        // markers — skip; L4 overlay is enough for re-entry.
-      }
-      continue
-    }
-    // Non-owned at L4 (e.g. pure pad kit): L1
-    updateOwnedCode(1, tr.id, tr.code)
-    invalidateTrackAbove(tr.id, 1)
+    // At L4: densify-owned OR any other kit edit (snare/rim/clap, pad, …) stays on
+    // snap[4] only — never write downward to L1. Realize ≤3 re-applies L1(+L2).
+    updateOwnedCode(4, tr.id, tr.code)
+    continue
   }
 
   // Spawn ownership
@@ -1121,9 +1103,9 @@ function commitIntensityEdits(from: IntensityLevel) {
       invalidateTrackAbove(spawn.id, 3)
     }
   } else if (from === 4) {
-    // L4-only pad + densify overlays + bass — never write downward to L3.
+    // L4-only pad + densify/snare overlays + bass — never write downward to L1/L3.
     // Re-read snaps after per-track updateOwnedCode; a stale `jam` would clobber
-    // every L4-owned densify edit (kick/drums, bass walk, keys walk).
+    // every L4 in-level overlay (kick densify, snare/rim edit, bass/keys walk).
     const jamNow = useJamStore.getState()
     const s4 = jamNow.intensitySnaps[4] ?? { codes: [], spawnedPad: null }
     let codes = [...s4.codes]
@@ -1141,11 +1123,17 @@ function commitIntensityEdits(from: IntensityLevel) {
         : l2Owned
           ? densifyL2(l1Code, tr.role)
           : l1Code
-      if (
-        !intensityL4TouchesTrack(tr.role, keys, l2Code, (cd, r) => densifyL4(cd, r, keys), tr)
-      ) {
-        continue
-      }
+      const densifyOwned = intensityL4TouchesTrack(
+        tr.role,
+        keys,
+        l2Code,
+        (cd, r) => densifyL4(cd, r, keys),
+        tr,
+      )
+      // Densify lanes + L4-only overlays (snare/rim/clap etc.): upsert live into snap[4].
+      // Skip when live still equals composed lower and no prior L4 overlay — no paste.
+      const hadOverlay = codes.some((c) => c.id === tr.id)
+      if (!densifyOwned && tr.code === l2Code && !hadOverlay) continue
       codes = upsertSnapCode(codes, tr.id, tr.code)
     }
     if (bass) codes = upsertSnapCode(codes, bass.id, bass.code)
@@ -1331,6 +1319,12 @@ function realizeIntensityLevel(target: IntensityLevel) {
       if (tr.locked) continue
       if (spawnSkip && tr.id === spawnSkip) continue
       if (tr.role === 'hihats') continue // L4 must not rewrite hats
+      const overlay = l4Map.get(tr.id)
+      // Prefer snap[4] overlay for densify AND L4-only snare/rim/clap edits.
+      if (overlay != null) {
+        if (overlay !== tr.code) fresh.setCode(tr.id, overlay)
+        continue
+      }
       const keys = isKeysTrack(tr)
       const l1 = l1Map.get(tr.id) ?? tr.code
       const lower = intensityL2TouchesTrack(tr.role, l1, densifyL2)
@@ -1341,8 +1335,7 @@ function realizeIntensityLevel(target: IntensityLevel) {
       if (!intensityL4TouchesTrack(tr.role, keys, base, (cd, r) => densifyL4(cd, r, keys), tr)) {
         continue
       }
-      const overlay = l4Map.get(tr.id)
-      const next = overlay ?? densifyL4(base, tr.role, keys)
+      const next = densifyL4(base, tr.role, keys)
       if (next !== tr.code) fresh.setCode(tr.id, next)
     }
   }
