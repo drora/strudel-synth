@@ -528,4 +528,66 @@ function resetKit(kitId?: string) {
 }
 
 
+
+{
+  // L4 snare/rim/clap edit must NOT write downward to L1 — snap[4] overlay only.
+  // isSnareBackbeatTrack → not l4Owned densify; previously fell through to updateOwnedCode(1).
+  resetKit()
+  let snare =
+    useSessionStore.getState().tracks.find((t) => isSnareBackbeatTrack(t)) ??
+    useSessionStore.getState().tracks.find((t) => t.role === 'drums' && !/kick/i.test(t.name))
+  assert.ok(snare, 'need snare/rim/clap (or non-kick drums) track')
+  const snareId = snare!.id
+  // Force a clear L1 backbeat pattern so densify does not own this lane.
+  const l1Snare = 's("rim ~ ~ ~")'
+  useSessionStore.getState().setCode(snareId, l1Snare)
+  assert.equal(isSnareBackbeatTrack(useSessionStore.getState().tracks.find((t) => t.id === snareId)!), true)
+
+  for (let i = 0; i < 3; i++) assert.equal(applyMutate('intensity-up').ok, true)
+  assert.equal(useJamStore.getState().intensityLevel, 4)
+  const at4 = useSessionStore.getState().tracks.find((t) => t.id === snareId)!
+  assert.equal(at4.code, l1Snare, 'L4 does not densify snare/rim')
+
+  const snareEdited = 's("cp ~ cp ~")/*l4-snare*/'
+  useSessionStore.getState().setCode(snareId, snareEdited)
+
+  assert.equal(applyMutate('intensity-down').ok, true) // →3
+  assert.equal(
+    useJamStore.getState().intensitySnaps[4]?.codes.find((c) => c.id === snareId)?.code,
+    snareEdited,
+    'leave-4 must store snare edit on snap[4]',
+  )
+  assert.equal(
+    useJamStore.getState().intensitySnaps[1]?.codes.find((c) => c.id === snareId)?.code,
+    l1Snare,
+    'L4 snare edit must not overwrite L1',
+  )
+  assert.equal(
+    useSessionStore.getState().tracks.find((t) => t.id === snareId)!.code,
+    l1Snare,
+    '4→3 restores L1 snare (L4 overlay dropped)',
+  )
+
+  assert.equal(applyMutate('intensity-down').ok, true) // →2
+  assert.equal(
+    useSessionStore.getState().tracks.find((t) => t.id === snareId)!.code,
+    l1Snare,
+    '4→3→2 still L1 snare',
+  )
+  assert.equal(applyMutate('intensity-down').ok, true) // →1
+  assert.equal(
+    useSessionStore.getState().tracks.find((t) => t.id === snareId)!.code,
+    l1Snare,
+    '4→…→1 still L1 snare',
+  )
+
+  for (let i = 0; i < 3; i++) assert.equal(applyMutate('intensity-up').ok, true) // →4
+  assert.equal(
+    useSessionStore.getState().tracks.find((t) => t.id === snareId)!.code,
+    snareEdited,
+    '3→4 restores L4 snare overlay',
+  )
+  console.log('  [10] L4 snare/rim edit: snap[4] only; ≤3 restores L1; return-to-4 restores edit')
+}
+
 console.log('ALL INTENSITY SESSION CHECKS PASSED')
