@@ -14,22 +14,23 @@ export function JamABToggle() {
   const variantA = useJamStore((s) => s.variantA)
   const variantB = useJamStore((s) => s.variantB)
   const active = useJamStore((s) => s.activeVariant)
+  const pending = useJamStore((s) => s.pendingVariant)
 
   const hasA = !!variantA
   const hasB = !!variantB
 
   return (
     <div className="flex items-center gap-1.5" role="group" aria-label="A/B variants">
-      <AbSlotButton slot="a" filled={hasA} active={active === 'a'} />
+      <AbSlotButton slot="a" filled={hasA} active={active === 'a'} pending={pending === 'a'} />
       <button
         type="button"
         onClick={() => useJamStore.getState().toggleAb()}
         className="min-h-9 px-2 rounded-lg text-[10px] font-medium border border-border bg-bg-elevated text-text-muted hover:text-accent"
-        title="Toggle A ↔ B (saves empty slots first)"
+        title="Toggle A ↔ B at loop end while playing (saves empty slots first)"
       >
         A↔B
       </button>
-      <AbSlotButton slot="b" filled={hasB} active={active === 'b'} />
+      <AbSlotButton slot="b" filled={hasB} active={active === 'b'} pending={pending === 'b'} />
     </div>
   )
 }
@@ -38,10 +39,12 @@ function AbSlotButton({
   slot,
   filled,
   active,
+  pending,
 }: {
   slot: AbSlot
   filled: boolean
   active: boolean
+  pending: boolean
 }) {
   const label = slot.toUpperCase()
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -102,15 +105,19 @@ function AbSlotButton({
       className={`min-h-9 min-w-9 px-2 rounded-lg text-[11px] font-semibold border transition-colors touch-manipulation select-none ${
         active
           ? 'bg-accent text-bg border-accent'
-          : filled
-            ? 'bg-accent/15 text-accent border-accent/40'
-            : 'bg-bg-elevated text-text-muted border-border'
+          : pending
+            ? 'bg-accent/10 text-accent border-accent border-dashed'
+            : filled
+              ? 'bg-accent/15 text-accent border-accent/40'
+              : 'bg-bg-elevated text-text-muted border-border'
       }`}
       style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
       title={
-        filled
-          ? `Punch ${label} (long-press / right-click: re-save)`
-          : `Save current as ${label} (long-press overwrites)`
+        pending
+          ? `Punch ${label} queued · fires at walk loop end`
+          : filled
+            ? `Punch ${label} at loop end while playing (long-press / right-click: re-save)`
+            : `Save current as ${label} (long-press overwrites)`
       }
     >
       {label}

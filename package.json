@@ -29,7 +29,9 @@
     "test:webmcp": "npx --yes tsx src/engine/webmcp-tools-smoke.test.ts",
     "test:song-seed": "npx --yes tsx src/engine/song-seed-smoke.test.ts",
     "test:walk-length": "npx --yes tsx src/engine/walk-length-smoke.test.ts",
-    "test:mix-capture": "npx --yes tsx src/engine/mix-capture-smoke.test.ts"
+    "test:mix-capture": "npx --yes tsx src/engine/mix-capture-smoke.test.ts",
+    "test:ab-punch": "npx --yes tsx src/engine/ab-punch-smoke.test.ts",
+    "test:song-time-feel": "npx --yes tsx src/engine/song-time-feel-smoke.test.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.0",

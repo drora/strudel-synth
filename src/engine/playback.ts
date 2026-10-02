@@ -89,6 +89,8 @@ export async function pausePlayback(): Promise<void> {
   const session = useSessionStore.getState()
   session.setPlaying(false)
   session.setPausedCycle(frozen)
+  // Not playing → apply any queued A/B punch immediately (store only).
+  useJamStore.getState().flushPendingAb()
   useUIStore.getState().setAudioError(null)
 }
 
@@ -102,6 +104,7 @@ export async function stopPlayback(): Promise<void> {
   const session = useSessionStore.getState()
   session.setPlaying(false)
   session.setPausedCycle(null)
+  useJamStore.getState().flushPendingAb()
   useUIStore.getState().setAudioError(null)
   try {
     const mix = await import('./mix-capture')
