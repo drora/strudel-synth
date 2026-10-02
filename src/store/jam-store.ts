@@ -7,7 +7,12 @@ import type { SongTimeFeel } from '../engine/mutate'
 import type { SectionSnap } from '../engine/session-manager'
 import { useSessionStore } from './session-store'
 import { liveUpdateEngine } from '../engine/live-update'
-import { useUIStore } from './ui-store'
+import {
+  cancelAbAtLoopEnd,
+  flushAbAtLoopEnd,
+  queueAbAtLoopEnd,
+  walkLoopCycles,
+} from '../engine/ab-punch'
 import {
   keepOrFallbackLastTouched,
   afterTrackRemoved,
@@ -75,6 +80,8 @@ interface JamState {
   variantA: SectionSnap | null
   variantB: SectionSnap | null
   activeVariant: AbSlot | null
+  /** Slot queued to punch at current walk-loop end (playing only). */
+  pendingVariant: AbSlot | null
   /** Live improv pad overlay pattern (not persisted). null = silence lane. */
   improvHold: string | null
   /** Last Pads sheet settings — survive close/open (and refresh). */
@@ -116,8 +123,12 @@ interface JamState {
   clearLastTouchedIfRemoved: (removedId: string) => void
   /** Capture current track codes+mute (+bpm + key) into A or B. */
   stashVariant: (slot: AbSlot) => void
-  /** Apply A or B (no-op if empty). */
+  /** Apply A or B (no-op if empty). While playing: queues to walk-loop end. */
   punchVariant: (slot: AbSlot) => void
+  /** Apply any queued A/B punch now (pause/stop). */
+  flushPendingAb: () => void
+  /** Drop a queued A/B punch without applying. */
+  cancelPendingAb: () => void
   /** Punch the other slot, or stash+activate if empty. */
   toggleAb: () => void
   setImprovHold: (hold: string | null) => void
@@ -153,12 +164,37 @@ function snapshotSection(): SectionSnap {
   }
 }
 
-function queueSectionUpdate() {
+function queueSectionUpdate(quant: 'immediate' | '1' | '2' | '4' = 'immediate') {
   if (!useSessionStore.getState().isPlaying) return
-  const q = useUIStore.getState().getEffectiveQuantization(
-    useSessionStore.getState().activeTrackId,
-  )
-  liveUpdateEngine.queueUpdate(q, 'section')
+  liveUpdateEngine.queueUpdate(quant, 'section')
+}
+
+function applyPunchFields(slot: AbSlot, snap: SectionSnap) {
+  useSessionStore.getState().applySection(snap)
+  const patch: Partial<{
+    songRoot: string
+    songScale: SectionSnap['songScale']
+    songSeed: SectionSnap['songSeed']
+    walkDensity: SectionSnap['walkDensity']
+    songTimeFeel: SectionSnap['songTimeFeel']
+    songTimeFeelBase: SectionSnap['songTimeFeelBase']
+    activeVariant: AbSlot
+    pendingVariant: AbSlot | null
+  }> = { activeVariant: slot, pendingVariant: null }
+  if (snap.songRoot) patch.songRoot = snap.songRoot
+  if (snap.songScale) patch.songScale = snap.songScale
+  if ('songSeed' in snap) patch.songSeed = cloneSeed(snap.songSeed ?? null)
+  if ('walkDensity' in snap && snap.walkDensity) patch.walkDensity = snap.walkDensity
+  if ('songTimeFeel' in snap && snap.songTimeFeel) patch.songTimeFeel = snap.songTimeFeel
+  if ('songTimeFeelBase' in snap) {
+    patch.songTimeFeelBase = snap.songTimeFeelBase
+      ? snap.songTimeFeelBase.map((c) => ({ ...c }))
+      : null
+  }
+  useJamStore.setState(patch)
+  useJamStore.getState().setLastPeek(`A/B · punch ${slot.toUpperCase()}`)
+  // Already on (or past) the loop boundary when deferred; ignore Update quant.
+  queueSectionUpdate('immediate')
 }
 
 export const useJamStore = create<JamState>()(
@@ -188,6 +224,7 @@ export const useJamStore = create<JamState>()(
       variantA: null,
       variantB: null,
       activeVariant: null,
+      pendingVariant: null,
       improvHold: null,
       improvOctave: 4,
       improvMix: IMPROV_MIX_DEFAULT,
@@ -260,6 +297,8 @@ export const useJamStore = create<JamState>()(
       },
 
       stashVariant: (slot) => {
+        cancelAbAtLoopEnd()
+        set({ pendingVariant: null })
         const snap = snapshotSection()
         if (slot === 'a') {
           set({ variantA: snap, activeVariant: 'a' })
@@ -276,22 +315,37 @@ export const useJamStore = create<JamState>()(
           get().stashVariant(slot)
           return
         }
-        useSessionStore.getState().applySection(snap)
-        if (snap.songRoot) set({ songRoot: snap.songRoot })
-        if (snap.songScale) set({ songScale: snap.songScale })
-        if ('songSeed' in snap) set({ songSeed: cloneSeed(snap.songSeed ?? null) })
-        if ('walkDensity' in snap && snap.walkDensity) set({ walkDensity: snap.walkDensity })
-        if ('songTimeFeel' in snap && snap.songTimeFeel) set({ songTimeFeel: snap.songTimeFeel })
-        if ('songTimeFeelBase' in snap) {
-          set({
-            songTimeFeelBase: snap.songTimeFeelBase
-              ? snap.songTimeFeelBase.map((c) => ({ ...c }))
-              : null,
-          })
+        const playing = useSessionStore.getState().isPlaying
+        if (!playing) {
+          cancelAbAtLoopEnd()
+          applyPunchFields(slot, snap)
+          return
         }
-        set({ activeVariant: slot })
-        get().setLastPeek(`A/B · punch ${slot.toUpperCase()}`)
-        queueSectionUpdate()
+        // Defer store+audio to current walk-loop end (seamless phrase cut).
+        set({ pendingVariant: slot })
+        get().setLastPeek(`A/B · ${slot.toUpperCase()} at loop end`)
+        const walkLen = walkLoopCycles(get().songSeed?.walk.length)
+        queueAbAtLoopEnd({
+          walkLen,
+          apply: () => {
+            const latest = slot === 'a' ? get().variantA : get().variantB
+            if (!latest) {
+              set({ pendingVariant: null })
+              return
+            }
+            applyPunchFields(slot, latest)
+          },
+        })
+      },
+
+      flushPendingAb: () => {
+        flushAbAtLoopEnd()
+        if (get().pendingVariant) set({ pendingVariant: null })
+      },
+
+      cancelPendingAb: () => {
+        cancelAbAtLoopEnd()
+        set({ pendingVariant: null })
       },
 
 
