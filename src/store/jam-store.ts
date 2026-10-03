@@ -13,6 +13,7 @@ import {
   queueAbAtLoopEnd,
   walkLoopCycles,
 } from '../engine/ab-punch'
+import { cancelSongAtLoopEnd, flushSongAtLoopEnd } from '../engine/song-punch'
 import {
   keepOrFallbackLastTouched,
   afterTrackRemoved,
@@ -37,6 +38,12 @@ export interface JamUndoEntry {
 }
 
 export type AbSlot = 'a' | 'b'
+
+/** Kit / Shuffle / Dice queued to the current walk-loop end (playing only). */
+export type PendingSong =
+  | { kind: 'kit'; kitId: string; name: string }
+  | { kind: 'shuffle' }
+  | { kind: 'dice' }
 
 interface JamState {
   vibe: VibeId
@@ -82,6 +89,8 @@ interface JamState {
   activeVariant: AbSlot | null
   /** Slot queued to punch at current walk-loop end (playing only). */
   pendingVariant: AbSlot | null
+  /** New kit / Shuffle / Dice queued to the same walk-loop end (playing only). */
+  pendingSong: PendingSong | null
   /** Live improv pad overlay pattern (not persisted). null = silence lane. */
   improvHold: string | null
   /** Last Pads sheet settings — survive close/open (and refresh). */
@@ -129,6 +138,10 @@ interface JamState {
   flushPendingAb: () => void
   /** Drop a queued A/B punch without applying. */
   cancelPendingAb: () => void
+  /** Apply any queued New kit / Shuffle / Dice now (pause/stop). */
+  flushPendingSong: () => void
+  /** Drop a queued New kit / Shuffle / Dice without applying. */
+  cancelPendingSong: () => void
   /** Punch the other slot, or stash+activate if empty. */
   toggleAb: () => void
   setImprovHold: (hold: string | null) => void
@@ -225,6 +238,7 @@ export const useJamStore = create<JamState>()(
       variantB: null,
       activeVariant: null,
       pendingVariant: null,
+      pendingSong: null,
       improvHold: null,
       improvOctave: 4,
       improvMix: IMPROV_MIX_DEFAULT,
@@ -346,6 +360,16 @@ export const useJamStore = create<JamState>()(
       cancelPendingAb: () => {
         cancelAbAtLoopEnd()
         set({ pendingVariant: null })
+      },
+
+      flushPendingSong: () => {
+        flushSongAtLoopEnd()
+        if (get().pendingSong) set({ pendingSong: null })
+      },
+
+      cancelPendingSong: () => {
+        cancelSongAtLoopEnd()
+        set({ pendingSong: null })
       },
 
 

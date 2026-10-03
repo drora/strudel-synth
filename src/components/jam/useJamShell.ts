@@ -58,7 +58,7 @@ export function useJamShell() {
   const soundTrack = tracks.find((t) => t.id === soundTrackId)
 
   const applyKit = useCallback((id: string, fromPicker = false) => {
-    applyKitAction(id, { fromPicker })
+    applyKitAction(id, { fromPicker, deferToLoopEnd: true })
   }, [])
 
   useEffect(() => {
@@ -83,14 +83,14 @@ export function useJamShell() {
   }
 
   const onShuffle = () => {
-    reshuffleUnlocked()
+    reshuffleUnlocked({ deferToLoopEnd: true })
   }
 
   const onNewKit = () => {
     const pool = filteredKits.length > 0 ? filteredKits : kits
     const pick = pickRandomKit(pool, kitId)
     // Kit change keeps current root/scale. Dice on Root/Scale re-rolls.
-    if (pick) applyKitAction(pick.id)
+    if (pick) applyKitAction(pick.id, { deferToLoopEnd: true })
   }
 
   const onSpice = () => {

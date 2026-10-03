@@ -31,6 +31,7 @@ import type { ScaleKind } from '../../engine/kits'
 
 export function JamShell() {
   const j = useJamShell()
+  const pendingSong = useJamStore((s) => s.pendingSong)
   const codeTrackId = useJamStore((s) => s.codeTrackId)
   const songSeed = useJamStore((s) => s.songSeed)
   const walkChips = useMemo(
@@ -137,17 +138,30 @@ export function JamShell() {
           <button
             type="button"
             onClick={() => useJamStore.getState().setShowKitPicker(true)}
-            className="flex-1 min-h-12 px-4 rounded-xl border border-accent/40 bg-accent/10 text-left flex items-center justify-between gap-2 hover:border-accent transition-colors"
+            className={`flex-1 min-h-12 px-4 rounded-xl border text-left flex items-center justify-between gap-2 hover:border-accent transition-colors ${
+              pendingSong?.kind === 'kit'
+                ? 'border-dashed border-accent bg-accent/10'
+                : 'border-accent/40 bg-accent/10'
+            }`}
+            title={
+              pendingSong?.kind === 'kit'
+                ? `Kit · ${pendingSong.name} queued · fires at walk loop end`
+                : 'Choose kit'
+            }
           >
             <span className="min-w-0">
               <span className="text-sm font-medium text-accent truncate block">
-                Kit · {j.activeKit?.name ?? 'Browse kits'}
+                {pendingSong?.kind === 'kit'
+                  ? `Kit · ${pendingSong.name}`
+                  : `Kit · ${j.activeKit?.name ?? 'Browse kits'}`}
               </span>
-              {j.activeKit && (
+              {pendingSong?.kind === 'kit' ? (
+                <span className="text-[10px] text-accent truncate block">at loop end</span>
+              ) : j.activeKit ? (
                 <span className="text-[10px] text-text-muted truncate block">
                   {j.activeKit.bpm} BPM · {drumsBankShortName(j.activeKit.drumsBank)}
                 </span>
-              )}
+              ) : null}
             </span>
             <span className="text-accent shrink-0" aria-hidden>
               ▾
@@ -156,8 +170,16 @@ export function JamShell() {
           <button
             type="button"
             onClick={j.onNewKit}
-            className="min-h-12 px-3 rounded-xl text-xs font-medium bg-bg-elevated text-text-muted border border-border hover:text-accent shrink-0"
-            title="New kit"
+            className={`min-h-12 px-3 rounded-xl text-xs font-medium border shrink-0 ${
+              pendingSong?.kind === 'kit'
+                ? 'bg-accent/10 text-accent border-accent border-dashed'
+                : 'bg-bg-elevated text-text-muted border-border hover:text-accent'
+            }`}
+            title={
+              pendingSong?.kind === 'kit'
+                ? 'New kit queued · fires at walk loop end'
+                : 'New kit'
+            }
             aria-label="New kit"
           >
             New kit
@@ -215,10 +237,18 @@ export function JamShell() {
           </label>
           <button
             type="button"
-            className="min-h-11 min-w-11 rounded-xl border border-border bg-bg-elevated text-base leading-none text-text-muted hover:text-accent shrink-0"
-            title="Random root, scale, and walk length"
+            className={`min-h-11 min-w-11 rounded-xl border text-base leading-none shrink-0 ${
+              pendingSong?.kind === 'dice'
+                ? 'border-accent border-dashed bg-accent/10 text-accent'
+                : 'border-border bg-bg-elevated text-text-muted hover:text-accent'
+            }`}
+            title={
+              pendingSong?.kind === 'dice'
+                ? 'Dice queued · fires at walk loop end'
+                : 'Random root, scale, and walk length'
+            }
             aria-label="Random root, scale, and walk length"
-            onClick={() => rollSongHarmony()}
+            onClick={() => rollSongHarmony({ deferToLoopEnd: true })}
           >
             {'\u2684'}
           </button>
@@ -366,7 +396,16 @@ export function JamShell() {
               <button
                 type="button"
                 onClick={j.onShuffle}
-                className="min-h-12 rounded-xl text-xs font-medium bg-accent/20 text-accent border border-accent/30"
+                className={`min-h-12 rounded-xl text-xs font-medium border ${
+                  pendingSong?.kind === 'shuffle'
+                    ? 'bg-accent/10 text-accent border-accent border-dashed'
+                    : 'bg-accent/20 text-accent border-accent/30'
+                }`}
+                title={
+                  pendingSong?.kind === 'shuffle'
+                    ? 'Shuffle queued · fires at walk loop end'
+                    : 'Shuffle unlocked tracks'
+                }
               >
                 Shuffle
               </button>
