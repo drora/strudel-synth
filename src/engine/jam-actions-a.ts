@@ -4,7 +4,7 @@
 import { useSessionStore } from '../store/session-store'
 import { useJamStore, type AbSlot } from '../store/jam-store'
 import { useUIStore } from '../store/ui-store'
-import { KITS, getKit, kitToTemplate, applySoundChoiceToCode, matchSoundChoice } from './kits'
+import { KITS, getKit, kitToTemplate, applySoundChoiceToCode, matchSoundChoice, type SoundChoice } from './kits'
 import { pickRandomKit } from './kit-browser'
 import { reshuffleTrack } from './reshuffle'
 import { resolveShuffleProfile } from './kits-types'
@@ -25,9 +25,11 @@ import { walkLoopCycles } from './ab-punch'
 import type { PendingSong } from '../store/jam-store'
 import { applyIntensityFromBase, applyIntensityL4Layer, applyMutateToTracks, getMutation, type MutateId, type SongTimeFeel } from './mutate'
 import { planShuffleTargets } from './shuffle-lock'
-import { pickRandomSoundChoice, pickRandomImprovVoice, soundChoicesForKit } from './kit-sound-choices'
-import { isPadsKeepTrack, jamMicNameFromCode } from './improv-plate'
-import { micSampleDuration } from './mic-sample'
+import { pickRandomSoundChoice, pickRandomImprovVoice, soundChoicesForKit, improvSoundChoices } from './kit-sound-choices'
+import { isPadsKeepTrack, jamMicNameFromCode, setImprovVoiceInCode } from './improv-plate'
+import { micSampleDuration, listMicSampleNames } from './mic-sample'
+import { applyVoiceClipToCode } from './voice-profile'
+import { parseEffectValue, setEffectInCode } from './code-effects'
 import type { Track } from './types'
 import {
   captureHatMutes,
@@ -393,6 +395,76 @@ export function reshuffleTrackById(
   jam.setLastPeek(`Shuffle · ${track.name}`)
   queueLive('reshuffle')
   return { ok: true, trackId: track.id, name: track.name }
+}
+
+/**
+ * Track-dialog sound swap (beside Shuffle this).
+ * Re-picks a different Sound-sheet tile for this lane only — role catalog
+ * (Pads Keep uses the improv sheet the dialog already shows). Pattern stays.
+ * Lock blocks it the same way as Shuffle this and is not cleared.
+ * Timing matches Shuffle this: apply now (Update quant while playing),
+ * not the walk-loop defer used by global New kit / Shuffle / Dice.
+ */
+export function swapTrackSoundById(
+  trackId: string,
+  opts?: { random?: () => number },
+): { ok: true; trackId: string; name: string; label: string } | { ok: false; error: string } {
+  const state = useSessionStore.getState()
+  const plan = planShuffleTargets(state.tracks, trackId)
+  if (!plan.ok) {
+    if (plan.error.startsWith('Track locked:')) {
+      const name = plan.error.slice('Track locked: '.length)
+      useJamStore.getState().setLastPeek(`Locked · ${name}`)
+    }
+    return { ok: false, error: plan.error }
+  }
+  const track = plan.targets[0]!
+  const jam = useJamStore.getState()
+  const activeKit = jam.kitId ? getKit(jam.kitId) : undefined
+  const choices = isPadsKeepTrack(track)
+    ? improvSoundChoices(activeKit, listMicSampleNames())
+    : soundChoicesForKit(track.role, activeKit)
+  const choice = pickAlternateSoundChoice(choices, track.code, opts?.random ?? Math.random)
+  if (!choice) {
+    jam.setLastPeek(`Swap sound · ${track.name} · no other`)
+    return { ok: false, error: `No other sound for ${track.name}` }
+  }
+  jam.pushUndo({
+    trackId: track.id,
+    code: track.code,
+    label: `Swap sound · ${choice.label}`,
+  })
+  let next =
+    isPadsKeepTrack(track) && choice.sound
+      ? setImprovVoiceInCode(track.code, choice.sound)
+      : applySoundChoiceToCode(track.code, choice, track.role)
+  if (isPadsKeepTrack(track) && choice.sound) {
+    next = applyVoiceClipToCode(next, choice.sound, track.role)
+  }
+  if (track.role === 'vox' && choice.sound && parseEffectValue(next, 'attack') == null) {
+    next = setEffectInCode(next, 'attack', 0.08)
+  }
+  state.setCode(track.id, next)
+  // Sound-only: do not clear Lock, do not touch other lanes, do not roll a seed.
+  jam.touchTrack(track.id)
+  jam.setLastPeek(`Swap sound · ${choice.label}`)
+  queueLive('reshuffle')
+  return { ok: true, trackId: track.id, name: track.name, label: choice.label }
+}
+
+/** Uniform among legal tiles that are not the one currently sounding. */
+function pickAlternateSoundChoice(
+  choices: readonly SoundChoice[],
+  code: string,
+  rng: () => number,
+): SoundChoice | null {
+  const usable = choices.filter((c) => c.sound || c.bank)
+  if (!usable.length) return null
+  const current = usable.find((c) => matchSoundChoice(code, c))
+  const pool = current ? usable.filter((c) => c.id !== current.id) : usable
+  if (!pool.length) return null
+  const i = Math.min(pool.length - 1, Math.max(0, Math.floor(rng() * pool.length)))
+  return pool[i] ?? null
 }
 
 export function addJamTrack(
