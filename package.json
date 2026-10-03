@@ -26,6 +26,7 @@
     "test:mutate": "npx --yes tsx src/engine/mutate-smoke.test.ts",
     "test:intensity-session": "npx --yes tsx src/engine/intensity-session-smoke.test.ts",
     "test:jam-lock": "npx --yes tsx src/engine/jam-lock-shuffle-smoke.test.ts",
+    "test:swap-sound": "npx --yes tsx src/engine/swap-track-sound-smoke.test.ts",
     "test:webmcp": "npx --yes tsx src/engine/webmcp-tools-smoke.test.ts",
     "test:song-seed": "npx --yes tsx src/engine/song-seed-smoke.test.ts",
     "test:walk-length": "npx --yes tsx src/engine/walk-length-smoke.test.ts",

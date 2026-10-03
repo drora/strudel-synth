@@ -10,6 +10,7 @@ export {
   undoJam,
   reshuffleUnlocked,
   reshuffleTrackById,
+  swapTrackSoundById,
   stashAb,
   resetFreshStartGuard,
   resetFreshStartGuardForTests,

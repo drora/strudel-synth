@@ -19,7 +19,7 @@ import {
   isPatternedEffect,
 } from '../../engine/code-effects'
 import { liveUpdateEngine } from '../../engine/live-update'
-import { reshuffleTrackById, setTrackOctave } from '../../engine/jam-actions'
+import { reshuffleTrackById, swapTrackSoundById, setTrackOctave } from '../../engine/jam-actions'
 import { isMelodicRole } from '../../engine/note-harmony'
 import type { Track } from '../../engine/types'
 import { queueJam, queueJamImmediate } from './jam-shell-utils'
@@ -168,6 +168,14 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
       return
     }
     reshuffleTrackById(live.id)
+  }
+
+  const swapThisSound = () => {
+    if (live.locked) {
+      useJamStore.getState().setLastPeek(`Locked · ${live.name}`)
+      return
+    }
+    swapTrackSoundById(live.id)
   }
 
   const tabs: Array<{ id: SheetTab; label: string }> = [
@@ -435,6 +443,24 @@ export function JamTrackSheet({ track }: JamTrackSheetProps) {
               className="text-[11px] text-text-muted hover:text-accent underline-offset-2 hover:underline disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed px-2 py-1"
             >
               Shuffle this
+            </button>
+            <button
+              type="button"
+              disabled={live.locked}
+              onClick={swapThisSound}
+              title={
+                live.locked
+                  ? `Locked · unlock to swap ${live.name}`
+                  : `Swap sound on ${live.name} only`
+              }
+              aria-label={
+                live.locked
+                  ? `Locked — cannot swap sound on ${live.name}`
+                  : `Swap sound · ${live.name}`
+              }
+              className="text-[11px] text-text-muted hover:text-accent underline-offset-2 hover:underline disabled:opacity-30 disabled:no-underline disabled:cursor-not-allowed px-2 py-1"
+            >
+              Swap sound
             </button>
             <button
               type="button"
