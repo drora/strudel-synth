@@ -20,6 +20,9 @@ import {
   shiftNotesByOctaves,
 } from './note-harmony'
 import { liveUpdateEngine, type Quantization } from './live-update'
+import { queueSongAtLoopEnd } from './song-punch'
+import { walkLoopCycles } from './ab-punch'
+import type { PendingSong } from '../store/jam-store'
 import { applyIntensityFromBase, applyIntensityL4Layer, applyMutateToTracks, getMutation, type MutateId, type SongTimeFeel } from './mutate'
 import { planShuffleTargets } from './shuffle-lock'
 import { pickRandomSoundChoice, pickRandomImprovVoice, soundChoicesForKit } from './kit-sound-choices'
@@ -76,6 +79,33 @@ export function queueLive(
   liveUpdateEngine.queueUpdate(q, reason)
 }
 
+/**
+ * While playing and the UI asked to defer: queue store+audio for the current
+ * walk-loop end. Returns true if the caller should not apply yet.
+ * Stopped (or an internal at-boundary replay) returns false — caller runs now.
+ */
+function deferSongWhilePlaying(
+  defer: boolean | undefined,
+  atLoopEnd: boolean | undefined,
+  pending: PendingSong,
+  peek: string,
+  run: () => void,
+): boolean {
+  if (!defer || atLoopEnd) return false
+  if (!useSessionStore.getState().isPlaying) return false
+  const walkLen = walkLoopCycles(useJamStore.getState().songSeed?.walk.length)
+  useJamStore.setState({ pendingSong: pending })
+  useJamStore.getState().setLastPeek(peek)
+  queueSongAtLoopEnd({
+    walkLen,
+    apply: () => {
+      useJamStore.setState({ pendingSong: null })
+      run()
+    },
+  })
+  return true
+}
+
 export function queueLiveImmediate(reason: JamQueueReason = 'mute-solo') {
   queueLive(reason, 'immediate')
 }
@@ -106,11 +136,36 @@ function endTakeIfCapturing(): void {
 
 export function applyKit(
   id: string,
-  opts?: { fromPicker?: boolean; randomizeRoot?: boolean },
-): { ok: true; kitId: string; name: string; bpm: number; preservedBpm: boolean } | { ok: false; error: string } {
-  endTakeIfCapturing()
+  opts?: { fromPicker?: boolean; randomizeRoot?: boolean; deferToLoopEnd?: boolean; atLoopEnd?: boolean },
+): { ok: true; kitId: string; name: string; bpm: number; preservedBpm: boolean; queued?: boolean } | { ok: false; error: string } {
   const kit = getKit(id)
   if (!kit) return { ok: false, error: `Unknown kit: ${id}` }
+  if (
+    deferSongWhilePlaying(
+      opts?.deferToLoopEnd,
+      opts?.atLoopEnd,
+      { kind: 'kit', kitId: kit.id, name: kit.name },
+      `Kit · ${kit.name} at loop end`,
+      () => {
+        applyKit(id, {
+          fromPicker: opts?.fromPicker,
+          randomizeRoot: opts?.randomizeRoot,
+          atLoopEnd: true,
+        })
+      },
+    )
+  ) {
+    if (opts?.fromPicker) useJamStore.getState().setShowKitPicker(false)
+    return {
+      ok: true,
+      kitId: kit.id,
+      name: kit.name,
+      bpm: useSessionStore.getState().bpm,
+      preservedBpm: true,
+      queued: true,
+    }
+  }
+  endTakeIfCapturing()
   const resolved = resolveShuffleProfile(kit)
   const jam = useJamStore.getState()
   // First generate this visit (freshStart empty → randomizeRoot): new home + scale.
@@ -155,7 +210,7 @@ export function applyKit(
   jam.resetIntensitySession()
   jam.resetSongTimeFeel()
   jam.setLastPeek(`kit · ${kit.name} · shuffled`)
-  queueLive('kit')
+  queueLive('kit', opts?.atLoopEnd ? 'immediate' : undefined)
   return {
     ok: true,
     kitId: kit.id,
@@ -216,11 +271,25 @@ export function undoJam(): { ok: true; label: string } | { ok: false; error: str
   return { ok: true, label: entry.label }
 }
 
-export function reshuffleUnlocked(): {
+export function reshuffleUnlocked(opts?: { deferToLoopEnd?: boolean; atLoopEnd?: boolean }): {
   ok: true
   shuffled: number
   lockKit: boolean
+  queued?: boolean
 } {
+  if (
+    deferSongWhilePlaying(
+      opts?.deferToLoopEnd,
+      opts?.atLoopEnd,
+      { kind: 'shuffle' },
+      'Shuffle · at loop end',
+      () => {
+        reshuffleUnlocked({ atLoopEnd: true })
+      },
+    )
+  ) {
+    return { ok: true, shuffled: 0, lockKit: useJamStore.getState().lockKit, queued: true }
+  }
   endTakeIfCapturing()
   const state = useSessionStore.getState()
   const pinEffects = useUIStore.getState().pinEffects
@@ -273,7 +342,7 @@ export function reshuffleUnlocked(): {
   jam.resetIntensitySession()
   jam.resetSongTimeFeel()
   jam.setLastPeek(activeKit ? `Shuffle · ${activeKit.name}` : jam.lockKit ? 'Shuffle · same kit' : 'Shuffle · free')
-  queueLive('reshuffle')
+  queueLive('reshuffle', opts?.atLoopEnd ? 'immediate' : undefined)
   return { ok: true, shuffled, lockKit: jam.lockKit }
 }
 
@@ -509,14 +578,35 @@ export function setSongHarmony(
 }
 
 /** Dice: new root + scale + walk length ∈ {2,3,4} (never 1); reshuffle unlocked melodic to match. */
-export function rollSongHarmony(): {
+export function rollSongHarmony(opts?: { deferToLoopEnd?: boolean; atLoopEnd?: boolean }): {
   ok: true
   root: string
   scale: ScaleKind
   remapped: number
   walkLength: number
+  queued?: boolean
 } {
   const jam = useJamStore.getState()
+  if (
+    deferSongWhilePlaying(
+      opts?.deferToLoopEnd,
+      opts?.atLoopEnd,
+      { kind: 'dice' },
+      'Dice · at loop end',
+      () => {
+        rollSongHarmony({ atLoopEnd: true })
+      },
+    )
+  ) {
+    return {
+      ok: true,
+      root: jam.songRoot,
+      scale: jam.songScale,
+      remapped: 0,
+      walkLength: jam.songSeed?.walk.length ?? 1,
+      queued: true,
+    }
+  }
   const curLen = jam.songSeed?.walk.length
   const avoid: WalkLength | undefined =
     curLen === 1 || curLen === 2 || curLen === 3 || curLen === 4 ? curLen : undefined
@@ -572,7 +662,7 @@ export function rollSongHarmony(): {
   jam.resetIntensitySession()
   jam.resetSongTimeFeel()
   jam.setLastPeek(`Key · ${root} ${scale} · walk ${nextSeed.walk.length}`)
-  queueLive('reshuffle')
+  queueLive('reshuffle', opts?.atLoopEnd ? 'immediate' : undefined)
   return { ok: true, root, scale, remapped, walkLength: nextSeed.walk.length }
 }
 
